@@ -1174,9 +1174,29 @@ ul {
 }
 
 .sidebar-logo .app-logo {
-    width: 15px;
-    height: 15px;
+    width: 24px;
+    height: 24px;
+    border-radius: 4px;
     flex-shrink: 0;
+    object-fit: contain;
+}
+
+.sidebar-logo .app-logo-light {
+    display: none;
+}
+
+.sidebar-logo .app-logo-dark {
+    display: inline-block;
+}
+
+:root[data-theme='white'] .sidebar-logo .app-logo-dark,
+:root[data-theme='latte'] .sidebar-logo .app-logo-dark {
+    display: none;
+}
+
+:root[data-theme='white'] .sidebar-logo .app-logo-light,
+:root[data-theme='latte'] .sidebar-logo .app-logo-light {
+    display: inline-block;
 }
 
 .sidebar-logo span {

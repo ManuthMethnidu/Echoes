@@ -49,9 +49,12 @@
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="" />
 
-        <link rel="apple-touch-icon" href="/images/echoes_logo.svg" />
-        <link rel="manifest" href="/manifest.json" />
-        <link rel="icon" href="/images/echoes_logo.svg" type="image/svg+xml" />
+        <link rel="icon" type="image/png" href="/favicon-96x96.png" sizes="96x96" />
+        <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+        <link rel="shortcut icon" href="/favicon.ico" />
+        <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+        <meta name="apple-mobile-web-app-title" content="Echoes" />
+        <link rel="manifest" href="/site.webmanifest" />
         <link
             rel="preload"
             as="style"
@@ -2025,19 +2028,9 @@
                 <div class="sidebar-content">
                     <div class="sidebar-logo">
                         <a href="./" class="sidebar-logo-link">
-                            <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                width="200"
-                                height="200"
-                                class="app-logo app-logo"
-                                viewBox="14.75 14.75 70.5 70.5"
-                            >
-                                <path
-                                    fill="currentColor"
-                                    d="M38.25 14.75h47v47h-23.5v-23.5h-23.5Zm-23.5 23.5h23.5v23.5h23.5v23.5h-47Z"
-                                ></path>
-                            </svg>
-                            <span style="font-size: 1.5rem; font-weight: 700; letter-spacing: -0.04em; color: #fff;">Echoes</span>
+                            <img src="/images/echoes_logo_white.png" alt="Echoes" class="app-logo app-logo-dark" />
+                            <img src="/images/echoes_logo_black.png" alt="Echoes" class="app-logo app-logo-light" />
+                            <span style="font-size: 1.5rem; font-weight: 700; letter-spacing: -0.04em;">Echoes</span>
                         </a>
                         <button
                             id="sidebar-toggle"

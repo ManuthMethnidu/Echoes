@@ -30,6 +30,7 @@ import { db } from './db.js';
 import { showNotification } from './downloads.js';
 import { syncManager } from './accounts/pocketbase.js';
 import { authManager } from './accounts/auth.js';
+import { connectManager } from './connect-manager.js';
 import { registerSW } from 'virtual:pwa-register';
 import { openEditProfile } from './profile.js';
 import { ThemeStore } from './themeStore.js';
@@ -543,6 +544,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     );
     initializeUIInteractions(Player.instance, MusicAPI.instance, UIRenderer.instance);
     initializeKeyboardShortcuts(Player.instance, audioPlayer);
+    await connectManager.init();
 
     // Restore UI state for the current track (like button, theme)
     if (Player.instance.currentTrack) {

@@ -32,6 +32,7 @@ import { MusicAPI } from './music-api.js';
 import { LyricsManager } from './lyrics.js';
 import { Player } from './player.js';
 import { UIRenderer } from './ui.js';
+import { connectManager } from './connect-manager.js';
 
 let currentTrackIdForWaveform = null;
 let copiedTracks = [];
@@ -708,14 +709,26 @@ export async function initializePlayerEvents(player, audioPlayer, scrobbler, ui)
 
     playPauseBtn.addEventListener('click', async () => {
         await hapticMedium();
+        if (connectManager && !connectManager.isLocalActive) {
+            connectManager.sendRemoteCommand(connectManager.remotePlayback?.isPlaying ? 'PAUSE' : 'PLAY');
+            return;
+        }
         player.handlePlayPause();
     });
     nextBtn.addEventListener('click', async () => {
         await hapticMedium();
+        if (connectManager && !connectManager.isLocalActive) {
+            connectManager.sendRemoteCommand('NEXT');
+            return;
+        }
         player.playNext();
     });
     prevBtn.addEventListener('click', async () => {
         await hapticMedium();
+        if (connectManager && !connectManager.isLocalActive) {
+            connectManager.sendRemoteCommand('PREV');
+            return;
+        }
         player.playPrev();
     });
 
@@ -1098,6 +1111,13 @@ function initializeSmoothSliders(player) {
             const activeEl = player.activeElement;
             // Only handle click if not result of a drag release
             seek(progressBar, e, (position) => {
+                if (connectManager && !connectManager.isLocalActive) {
+                    const dur = connectManager.remotePlayback?.track?.duration || 0;
+                    if (dur > 0) {
+                        connectManager.sendRemoteCommand('SEEK', { position: position * dur });
+                    }
+                    return;
+                }
                 if (!isNaN(activeEl.duration) && activeEl.duration > 0 && activeEl.duration !== Infinity) {
                     void player.seekTo(position * activeEl.duration);
                 } else if (player.currentTrack && player.currentTrack.duration) {

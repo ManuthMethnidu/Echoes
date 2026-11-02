@@ -1172,6 +1172,63 @@
             </div>
         </div>
 
+        <div id="connected-devices-modal" class="modal connected-devices-modal">
+            <div class="modal-overlay"></div>
+            <div class="modal-content" style="max-width: 440px; padding: 24px; border-radius: 16px">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px">
+                    <div style="display: flex; align-items: center; gap: 10px">
+                        <div class="devices-header-icon" style="color: #1ed760">
+                            <use svg="!lucide/monitor-speaker.svg" size="24" />
+                        </div>
+                        <h3 style="margin: 0; font-size: 1.25rem; font-weight: 700">Connect to a device</h3>
+                    </div>
+                    <button
+                        type="button"
+                        id="close-devices-modal-btn"
+                        class="modal-close"
+                        style="background: none; border: none; color: #888; cursor: pointer; font-size: 20px"
+                    >
+                        ✕
+                    </button>
+                </div>
+
+                <div style="color: #a0a0a0; font-size: 0.85rem; margin-bottom: 16px">
+                    Seamlessly switch playback between your TV, phone, tablet, and desktop without losing your spot.
+                </div>
+
+                <div class="device-section-title">CURRENT DEVICE</div>
+                <div id="current-device-row" class="device-item active" style="margin-bottom: 16px"></div>
+
+                <div class="device-section-title">AVAILABLE DEVICES</div>
+                <div id="remote-devices-list" class="modal-list" style="max-height: 220px; overflow-y: auto">
+                    <div style="color: #777; font-size: 0.85rem; padding: 12px; text-align: center">
+                        Scanning for nearby devices...
+                    </div>
+                </div>
+
+                <div
+                    style="
+                        margin-top: 20px;
+                        border-top: 1px solid rgba(255, 255, 255, 0.08);
+                        padding-top: 14px;
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                    "
+                >
+                    <span style="font-size: 0.8rem; color: #777">Don't see your TV?</span>
+                    <button
+                        type="button"
+                        id="modal-pair-tv-btn"
+                        class="btn-secondary"
+                        style="font-size: 0.8rem; padding: 6px 12px"
+                    >
+                        Pair with QR Code
+                    </button>
+                </div>
+            </div>
+        </div>
+
         <div id="discography-download-modal" class="modal">
             <div class="modal-overlay"></div>
             <div class="modal-content" style="max-width: 500px">
@@ -6398,6 +6455,14 @@
                         </button>
                         <button id="sleep-timer-btn" title="Sleep Timer" class="mobile-only">
                             <use svg="!lucide/clock.svg" size="20" />
+                        </button>
+                        <button
+                            id="connected-devices-btn"
+                            class="connected-devices-btn"
+                            title="Connected Devices (Spotify Connect)"
+                            aria-label="Connected Devices"
+                        >
+                            <use svg="!lucide/monitor-speaker.svg" size="20" />
                         </button>
                         <button id="queue-btn" title="Queue">
                             <use svg="!lucide/list.svg" size="24" />

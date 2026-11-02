@@ -1,0 +1,15 @@
+name = "echos-connect-worker"
+main = "src/index.ts"
+compatibility_date = "2024-09-23"
+
+[durable_objects]
+bindings = [
+  { name = "PLAYBACK_ROOM", class_name = "PlaybackRoom" }
+]
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["PlaybackRoom"]
+
+[observability]
+enabled = true

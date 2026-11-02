@@ -12031,3 +12031,209 @@ body.sidebar-collapsed #sidebar-nav-donate {
 :root.disable-blur-effects .synced-line.past {
     filter: none !important;
 }
+
+/* ========================================================
+   Spotify Connect - Connected Devices & Remote Playback UI
+   ======================================================== */
+.connected-devices-btn {
+    position: relative;
+    color: var(--text-muted, #a0a0a0);
+    transition: color 0.2s ease, transform 0.2s ease;
+    background: none;
+    border: none;
+    cursor: pointer;
+}
+
+.connected-devices-btn:hover {
+    color: #1ed760;
+    transform: scale(1.08);
+}
+
+.connected-devices-btn.has-remote-active {
+    color: #1ed760 !important;
+}
+
+.connected-devices-btn.has-remote-active::after {
+    content: '';
+    position: absolute;
+    bottom: -2px;
+    right: -2px;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background-color: #1ed760;
+    box-shadow: 0 0 8px #1ed760;
+}
+
+/* Remote Playback Banner (Spotify Style Top/Bottom Bar) */
+.remote-playback-banner {
+    position: fixed;
+    bottom: calc(var(--player-bar-height-desktop, 90px) + 16px);
+    right: 24px;
+    background: rgba(18, 18, 18, 0.95);
+    border: 1px solid rgba(30, 215, 96, 0.35);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 16px rgba(30, 215, 96, 0.15);
+    backdrop-filter: blur(16px);
+    border-radius: 30px;
+    padding: 8px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    z-index: 2050;
+    cursor: pointer;
+    animation: slideUpFade 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.remote-playback-banner:hover {
+    transform: translateY(-2px);
+    border-color: #1ed760;
+}
+
+.remote-banner-content {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.85rem;
+    color: #fff;
+}
+
+.remote-banner-content strong {
+    color: #1ed760;
+}
+
+.pulse-indicator {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #1ed760;
+    box-shadow: 0 0 10px #1ed760;
+    animation: greenPulse 2s infinite ease-in-out;
+}
+
+@keyframes greenPulse {
+    0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(30, 215, 96, 0.7); }
+    70% { transform: scale(1.15); box-shadow: 0 0 0 8px rgba(30, 215, 96, 0); }
+    100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(30, 215, 96, 0); }
+}
+
+.banner-switch-btn {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 20px;
+    padding: 4px 10px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+
+.banner-switch-btn:hover {
+    background: #1ed760;
+    color: #000;
+}
+
+/* Connected Devices Modal Styling */
+.connected-devices-modal .modal-content {
+    background: #121212 !important;
+    border: 1px solid #282828;
+    color: #fff;
+}
+
+.device-section-title {
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    color: #888;
+    margin-bottom: 8px;
+}
+
+.device-item {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 12px 14px;
+    border-radius: 12px;
+    background: #181818;
+    border: 1px solid #282828;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    margin-bottom: 8px;
+}
+
+.device-item:hover {
+    background: #222;
+    border-color: #383838;
+}
+
+.device-item.active {
+    background: rgba(30, 215, 96, 0.08);
+    border-color: rgba(30, 215, 96, 0.4);
+}
+
+.device-item-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    background: #242424;
+    color: #ccc;
+    flex-shrink: 0;
+}
+
+.device-item.active .device-item-icon {
+    color: #1ed760;
+    background: rgba(30, 215, 96, 0.15);
+}
+
+.device-item-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.device-item-name {
+    font-size: 0.95rem;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.device-item-status {
+    font-size: 0.8rem;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 2px;
+}
+
+.device-online-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+    display: inline-block;
+}
+
+.device-online-dot.pulse {
+    animation: greenPulse 2s infinite ease-in-out;
+}
+
+.device-switch-btn {
+    border-radius: 20px;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+@media (max-width: 768px) {
+    .remote-playback-banner {
+        right: 12px;
+        left: 12px;
+        bottom: calc(var(--player-bar-height-mobile, 80px) + 12px);
+        justify-content: space-between;
+    }
+}
+

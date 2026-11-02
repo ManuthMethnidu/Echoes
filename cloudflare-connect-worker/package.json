@@ -1,0 +1,19 @@
+{
+  "name": "echos-connect-worker",
+  "version": "1.0.0",
+  "description": "Cloudflare Worker + Durable Objects for Spotify Connect-style serverless edge device synchronization in Echos",
+  "main": "src/index.ts",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "build": "wrangler deploy --dry-run"
+  },
+  "keywords": ["cloudflare-worker", "durable-objects", "spotify-connect", "serverless", "websockets"],
+  "author": "Echos",
+  "license": "MIT",
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20240923.0",
+    "typescript": "^5.6.2",
+    "wrangler": "^3.78.0"
+  }
+}

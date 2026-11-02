@@ -125,7 +125,7 @@ export async function addMetadataToAudio(audioBlob, track, _api, _quality, prefe
             console.warn('Error setting lyrics metadata', track, e);
         }
 
-        return await addMetadataWithTagLib(
+        const tagged = await addMetadataWithTagLib(
             audioBlob,
             {
                 ...data,
@@ -134,8 +134,10 @@ export async function addMetadataToAudio(audioBlob, track, _api, _quality, prefe
             true,
             true
         );
+        return tagged || audioBlob;
     } catch (err) {
-        console.error(err);
+        console.warn('Metadata tagging skipped, using raw audio:', err);
+        return audioBlob;
     }
 
     return audioBlob;

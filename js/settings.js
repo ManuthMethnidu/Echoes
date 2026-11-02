@@ -6237,14 +6237,14 @@ export async function initializeSettings(scrobbler, player, api, ui) {
         observer.observe(appearanceTabContent, { attributes: true });
     }
 
-    // Spins album cover and adds hole in fullscreen
+    // Beat pulse 1:1 rectangular album cover in fullscreen
     const cdAlbumCoverToggle = document.getElementById('cd-album-cover-toggle');
 
     if (cdAlbumCoverToggle) {
-        cdAlbumCoverToggle.checked = visualizerSettings.isCdAlbumCoverEnabled();
+        cdAlbumCoverToggle.checked = visualizerSettings.isBeatPulseEnabled();
 
         cdAlbumCoverToggle.addEventListener('change', (e) => {
-            visualizerSettings.setCdAlbumCoverEnabled(e.target.checked);
+            visualizerSettings.setBeatPulseEnabled(e.target.checked);
             window.dispatchEvent(new CustomEvent('fullscreen-cover-settings-changed'));
         });
     }

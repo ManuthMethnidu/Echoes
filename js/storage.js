@@ -1201,17 +1201,27 @@ export const visualizerSettings = {
         localStorage.setItem('butterchurn-randomize-enabled', enabled);
     },
 
-    // Spin album cover and add hole in fullscreen
-    isCdAlbumCoverEnabled() {
+    BEAT_PULSE_KEY: 'echos-beat-pulse-enabled',
+
+    isBeatPulseEnabled() {
         try {
-            return localStorage.getItem(this.CD_ALBUM_COVER_KEY) !== 'false';
+            return localStorage.getItem(this.BEAT_PULSE_KEY) !== 'false';
         } catch {
             return true;
         }
     },
 
+    setBeatPulseEnabled(enabled) {
+        localStorage.setItem(this.BEAT_PULSE_KEY, enabled ? 'true' : 'false');
+    },
+
+    // CD album cover disabled in favor of 1:1 rectangle beat pulse artwork
+    isCdAlbumCoverEnabled() {
+        return false;
+    },
+
     setCdAlbumCoverEnabled(enabled) {
-        localStorage.setItem(this.CD_ALBUM_COVER_KEY, enabled ? 'true' : 'false');
+        localStorage.setItem(this.CD_ALBUM_COVER_KEY, 'false');
     },
 };
 

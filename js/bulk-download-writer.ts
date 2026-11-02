@@ -69,15 +69,30 @@ export class ZipStreamWriter implements IBulkDownloadWriter {
     constructor(private readonly suggestedFilename: string) {}
 
     async write(files: AsyncIterable<WriterEntry>): Promise<void> {
-        const fileHandle = await window.showSaveFilePicker({
-            suggestedName: this.suggestedFilename,
-            types: [{ description: 'ZIP Archive', accept: { 'application/zip': ['.zip'] } }],
-        });
-        const { downloadZip } = await loadClientZip();
-        const writable = await fileHandle.createWritable();
-        const response = downloadZip(files);
-        if (!response.body) throw new Error('ZIP response body is null');
-        await response.body.pipeTo(writable);
+        let fileHandle: FileSystemFileHandle | null = null;
+        try {
+            if ('showSaveFilePicker' in window) {
+                fileHandle = await window.showSaveFilePicker({
+                    suggestedName: this.suggestedFilename,
+                    types: [{ description: 'ZIP Archive', accept: { 'application/zip': ['.zip'] } }],
+                });
+            }
+        } catch (e: any) {
+            if (e?.name === 'AbortError') throw e;
+            fileHandle = null;
+        }
+
+        if (fileHandle) {
+            const { downloadZip } = await loadClientZip();
+            const writable = await fileHandle.createWritable();
+            const response = downloadZip(files);
+            if (!response.body) throw new Error('ZIP response body is null');
+            await response.body.pipeTo(writable);
+        } else {
+            // Fall back to ZipBlobWriter so browser downloads work on all devices
+            const blobWriter = new ZipBlobWriter(this.suggestedFilename);
+            await blobWriter.write(files);
+        }
     }
 }
 

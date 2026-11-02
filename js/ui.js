@@ -18,6 +18,7 @@ import {
     createModal,
 } from './utils.js';
 import { openLyricsPanel, renderLyricsInFullscreen, clearFullscreenLyricsSync } from './lyrics.js';
+import { beatPulseManager } from './beat-pulse.js';
 import {
     recentActivityManager,
     backgroundSettings,
@@ -1545,11 +1546,14 @@ export class UIRenderer {
         const coverImage = document.getElementById('fullscreen-cover-image');
         const coverCard = document.getElementById('fullscreen-artwork-card');
         const cdRing = document.getElementById('cd-ring');
-        const isCdMode = visualizerSettings.isCdAlbumCoverEnabled();
 
-        coverImage?.classList.toggle('cd', isCdMode);
-        coverCard?.classList.toggle('cd', isCdMode);
-        cdRing?.classList.toggle('cd', isCdMode);
+        // Clean up any legacy CD mode classes
+        coverImage?.classList.remove('cd');
+        coverCard?.classList.remove('cd');
+        if (cdRing) cdRing.style.display = 'none';
+
+        // Start beat pulse animation for 1:1 rectangle artwork
+        beatPulseManager.start(coverCard, overlay, this.player?.audio);
 
         const needsVideoCover = track.type !== 'video' && !track.videoCoverResult;
         const videoCoverRequest = needsVideoCover
@@ -1729,6 +1733,7 @@ export class UIRenderer {
     }
 
     closeFullscreenCover() {
+        beatPulseManager.stop();
         const overlay = document.getElementById('fullscreen-cover-overlay');
         const coverImage = document.getElementById('fullscreen-cover-image');
         const lyricsContent = document.getElementById('fullscreen-lyrics-content');

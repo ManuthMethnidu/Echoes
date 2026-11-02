@@ -8,6 +8,7 @@ import pairApproveHandler from './api/pair/approve.js';
 import healthHandler from './api/health.js';
 import spotifyHandler from './api/import/spotify.ts';
 import socialAuthHandler from './api/auth/sign-in/social.ts';
+import downloadHandler from './api/yt/download.ts';
 
 // Load .env.local
 import { readFileSync, existsSync } from 'fs';
@@ -265,6 +266,22 @@ async function runTests() {
         throw new Error('Expected YouTube OAuth URL to include youtube.readonly scope');
     }
     console.log('✓ YouTube Account OAuth connection passed!\n');
+
+    console.log('--- Test 10: Browser Direct Download / Export Audio Endpoint ---');
+    const { req: dlReq, res: dlRes } = createMockReqRes({
+        method: 'HEAD',
+        query: { id: '34Na4j8AVgA', filename: 'The Weeknd - Starboy' }
+    });
+    dlRes.end = () => {};
+    await downloadHandler(dlReq, dlRes);
+    const dlResult = dlRes._getResult();
+    console.log('Download Status Code:', dlResult.statusCode);
+    console.log('Content-Type:', dlResult.headers['Content-Type']);
+    console.log('Content-Disposition:', dlResult.headers['Content-Disposition']);
+    if (dlResult.statusCode !== 200 || !dlResult.headers['Content-Disposition']?.includes('attachment')) {
+        throw new Error('Download endpoint failed: ' + JSON.stringify(dlResult.headers));
+    }
+    console.log('✓ Browser Direct Download / Export Audio endpoint passed!\n');
 
     console.log('====================================================');
     console.log('🎉 ALL INTEGRATION TESTS PASSED SUCCESSFULLY! 🎉');

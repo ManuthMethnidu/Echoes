@@ -219,9 +219,32 @@ export const detectAudioFormat = (view, mimeType = '') => {
         return 'ts';
     }
 
+    // Check for WebM / Matroska EBML ID: 0x1A 0x45 0xDF 0xA3 (Opus in WebM)
+    if (
+        view.byteLength >= 4 &&
+        view.getUint8(0) === 0x1a &&
+        view.getUint8(1) === 0x45 &&
+        view.getUint8(2) === 0xdf &&
+        view.getUint8(3) === 0xa3
+    ) {
+        return 'opus';
+    }
+
+    // Check for Ogg container: "OggS"
+    if (
+        view.byteLength >= 4 &&
+        view.getUint8(0) === 0x4f &&
+        view.getUint8(1) === 0x67 &&
+        view.getUint8(2) === 0x67 &&
+        view.getUint8(3) === 0x53
+    ) {
+        return 'ogg';
+    }
+
     // Fallback to MIME type
     if (mimeType === 'audio/flac') return 'flac';
     if (mimeType === 'audio/ogg') return 'ogg';
+    if (mimeType && (mimeType.includes('webm') || mimeType.includes('opus'))) return 'opus';
     if (mimeType === 'audio/mp4' || mimeType === 'audio/x-m4a') return 'mp4';
     if (mimeType === 'audio/mp3' || mimeType === 'audio/mpeg') return 'mp3';
 
@@ -246,12 +269,13 @@ export const getExtensionFromBlob = async (blob) => {
     if (format) return format;
 
     if (blob.type.includes('video')) return 'mp4';
+    if (blob.type.includes('webm') || blob.type.includes('opus')) return 'opus';
     if (blob.type === 'audio/flac') return 'flac';
     if (blob.type === 'audio/ogg') return 'ogg';
-    if (blob.type === 'audio/mp4' || blob.type === 'audio/x-m4a') return 'mp4';
+    if (blob.type === 'audio/mp4' || blob.type === 'audio/x-m4a') return 'm4a';
     if (blob.type === 'audio/mp3' || blob.type === 'audio/mpeg') return 'mp3';
 
-    return 'flac';
+    return 'opus';
 };
 
 export const getExtensionForQuality = (quality) => {

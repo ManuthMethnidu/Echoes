@@ -63,6 +63,10 @@ export default function vercelApiPlugin(): Plugin {
                         handlerPath = './api/yt/search.ts';
                     } else if (subPath === 'yt/stream') {
                         handlerPath = './api/yt/stream.ts';
+                    } else if (subPath === 'yt/download') {
+                        handlerPath = './api/yt/download.ts';
+                    } else if (subPath === 'yt/proxy-stream') {
+                        handlerPath = './api/yt/proxy-stream.ts';
                     } else if (subPath === 'yt/radio') {
                         handlerPath = './api/yt/radio.ts';
                     } else if (subPath === 'yt/playlist') {

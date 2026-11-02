@@ -1567,6 +1567,23 @@ export async function handleTrackAction(
         }
     } else if (action === 'download') {
         await downloadTrackWithMetadata(item, downloadQualitySettings.getQuality(), api, lyricsManager);
+    } else if (action === 'export-download') {
+        const cleanId = String(item.videoId || item.id || '').replace(/^yt:/, '');
+        const artist = getTrackArtists(item) || '';
+        const title = getTrackTitle(item) || item.title || 'track';
+        const filename = `${artist ? artist + ' - ' : ''}${title}`;
+        showNotification(`Exporting "${title}"...`);
+        if (/^[a-zA-Z0-9_-]{11}$/.test(cleanId)) {
+            const dlUrl = `/api/yt/download?id=${encodeURIComponent(cleanId)}&filename=${encodeURIComponent(filename)}`;
+            const a = document.createElement('a');
+            a.href = dlUrl;
+            a.download = `${filename}.opus`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        } else {
+            await downloadTrackWithMetadata(item, downloadQualitySettings.getQuality(), api, lyricsManager);
+        }
     } else if (action === 'toggle-like') {
         const added = await db.toggleFavorite(type, item);
         await syncManager.syncLibraryItem(type, item, added);

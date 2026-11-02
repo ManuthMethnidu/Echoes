@@ -10,7 +10,7 @@ const ORDERED_INSTANCES = [
 
 export async function fetchWithFailover(
     pathBuilder: (base: string) => string,
-    timeoutMs = 3500
+    timeoutMs = 8000
 ): Promise<{ data: any; instance: string }> {
     const sampleKey = pathBuilder('');
     

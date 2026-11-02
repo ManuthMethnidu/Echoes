@@ -2928,15 +2928,59 @@ export class LosslessAPI {
 
             if (!streamResult?.url) {
                 const cleanId = String(id).replace(/^(?:tracks|mono):(?:track:)?/, '');
-                streamResult = tracksStreamerAPI.getStreamUrl(cleanId, cleanQuality, { track });
+                try {
+                    streamResult = tracksStreamerAPI.getStreamUrl(cleanId, cleanQuality, { track });
+                } catch (_) {}
+            }
+
+            // Fallback to YouTube Music / ArchiveTune audio stream resolution
+            if (!streamResult?.url) {
+                try {
+                    const { ytEngine } = await import('./yt-music.js');
+                    const cleanYtId = String(id).replace(/^(?:yt:|tracks:|mono:)/, '');
+                    let ytRes = null;
+                    if (track?.videoId || String(id).startsWith('yt:') || /^[a-zA-Z0-9_-]{11}$/.test(cleanYtId)) {
+                        ytRes = await ytEngine.resolveStream(track?.videoId || cleanYtId);
+                    } else {
+                        const artistName =
+                            track?.artist?.name ||
+                            (Array.isArray(track?.artists) ? track.artists.map((a) => a.name).join(' ') : '') ||
+                            '';
+                        const trackTitle = track?.title || track?.name || '';
+                        const query = `${trackTitle} ${artistName}`.trim();
+                        if (query) {
+                            const searchResults = await ytEngine.search(query);
+                            if (searchResults && searchResults.length > 0) {
+                                const targetId = searchResults[0].id || searchResults[0].videoId;
+                                if (targetId) {
+                                    ytRes = await ytEngine.resolveStream(targetId);
+                                }
+                            }
+                        }
+                    }
+
+                    if (ytRes?.url || ytRes?.streamUrl) {
+                        const directUrl = ytRes.url || ytRes.streamUrl;
+                        streamResult = {
+                            url: directUrl,
+                            sourceUrl: directUrl,
+                            mimeType: ytRes.mimeType || 'audio/webm',
+                            mediaMimeType: ytRes.mimeType || 'audio/webm',
+                            playbackType: 'direct',
+                            source: 'youtube',
+                        };
+                    }
+                } catch (ytErr) {
+                    console.warn('[Download Enrich] YouTube resolution fallback failed:', ytErr);
+                }
             }
 
             if (streamResult?.url) {
                 externalStreamUrl = streamResult.url;
                 externalRgInfo = streamResult.rgInfo;
                 externalStreamType = streamResult.playbackType || 'direct';
-                externalProvider = 'monochrome';
-                externalMimeType = streamResult.mimeType || 'audio/flac';
+                externalProvider = streamResult.source || 'youtube';
+                externalMimeType = streamResult.mimeType || 'audio/webm';
                 externalMediaMimeType = streamResult.mediaMimeType || externalMimeType;
                 externalSourceUrl = streamResult.sourceUrl || externalStreamUrl;
                 lookup = {
@@ -3193,13 +3237,24 @@ export class LosslessAPI {
                     }
                 }
 
-                const response = await fetch(getProxyUrl(streamUrl), {
-                    cache: 'no-store',
-                    signal: options.signal,
-                });
-
-                if (!response.ok) {
-                    throw new Error(`Fetch failed: ${response.status}`);
+                let response;
+                try {
+                    response = await fetch(getProxyUrl(streamUrl), {
+                        cache: 'no-store',
+                        signal: options.signal,
+                    });
+                    if (!response.ok) throw new Error(`Fetch failed: ${response.status}`);
+                } catch (fetchErr) {
+                    if (!streamUrl.startsWith('/api/yt/proxy-stream')) {
+                        const proxyUrl = `/api/yt/proxy-stream?url=${encodeURIComponent(streamUrl)}`;
+                        response = await fetch(proxyUrl, {
+                            cache: 'no-store',
+                            signal: options.signal,
+                        });
+                        if (!response.ok) throw fetchErr;
+                    } else {
+                        throw fetchErr;
+                    }
                 }
 
                 const contentLengthHeader = response.headers.get('Content-Length');
@@ -3217,7 +3272,7 @@ export class LosslessAPI {
                         onProgress?.(new DownloadProgress(receivedBytes, totalBytes || undefined));
                     }
 
-                    const defaultMime = isVideo ? 'video/mp4' : 'audio/flac';
+                    const defaultMime = isVideo ? 'video/mp4' : enriched.externalMimeType || 'audio/webm';
                     blob = new Blob(chunks, { type: response.headers.get('Content-Type') || defaultMime });
                 } else {
                     onProgress?.(new DownloadProgress(0, undefined));

@@ -105,9 +105,13 @@ export async function applyAudioPostProcessing(
         (extension === 'm4a' && (trackAudioQuality === 'LOSSLESS' || trackAudioQuality === 'HI_RES_LOSSLESS'));
 
     if (statedLossless && !sourceIsLossless) {
-        // Basic checks say the file isn't lossless, but we'll use ffmpegInfo to check the codec.
-        const ffmpegLog: string[] = await ffmpegInfo(blob);
-        sourceIsLossless = ffmpegLog.some((line) => line.match(/Stream #\d:\d -> #\d:\d \(flac/));
+        // Basic checks say the file isn't lossless, but we'll use ffmpegInfo to check the codec if possible.
+        try {
+            const ffmpegLog: string[] = await ffmpegInfo(blob);
+            sourceIsLossless = ffmpegLog.some((line) => line.match(/Stream #\d:\d -> #\d:\d \(flac/));
+        } catch {
+            sourceIsLossless = false;
+        }
     }
 
     // Transcode to custom lossy format if requested

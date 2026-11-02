@@ -1,8 +1,8 @@
 {
-    "name": "echos",
+    "name": "echoes",
     "type": "module",
     "version": "1.0.0",
-    "description": "echos - clean, ad-free music player with cross-device sync and YouTube Music engine",
+    "description": "Echoes - clean, ad-free music player with cross-device sync and YouTube Music engine",
     "scripts": {
         "dev": "vite --port 3000 --host",
         "dev:pages": "bunx wrangler pages dev dist",

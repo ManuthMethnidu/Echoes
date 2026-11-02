@@ -1,7 +1,7 @@
 {
-  "name": "echos-connect-worker",
+  "name": "echoes-connect-worker",
   "version": "1.0.0",
-  "description": "Cloudflare Worker + Durable Objects for Spotify Connect-style serverless edge device synchronization in Echos",
+  "description": "Cloudflare Worker + Durable Objects for Spotify Connect-style serverless edge device synchronization in Echoes",
   "main": "src/index.ts",
   "scripts": {
     "dev": "wrangler dev",

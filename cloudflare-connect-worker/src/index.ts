@@ -1,5 +1,5 @@
 /**
- * Echos Connect - Serverless Spotify Connect Edge Worker
+ * Echoes Connect - Serverless Spotify Connect Edge Worker
  * Powered by Cloudflare Workers & Durable Objects
  *
  * Each user gets a dedicated, in-memory stateful actor room (`PlaybackRoom`).
@@ -418,7 +418,7 @@ export default {
     if (url.pathname === '/' || url.pathname === '/health') {
       return new Response(
         JSON.stringify({
-          service: 'echos-connect-worker',
+          service: 'echoes-connect-worker',
           status: 'online',
           engine: 'Cloudflare Workers + Durable Objects',
           timestamp: new Date().toISOString(),

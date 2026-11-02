@@ -327,7 +327,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     if (import.meta.env.DEV) {
-        window.echos = {
+        window.echoes = window.echos = {
             HiFiClient,
             LyricsManager,
             MusicAPI,
@@ -344,7 +344,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Populate commit info
     {
-        const html = `echos · Web Edition`;
+        const html = `Echoes · Web Edition`;
         const aboutEl = document.getElementById('about-commit-info');
         const settingsEl = document.getElementById('settings-commit-info');
         if (aboutEl) aboutEl.innerHTML = html;
@@ -2862,7 +2862,7 @@ function showUpdateNotification(updateCallback) {
     notification.innerHTML = `
         <div>
             <strong>Update Available</strong>
-            <p>A new version of echos is available.</p>
+            <p>A new version of Echoes is available.</p>
         </div>
         <div class="update-notification-actions">
             <button class="btn-primary" id="update-now-btn">Update Now</button>

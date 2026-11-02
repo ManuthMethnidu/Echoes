@@ -1,6 +1,6 @@
 {
-    "name": "echos",
-    "short_name": "echos",
+    "name": "Echoes",
+    "short_name": "Echoes",
     "description": "Clean, ad-free music streaming player with cross-device sync",
     "start_url": "./",
     "display": "standalone",

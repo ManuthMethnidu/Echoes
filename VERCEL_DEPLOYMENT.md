@@ -1,6 +1,6 @@
-# echos - Modern Streaming Music Web App
+# Echoes - Modern Streaming Music Web App
 
-**echos** is a sleek, privacy-focused, ad-free music streaming app engineered for serverless deployment on **Vercel** with **100% client-side audio storage**, **cross-device cloud synchronization** powered by **Neon Serverless Postgres & Better Auth**, **Spotify Connect-like edge device handover** powered by **Cloudflare Durable Objects**, and a **YouTube Music / ArchiveTune-style music discovery and streaming engine**.
+**Echoes** is a sleek, privacy-focused, ad-free music streaming app engineered for serverless deployment on **Vercel** with **100% client-side audio storage**, **cross-device cloud synchronization** powered by **Neon Serverless Postgres & Better Auth**, **Spotify Connect-like edge device handover** powered by **Cloudflare Durable Objects**, and a **YouTube Music / ArchiveTune-style music discovery and streaming engine**.
 
 ---
 

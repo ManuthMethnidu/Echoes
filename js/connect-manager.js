@@ -685,7 +685,7 @@ export class ConnectManager {
             listEl.innerHTML = `
                 <div style="color: #777; font-size: 0.85rem; padding: 18px 12px; text-align: center;">
                     No other devices detected.<br>
-                    <span style="font-size: 0.75rem; color: #555;">Open Echos on your TV, phone, or tablet to switch instantly.</span>
+                    <span style="font-size: 0.75rem; color: #555;">Open Echoes on your TV, phone, or tablet to switch instantly.</span>
                 </div>
             `;
             return;

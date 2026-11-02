@@ -4,7 +4,8 @@
         <meta charset="UTF-8" />
         <meta name="referrer" content="no-referrer" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-        <title>Echoes</title>
+        <title>Echoes — Clean, Ad-Free Music Player &amp; Hi-Fi Streamer</title>
+        <link rel="canonical" href="https://echoes.mteck.tech/" />
         <meta name="theme-color" content="#000000" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -20,15 +21,16 @@
 
         <!-- Open Graph / Facebook -->
         <meta property="og:type" content="website" />
+        <meta property="og:url" content="https://echoes.mteck.tech/" />
         <meta property="og:locale" content="en_US" />
         <meta property="og:site_name" content="Echoes" />
-        <meta property="og:title" content="Echoes — Clean, Ad-Free Music Player with Cross-Device Sync" />
+        <meta property="og:title" content="Echoes — Clean, Ad-Free Music Player &amp; Hi-Fi Streamer" />
         <meta
             property="og:description"
             content="Minimalist, ad-free music player with lossless audio, 16-band AutoEQ, and real-time cross-device playback handoff."
         />
-        <meta property="og:image" content="/og-image.png" />
-        <meta property="og:image:secure_url" content="/og-image.png" />
+        <meta property="og:image" content="https://echoes.mteck.tech/og-image.png" />
+        <meta property="og:image:secure_url" content="https://echoes.mteck.tech/og-image.png" />
         <meta property="og:image:type" content="image/png" />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
@@ -36,22 +38,26 @@
 
         <!-- Twitter Card -->
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content="Echoes — Clean, Ad-Free Music Player with Cross-Device Sync" />
+        <meta name="twitter:site" content="@echoes_music" />
+        <meta name="twitter:creator" content="@echoes_music" />
+        <meta name="twitter:url" content="https://echoes.mteck.tech/" />
+        <meta name="twitter:title" content="Echoes — Clean, Ad-Free Music Player &amp; Hi-Fi Streamer" />
         <meta
             name="twitter:description"
             content="Minimalist, ad-free music player with lossless audio, 16-band AutoEQ, and real-time cross-device playback handoff."
         />
-        <meta name="twitter:image" content="/og-image.png" />
+        <meta name="twitter:image" content="https://echoes.mteck.tech/og-image.png" />
         <meta name="twitter:image:alt" content="Echoes — Clean, ad-free music player with cross-device sync" />
         <script type="application/ld+json">
             {
                 "@context": "https://schema.org",
                 "@type": "WebApplication",
                 "name": "Echoes",
+                "url": "https://echoes.mteck.tech/",
                 "applicationCategory": "MusicApplication",
                 "operatingSystem": "Web Browser",
                 "description": "Minimalist, ad-free music player with lossless audio, 16-band AutoEQ, and real-time cross-device playback handoff.",
-                "image": "/og-image.png"
+                "image": "https://echoes.mteck.tech/og-image.png"
             }
         </script>
 
@@ -1621,7 +1627,7 @@
                     />
                     <div class="detail-header-info">
                         <div class="type">Unreleased Project</div>
-                        <h1 id="tracker-header-title" class="title" style="font-size: 2rem"></h1>
+                        <h2 id="tracker-header-title" class="title" style="font-size: 2rem"></h2>
                         <div id="tracker-header-meta" class="meta"></div>
                         <div class="detail-header-actions">
                             <button class="btn-secondary" id="close-tracker-modal">Close</button>
@@ -1845,6 +1851,7 @@
             </aside>
 
             <main class="main-content">
+                <h1 class="sr-only">Echoes — Clean, Ad-Free Music Player &amp; Hi-Fi Streamer</h1>
                 <div id="page-background"></div>
                 <header class="main-header">
                     <div class="navigation-controls desktop-only">
@@ -2100,7 +2107,7 @@
                         <header class="detail-header">
                             <div class="detail-header-info">
                                 <div class="type">Listening Party</div>
-                                <h1 class="title" id="party-title">Party Name</h1>
+                                <h2 class="title" id="party-title">Party Name</h2>
                                 <div class="meta" id="party-meta">Host: ...</div>
                                 <div class="detail-header-actions">
                                     <button id="leave-party-btn" class="btn-secondary danger">Leave Party</button>
@@ -2431,7 +2438,7 @@
                         />
                         <div class="detail-header-info">
                             <div class="type">Podcast</div>
-                            <h1 class="title" id="podcasts-detail-name"></h1>
+                            <h2 class="title" id="podcasts-detail-name"></h2>
                             <div class="meta" id="podcasts-detail-meta"></div>
                             <div class="detail-header-actions">
                                 <button id="play-podcasts-btn" class="btn-primary" title="Play Latest Episode">
@@ -2473,7 +2480,7 @@
                         />
                         <div class="detail-header-info">
                             <div class="type">Unreleased Artist</div>
-                            <h1 class="title" id="tracker-artist-detail-name"></h1>
+                            <h2 class="title" id="tracker-artist-detail-name"></h2>
                             <div class="meta" id="tracker-artist-detail-meta"></div>
                             <div class="detail-header-actions">
                                 <button id="play-tracker-artist-btn" class="btn-primary" title="Shuffle Play">
@@ -2501,7 +2508,7 @@
                             class="detail-header-image"
                         />
                         <div class="detail-header-info">
-                            <h1 class="title" id="album-detail-title"></h1>
+                            <h2 class="title" id="album-detail-title"></h2>
                             <div class="meta" id="album-detail-meta"></div>
                             <div class="meta" id="album-detail-producer"></div>
                             <br />
@@ -2601,7 +2608,7 @@
                             <div id="playlist-detail-collage" class="detail-header-collage" style="display: none"></div>
                         </div>
                         <div class="detail-header-info">
-                            <h1 class="title" id="playlist-detail-title"></h1>
+                            <h2 class="title" id="playlist-detail-title"></h2>
                             <div class="meta" id="playlist-detail-meta"></div>
                             <div class="meta" id="playlist-detail-description" class="detail-description"></div>
                             <div class="detail-header-actions">
@@ -2686,7 +2693,7 @@
                             alt="Folder Cover"
                         />
                         <div class="detail-header-info">
-                            <h1 class="title" id="folder-detail-title"></h1>
+                            <h2 class="title" id="folder-detail-title"></h2>
                             <div class="meta" id="folder-detail-meta"></div>
                             <div class="detail-header-actions">
                                 <button id="delete-folder-btn" class="btn-secondary danger">Delete Folder</button>
@@ -2707,7 +2714,7 @@
                             alt="Mix Cover"
                         />
                         <div class="detail-header-info">
-                            <h1 class="title" id="mix-detail-title"></h1>
+                            <h2 class="title" id="mix-detail-title"></h2>
                             <div class="meta" id="mix-detail-meta"></div>
                             <div class="meta" id="mix-detail-description" class="detail-description"></div>
                             <div class="detail-header-actions">
@@ -2748,7 +2755,7 @@
                             class="detail-header-image artist"
                         />
                         <div class="detail-header-info">
-                            <h1 class="title" id="artist-detail-name"></h1>
+                            <h2 class="title" id="artist-detail-name"></h2>
                             <div class="meta" id="artist-detail-meta"></div>
                             <div id="artist-detail-socials" class="artist-socials"></div>
                             <div id="artist-detail-bio" class="artist-bio"></div>
@@ -2853,7 +2860,7 @@
                         />
                         <div class="detail-header-info">
                             <div class="type">Song</div>
-                            <h1 class="title" id="track-detail-title"></h1>
+                            <h2 class="title" id="track-detail-title"></h2>
                             <div class="meta">
                                 <span id="track-detail-artist"></span> • <span id="track-detail-album"></span> •
                                 <span id="track-detail-year"></span>
@@ -2911,7 +2918,7 @@
                                 alt="Avatar"
                             />
                             <div class="profile-details">
-                                <h1 id="profile-display-name">User</h1>
+                                <h2 id="profile-display-name">User</h2>
                                 <div id="profile-username" class="profile-username">@username</div>
                                 <div id="profile-status" class="profile-status" style="display: none"></div>
                                 <div id="profile-about" class="profile-about"></div>
@@ -6023,7 +6030,7 @@
                 <div id="page-tos" class="page">
                     <div class="legal-page-container">
                         <header class="legal-page-header">
-                            <h1>Terms of Service</h1>
+                            <h2>Terms of Service</h2>
                             <p>Last updated: November 2, 2026 • Effective Date: November 2, 2026</p>
                         </header>
 
@@ -6103,7 +6110,7 @@
                 <div id="page-policy" class="page">
                     <div class="legal-page-container">
                         <header class="legal-page-header">
-                            <h1>Privacy Policy</h1>
+                            <h2>Privacy Policy</h2>
                             <p>Last updated: November 2, 2026 • Effective Date: November 2, 2026</p>
                         </header>
 
@@ -6176,7 +6183,7 @@
                 <div id="page-contact" class="page">
                     <div class="legal-page-container">
                         <header class="legal-page-header">
-                            <h1>Contact Us</h1>
+                            <h2>Contact Us</h2>
                             <p>Have questions, suggestions, or need assistance? We're here to help.</p>
                         </header>
 

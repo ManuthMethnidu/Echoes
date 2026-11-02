@@ -8,6 +8,9 @@ import handHeart from '../../node_modules/lucide-static/icons/hand-heart.svg?svg
 import heart from '../../node_modules/lucide-static/icons/heart.svg?svg';
 import house from '../../node_modules/lucide-static/icons/house.svg?svg';
 import info from '../../node_modules/lucide-static/icons/info.svg?svg';
+import fileText from '../../node_modules/lucide-static/icons/file-text.svg?svg';
+import shieldCheck from '../../node_modules/lucide-static/icons/shield-check.svg?svg';
+import mail from '../../node_modules/lucide-static/icons/mail.svg?svg';
 import library from '../../node_modules/lucide-static/icons/library.svg?svg';
 import list from '../../node_modules/lucide-static/icons/list.svg?svg';
 import listPlus from '../../node_modules/lucide-static/icons/list-plus.svg?svg';
@@ -41,6 +44,7 @@ export const icons = {
     clock,
     discord,
     download,
+    fileText,
     github,
     handHeart,
     heart,
@@ -50,6 +54,7 @@ export const icons = {
     list,
     listPlus,
     logo,
+    mail,
     menu,
     micVocal,
     mix,
@@ -62,6 +67,7 @@ export const icons = {
     rotateCw,
     search,
     settings,
+    shieldCheck,
     shuffle,
     smartphone,
     squares,

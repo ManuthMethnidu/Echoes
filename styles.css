@@ -5361,6 +5361,96 @@ input:checked + .slider::before {
     font-size: 1.05rem;
 }
 
+/* Legal & Policy Pages (TOS, Privacy Policy, Contact) */
+.legal-page-container {
+    max-width: 840px;
+    margin: 0 auto;
+    padding: 2.5rem 1.5rem 4rem;
+    color: var(--foreground, #ffffff);
+    line-height: 1.7;
+}
+
+.legal-page-header {
+    margin-bottom: 2.5rem;
+    text-align: center;
+}
+
+.legal-page-header h1 {
+    font-size: 2.25rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+    letter-spacing: -0.03em;
+    color: var(--foreground, #fff);
+}
+
+.legal-page-header p {
+    color: var(--muted-foreground, #8e8e96);
+    font-size: 0.95rem;
+}
+
+.legal-section {
+    margin-bottom: 1.5rem;
+    background: var(--card, rgba(255, 255, 255, 0.03));
+    border: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+    border-radius: var(--radius-lg, 12px);
+    padding: 1.75rem;
+}
+
+.legal-section h2 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+    color: var(--foreground, #fff);
+}
+
+.legal-section p,
+.legal-section ul {
+    color: var(--muted-foreground, #b0b0b5);
+    font-size: 0.95rem;
+    line-height: 1.65;
+    margin-bottom: 0.75rem;
+}
+
+.legal-section ul {
+    padding-left: 1.5rem;
+}
+
+.legal-section li {
+    margin-bottom: 0.4rem;
+}
+
+.legal-contact-card {
+    background: var(--card, rgba(255, 255, 255, 0.03));
+    border: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+    border-radius: var(--radius-lg, 12px);
+    padding: 2.5rem 1.5rem;
+    text-align: center;
+    margin-top: 1.5rem;
+}
+
+.legal-contact-card .email-display {
+    font-family: monospace;
+    font-size: 1.15rem;
+    padding: 0.75rem 1.25rem;
+    background: var(--background, rgba(0, 0, 0, 0.4));
+    border: 1px solid var(--border, rgba(255, 255, 255, 0.12));
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin: 1.25rem 0;
+    color: var(--foreground, #fff);
+    user-select: all;
+}
+
+.contact-action-row {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-top: 0.5rem;
+}
+
 .about-features,
 .about-tech {
     margin-bottom: 2rem;

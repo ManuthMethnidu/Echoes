@@ -15,24 +15,15 @@ const primaryItems: NavigationItem[] = [
     { id: 'sidebar-nav-home', href: '/', label: 'Home', icon: icons.house },
     { id: 'sidebar-nav-library', href: '/library', label: 'Library', icon: icons.library },
     { id: 'sidebar-nav-recent', href: '/recent', label: 'Recent', icon: icons.recent },
-    { id: 'sidebar-nav-unreleased', href: '/unreleased', label: 'Unreleased', icon: icons.squares },
     { id: 'sidebar-nav-donate', href: '/donate', label: 'Donate', icon: icons.handHeart },
     { id: 'sidebar-nav-settings', href: '/settings', label: 'Settings', icon: icons.settings },
 ];
 
 const secondaryItems: NavigationItem[] = [
-    { id: 'sidebar-nav-about-bottom', href: '/about', label: 'About', icon: icons.info },
-    { id: 'sidebar-nav-mobile', href: '/mobile', label: 'Mobile', icon: icons.smartphone },
-    { id: 'sidebar-nav-discordbtn', href: 'discord.html', label: 'Discord', icon: icons.discord, target: '_blank' },
+    { id: 'sidebar-nav-tos', href: '/tos', label: 'Terms of Service', icon: icons.fileText },
+    { id: 'sidebar-nav-policy', href: '/policy', label: 'Privacy Policy', icon: icons.shieldCheck },
+    { id: 'sidebar-nav-contact', href: '/contact', label: 'Contact', icon: icons.mail },
     { id: 'sidebar-nav-party', href: '/parties', label: 'Parties', icon: icons.users },
-    {
-        id: 'sidebar-nav-githubbtn',
-        href: 'https://github.com/ManuthMethnidu/echos',
-        label: 'GitHub',
-        icon: icons.github,
-        target: '_blank',
-        hidden: true,
-    },
 ];
 
 function isCurrentPath(pathname: string, href: string) {
@@ -95,9 +86,9 @@ export function AppNavigation() {
     return (
         <>
             <div className="sidebar-logo">
-                <a aria-label="echos home" className="sidebar-logo-link" href="/">
+                <a aria-label="Echoes home" className="sidebar-logo-link" href="/">
                     <Icon className="app-logo" svg={icons.logo} size={22} />
-                    <span>echos</span>
+                    <span>Echoes</span>
                 </a>
                 <button
                     aria-label="Collapse sidebar"

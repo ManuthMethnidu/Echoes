@@ -136,6 +136,16 @@ export function createRouter(ui) {
             case 'reset-password':
                 await ui.renderResetPasswordPage();
                 break;
+            case 'tos':
+                ui.showPage('tos');
+                break;
+            case 'policy':
+            case 'privacy':
+                ui.showPage('policy');
+                break;
+            case 'contact':
+                ui.showPage('contact');
+                break;
             case 'donate':
                 ui.showPage('donate');
                 break;
@@ -162,6 +172,18 @@ export function updateTabTitle(player) {
         if (path.startsWith('/album/') || path.startsWith('/playlist/') || path.startsWith('/track/')) {
             return;
         }
-        document.title = 'Monochrome Music';
+        if (path === '/tos') {
+            document.title = 'Terms of Service • Echoes';
+            return;
+        }
+        if (path === '/policy' || path === '/privacy') {
+            document.title = 'Privacy Policy • Echoes';
+            return;
+        }
+        if (path === '/contact') {
+            document.title = 'Contact Us • Echoes';
+            return;
+        }
+        document.title = 'Echoes';
     }
 }

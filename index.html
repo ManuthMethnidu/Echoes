@@ -1780,12 +1780,6 @@
                                     <span>Recent</span>
                                 </a>
                             </li>
-                            <li class="nav-item" id="sidebar-nav-unreleased">
-                                <a href="/unreleased">
-                                    <use svg="./images/squares.svg" size="24" />
-                                    <span>Unreleased</span>
-                                </a>
-                            </li>
                             <li class="nav-item" id="sidebar-nav-settings">
                                 <a href="/settings">
                                     <use svg="!lucide/settings.svg" size="24" />
@@ -1805,34 +1799,28 @@
                         <div class="sidebar-nav-bottom">
                             <nav class="sidebar-nav bottom">
                                 <ul>
-                                    <li class="nav-item" id="sidebar-nav-about-bottom">
-                                        <a href="/about">
-                                            <use svg="!lucide/info.svg" size="24" />
-                                            <span>About</span>
+                                    <li class="nav-item" id="sidebar-nav-tos">
+                                        <a href="/tos">
+                                            <use svg="!lucide/file-text.svg" size="24" />
+                                            <span>Terms</span>
                                         </a>
                                     </li>
-                                    <li class="nav-item" id="sidebar-nav-mobile">
-                                        <a href="/mobile">
-                                            <use svg="!lucide/download.svg" size="24" />
-                                            <span>Download</span>
+                                    <li class="nav-item" id="sidebar-nav-policy">
+                                        <a href="/policy">
+                                            <use svg="!lucide/shield-check.svg" size="24" />
+                                            <span>Privacy</span>
                                         </a>
                                     </li>
-                                    <li class="nav-item" id="sidebar-nav-discordbtn">
-                                        <a href="discord.html" target="_blank">
-                                            <use svg="./images/discord.svg" size="64" />
-                                            <span>Discord</span>
+                                    <li class="nav-item" id="sidebar-nav-contact">
+                                        <a href="/contact">
+                                            <use svg="!lucide/mail.svg" size="24" />
+                                            <span>Contact</span>
                                         </a>
                                     </li>
                                     <li class="nav-item" id="sidebar-nav-party">
                                         <a href="/parties" id="sidebar-party-btn">
                                             <use svg="!lucide/users.svg" size="24" />
                                             <span>Parties</span>
-                                        </a>
-                                    </li>
-                                    <li class="nav-item" id="sidebar-nav-githubbtn" style="display: none">
-                                        <a href="#" target="_blank">
-                                            <use svg="./images/github.svg" size="24" />
-                                            <span>GitHub</span>
                                         </a>
                                     </li>
                                 </ul>
@@ -2415,10 +2403,6 @@
                         </button>
                     </div>
                     <div class="track-list" id="recent-tracks-container"></div>
-                </div>
-
-                <div id="page-unreleased" class="page">
-                    <div id="unreleased-content" style="padding: 1rem 0"></div>
                 </div>
 
                 <div id="page-podcasts" class="page">
@@ -3632,18 +3616,6 @@
                                     </div>
                                     <div class="setting-item">
                                         <div class="info">
-                                            <span class="label">Show Unreleased in Sidebar</span>
-                                            <span class="description"
-                                                >Display the Unreleased link in the sidebar navigation</span
-                                            >
-                                        </div>
-                                        <label class="toggle-switch">
-                                            <input type="checkbox" id="sidebar-show-unreleased-toggle" checked />
-                                            <span class="slider"></span>
-                                        </label>
-                                    </div>
-                                    <div class="setting-item">
-                                        <div class="info">
                                             <span class="label">Show Settings in Sidebar</span>
                                             <span class="description"
                                                 >Display the Settings link in the sidebar navigation</span
@@ -3659,30 +3631,6 @@
                                     <span class="sidebar-settings-section-label">BOTTOM SECTION</span>
                                     <div class="setting-item">
                                         <div class="info">
-                                            <span class="label">Show About in Sidebar</span>
-                                            <span class="description"
-                                                >Display the About link in the sidebar navigation</span
-                                            >
-                                        </div>
-                                        <label class="toggle-switch">
-                                            <input type="checkbox" id="sidebar-show-about-bottom-toggle" checked />
-                                            <span class="slider"></span>
-                                        </label>
-                                    </div>
-                                    <div class="setting-item">
-                                        <div class="info">
-                                            <span class="label">Show Discord in Sidebar</span>
-                                            <span class="description"
-                                                >Display the Discord link in the sidebar navigation</span
-                                            >
-                                        </div>
-                                        <label class="toggle-switch">
-                                            <input type="checkbox" id="sidebar-show-discordbtn-toggle" checked />
-                                            <span class="slider"></span>
-                                        </label>
-                                    </div>
-                                    <div class="setting-item">
-                                        <div class="info">
                                             <span class="label">Show Parties in Sidebar</span>
                                             <span class="description"
                                                 >Display the Parties button in the sidebar navigation</span
@@ -3690,18 +3638,6 @@
                                         </div>
                                         <label class="toggle-switch">
                                             <input type="checkbox" id="sidebar-show-party-toggle" checked />
-                                            <span class="slider"></span>
-                                        </label>
-                                    </div>
-                                    <div class="setting-item">
-                                        <div class="info">
-                                            <span class="label">Show GitHub in Sidebar</span>
-                                            <span class="description"
-                                                >Display the GitHub link in the sidebar navigation</span
-                                            >
-                                        </div>
-                                        <label class="toggle-switch">
-                                            <input type="checkbox" id="sidebar-show-githubbtn-toggle" checked />
                                             <span class="slider"></span>
                                         </label>
                                     </div>
@@ -6070,16 +6006,203 @@
                     </div>
                 </div>
 
-                <div id="page-about" class="page">
-                    <h2 class="section-title" style="text-align: center">About Echoes</h2>
-                    <div class="about-content">
-                        <p class="about-description">
-                            Echoes is a minimalist, privacy-focused music player with cross-device sync designed for
-                            high-fidelity audio playback. Built with modern web technologies, it provides a clean,
-                            distraction-free listening experience.
-                            <br />
-                        </p>
-                        </div></div>
+                <div id="page-tos" class="page">
+                    <div class="legal-page-container">
+                        <header class="legal-page-header">
+                            <h1>Terms of Service</h1>
+                            <p>Last updated: November 2, 2026 • Effective Date: November 2, 2026</p>
+                        </header>
+
+                        <div class="legal-section">
+                            <h2>1. Agreement to Terms</h2>
+                            <p>
+                                By accessing or using Echoes (<a href="https://echos.vercel.app" style="color: inherit; text-decoration: underline;">https://echos.vercel.app</a>) or related services (collectively, the "Service"), you agree to be bound by these Terms of Service ("Terms"). If you do not agree with any part of these Terms, you may not access or use the Service.
+                            </p>
+                        </div>
+
+                        <div class="legal-section">
+                            <h2>2. Description of Service</h2>
+                            <p>
+                                Echoes is a modern, minimalist web-based music streaming client and personal audio library synchronization manager. Echoes provides features including real-time audio playback, cross-device playlist and library synchronization, TV QR-code device pairing, and audio organization tools.
+                            </p>
+                        </div>
+
+                        <div class="legal-section">
+                            <h2>3. User Accounts &amp; Authentication</h2>
+                            <p>
+                                You may use Echoes anonymously or authenticate using Google OAuth, Email/Password, or Device Pairing. You are solely responsible for safeguarding the credentials associated with your account and for all activity that occurs under your account. You agree to notify us immediately of any unauthorized use of your account.
+                            </p>
+                        </div>
+
+                        <div class="legal-section">
+                            <h2>4. Third-Party Services &amp; APIs</h2>
+                            <p>
+                                Echoes interfaces with third-party service providers and public APIs to deliver music metadata, streaming streams, and playlist features:
+                            </p>
+                            <ul>
+                                <li><strong>YouTube API:</strong> Echoes uses YouTube API Services to allow users to authenticate and import their personal YouTube playlists. By using these features, you agree to be bound by the <a href="https://www.youtube.com/t/terms" target="_blank" rel="noopener noreferrer" style="color: inherit; text-decoration: underline;">YouTube Terms of Service</a> and acknowledge the <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer" style="color: inherit; text-decoration: underline;">Google Privacy Policy</a>.</li>
+                                <li><strong>Spotify:</strong> Echoes enables public playlist track metadata extraction for seamless library transfers. Echoes is not affiliated with, endorsed by, or sponsored by Spotify.</li>
+                            </ul>
+                            <p>
+                                Echoes does not claim ownership of any third-party audio, video, album artwork, or lyrics streamed or displayed via the Service. All trademarks and copyrighted materials belong to their respective rights holders.
+                            </p>
+                        </div>
+
+                        <div class="legal-section">
+                            <h2>5. Acceptable Use &amp; Audio Downloads</h2>
+                            <p>
+                                Any personal audio caching or download functionality provided in Echoes is intended solely for private, personal, non-commercial offline listening in compliance with applicable copyright laws and fair use doctrines. You agree not to:
+                            </p>
+                            <ul>
+                                <li>Redistribute, rebroadcast, sell, or commercially exploit audio streams or downloaded files.</li>
+                                <li>Circumvent or attempt to tamper with security or digital rights management technologies.</li>
+                                <li>Impair, overburden, or disable the Echoes infrastructure or connected APIs.</li>
+                            </ul>
+                        </div>
+
+                        <div class="legal-section">
+                            <h2>6. Disclaimer of Warranties &amp; Limitation of Liability</h2>
+                            <p>
+                                THE SERVICE IS PROVIDED ON AN "AS IS" AND "AS AVAILABLE" BASIS WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED. TO THE MAXIMUM EXTENT PERMITTED UNDER APPLICABLE LAW, ECHOES AND ITS CREATORS DISCLAIM ALL WARRANTIES AND SHALL NOT BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, OR CONSEQUENTIAL DAMAGES ARISING OUT OF YOUR USE OF THE SERVICE.
+                            </p>
+                        </div>
+
+                        <div class="legal-section">
+                            <h2>7. Modifications to Service &amp; Terms</h2>
+                            <p>
+                                We reserve the right to modify or discontinue any feature of Echoes or revise these Terms at any time. Continued use of the Service following any changes constitutes acceptance of the new Terms.
+                            </p>
+                        </div>
+
+                        <div class="legal-section">
+                            <h2>8. Contact &amp; Legal Inquiries</h2>
+                            <p>
+                                If you have questions regarding these Terms or need to submit a DMCA copyright notice or inquiry, please reach out to us at:
+                            </p>
+                            <p>
+                                <strong>Email:</strong> <a href="mailto:contact.Echoes@proton.me" style="color: inherit; text-decoration: underline;">contact.Echoes@proton.me</a>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="page-policy" class="page">
+                    <div class="legal-page-container">
+                        <header class="legal-page-header">
+                            <h1>Privacy Policy</h1>
+                            <p>Last updated: November 2, 2026 • Effective Date: November 2, 2026</p>
+                        </header>
+
+                        <div class="legal-section">
+                            <h2>1. Overview &amp; Privacy Commitment</h2>
+                            <p>
+                                At Echoes (<a href="https://echos.vercel.app" style="color: inherit; text-decoration: underline;">https://echos.vercel.app</a>), your privacy is our core priority. We believe in minimal data collection: we collect only what is strictly necessary to authenticate your account and synchronize your personal music preferences across your devices. We never sell, rent, or trade your personal data.
+                            </p>
+                        </div>
+
+                        <div class="legal-section">
+                            <h2>2. Information We Collect</h2>
+                            <ul>
+                                <li>
+                                    <strong>Authentication Information:</strong> When signing in with Google OAuth, we receive your basic public profile details (email address, full name, profile picture URL, and a unique Google subject identifier). When signing in with email, we store your email address and a cryptographically salted/hashed password (PBKDF2).
+                                </li>
+                                <li>
+                                    <strong>Music Library Sync Data:</strong> To allow you to access your music on desktop, mobile, and paired TV devices, we store your saved/liked track IDs, custom playlist configurations, favorited albums, listening history, and audio settings (e.g., equalizer presets, theme selection) in our secure Neon Serverless Postgres cloud database.
+                                </li>
+                                <li>
+                                    <strong>Device Pairing Data:</strong> Temporary 6-character alphanumeric pairing codes and short-lived session tokens generated when connecting smart TVs or secondary displays.
+                                </li>
+                            </ul>
+                        </div>
+
+                        <div class="legal-section">
+                            <h2>3. Google User Data &amp; YouTube API Compliance</h2>
+                            <p>
+                                Echoes' use and transfer to any other app of information received from Google APIs will adhere to the <a href="https://developers.google.com/terms/api-services-user-data-policy" target="_blank" rel="noopener noreferrer" style="color: inherit; text-decoration: underline;">Google API Services User Data Policy</a>, including the Limited Use requirements:
+                            </p>
+                            <ul>
+                                <li><strong>Scope Requested:</strong> We request read-only access to your YouTube playlists (<code>https://www.googleapis.com/auth/youtube.readonly</code>) solely when you explicitly choose to import your personal YouTube playlists into Echoes.</li>
+                                <li><strong>Limited Use:</strong> Google user data is strictly utilized to provide and improve user-facing features. We do not use or transfer your Google user data for serving ads (including retargeting or personalized advertising).</li>
+                                <li><strong>No Human Inspection:</strong> No human beings ever view your personal Google or YouTube user data unless you have given explicit consent for troubleshooting or if required by law.</li>
+                                <li><strong>AI / ML Prohibition:</strong> We do not use Google user data to train, fine-tune, or develop generalized artificial intelligence or machine learning models.</li>
+                            </ul>
+                        </div>
+
+                        <div class="legal-section">
+                            <h2>4. Data Storage, Security &amp; Retention</h2>
+                            <p>
+                                All communications between your client application and our backend endpoints are secured via Transport Layer Security (TLS/HTTPS). Database storage is powered by Neon Serverless PostgreSQL with row-level segregation by user ID. We retain your synchronized library data for as long as your account remains active.
+                            </p>
+                        </div>
+
+                        <div class="legal-section">
+                            <h2>5. Your Rights &amp; Data Deletion</h2>
+                            <p>
+                                You retain full ownership and control over your personal data:
+                            </p>
+                            <ul>
+                                <li>You can disconnect third-party Google permissions at any time via your <a href="https://myaccount.google.com/permissions" target="_blank" rel="noopener noreferrer" style="color: inherit; text-decoration: underline;">Google Account Security Settings</a>.</li>
+                                <li>You can clear your cloud library synchronization directly within the Echoes Account settings.</li>
+                                <li>You may request complete and permanent deletion of your account and all associated database records by emailing us at <a href="mailto:contact.Echoes@proton.me" style="color: inherit; text-decoration: underline;">contact.Echoes@proton.me</a>. Requests are processed within 48 business hours.</li>
+                            </ul>
+                        </div>
+
+                        <div class="legal-section">
+                            <h2>6. Contact Us</h2>
+                            <p>
+                                If you have questions, comments, or concerns about this Privacy Policy or our data handling practices, please contact our Privacy Team:
+                            </p>
+                            <p>
+                                <strong>Email:</strong> <a href="mailto:contact.Echoes@proton.me" style="color: inherit; text-decoration: underline;">contact.Echoes@proton.me</a>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="page-contact" class="page">
+                    <div class="legal-page-container">
+                        <header class="legal-page-header">
+                            <h1>Contact Us</h1>
+                            <p>Have questions, suggestions, or need assistance? We're here to help.</p>
+                        </header>
+
+                        <div class="legal-contact-card">
+                            <h2 style="margin-bottom: 0.5rem;">Get in Touch Directly</h2>
+                            <p style="color: var(--muted-foreground); font-size: 0.95rem;">
+                                For all general inquiries, technical support, feature feedback, or legal notices, reach us via:
+                            </p>
+                            <div class="email-display">
+                                <use svg="!lucide/mail.svg" size="18" />
+                                <span>contact.Echoes@proton.me</span>
+                            </div>
+                            <div class="contact-action-row">
+                                <a href="mailto:contact.Echoes@proton.me" class="btn-primary" style="display: inline-flex; align-items: center; gap: 8px; text-decoration: none; padding: 0.65rem 1.4rem;">
+                                    <use svg="!lucide/mail.svg" size="16" />
+                                    <span>Send an Email</span>
+                                </a>
+                                <button class="btn-secondary" id="copy-contact-email-btn" onclick="navigator.clipboard.writeText('contact.Echoes@proton.me'); alert('Email copied to clipboard: contact.Echoes@proton.me');">
+                                    Copy Address
+                                </button>
+                            </div>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; margin-top: 1.5rem;">
+                            <div class="legal-section" style="margin-bottom: 0;">
+                                <h2>🎧 User Support</h2>
+                                <p>Trouble with cross-device library sync, TV device pairing, or audio playback settings? Reach out and we'll investigate.</p>
+                            </div>
+                            <div class="legal-section" style="margin-bottom: 0;">
+                                <h2>💡 Feedback &amp; Ideas</h2>
+                                <p>Suggestions for new UI themes, playlist tools, or sound enhancements? We actively build features requested by our listeners.</p>
+                            </div>
+                            <div class="legal-section" style="margin-bottom: 0;">
+                                <h2>⚖️ Legal &amp; DMCA</h2>
+                                <p>For privacy queries, data deletion requests, or copyright notifications, please write to us with full details.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <div id="page-account" class="page">
                     <h2 class="section-title" style="text-align: center">Sign Up / Sign In</h2>
                     <div class="account-content">
@@ -6099,8 +6222,6 @@
                             "
                         >
                             <button id="auth-connect-btn" class="btn-secondary">Connect with Google</button>
-                            <button id="auth-github-btn" class="btn-secondary">Connect with GitHub</button>
-                            <button id="auth-discord-btn" class="btn-secondary">Connect with Discord</button>
                             <button id="toggle-email-auth-btn" class="btn-secondary">Connect with Email</button>
                             <button id="toggle-tv-pair-btn" class="btn-secondary">📺 Pair TV / Device (QR)</button>
                             <button id="view-my-profile-btn" class="btn-secondary" style="display: none">
@@ -6138,133 +6259,6 @@
                     </div>
                 </div>
                 <div id="page-donate" class="page"></div>
-                <div id="page-mobile" class="page">
-                    <table
-                        style="
-                            left: 50%;
-                            margin: 0 0 0 50%;
-                            transform: translate(-50%, 0);
-                            width: 100%;
-                            max-width: 1500px;
-                        "
-                    >
-                        <tr>
-                            <td valign="top">
-                                <div
-                                    class="mobile-download-container"
-                                    style="
-                                        text-align: center;
-                                        max-width: 600px;
-                                        margin: 0 auto;
-                                        padding: var(--space-8) var(--space-4);
-                                    "
-                                >
-                                    <h2 class="section-title" style="margin-bottom: var(--space-4)">
-                                        Echoes Mobile
-                                    </h2>
-                                    <p style="color: var(--muted-foreground); margin-bottom: var(--space-8)">
-                                        Download the app for your device.
-                                    </p>
-                                    <div
-                                        style="
-                                            display: flex;
-                                            flex-wrap: wrap;
-                                            gap: var(--space-4);
-                                            justify-content: center;
-                                            margin-bottom: var(--space-8);
-                                        "
-                                    >
-                                        <a
-                                            href="https://mc.ryzen.top/android.apk"
-                                            class="btn-primary"
-                                            style="display: inline-flex; align-items: center; gap: 8px"
-                                        >
-                                            <use svg="!lucide/download.svg" size="18" />
-                                            Download for Android
-                                        </a>
-                                        <a
-                                            href="https://mc.ryzen.top/ios.ipa"
-                                            class="btn-primary"
-                                            style="display: inline-flex; align-items: center; gap: 8px"
-                                        >
-                                            <use svg="!lucide/download.svg" size="18" />
-                                            Download for iOS
-                                        </a>
-                                    </div>
-                                    <p style="color: var(--muted-foreground); margin-bottom: var(--space-3)">
-                                        The iOS app must be sideloaded. If you need help getting started, check out this
-                                        <a
-                                            href="https://fmhy.net/mobile#ios-sideloading"
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            style="color: var(--primary); text-decoration: underline"
-                                            >iOS sideloading guide</a
-                                        >.
-                                    </p>
-                                    <p style="color: var(--color-warning); margin: 0">
-                                        We don't offer support for sideloading. Please do your own research if you run
-                                        into issues.
-                                    </p>
-                                    <p
-                                        style="
-                                            color: var(--muted-foreground);
-                                            margin-top: var(--space-6);
-                                            margin-bottom: 0;
-                                        "
-                                    >
-                                        Downloaded songs are saved to <b>Downloads/Echoes</b> on your device.
-                                    </p>
-                                </div>
-                            </td>
-                            <td valign="top">
-                                <div
-                                    class="desktop-download-container"
-                                    style="
-                                        text-align: center;
-                                        max-width: 600px;
-                                        margin: 0 auto;
-                                        padding: var(--space-8) var(--space-4);
-                                    "
-                                >
-                                    <h2 class="section-title" style="margin-bottom: var(--space-4)">
-                                        Echoes Desktop
-                                    </h2>
-                                    <p style="color: var(--muted-foreground); margin-bottom: var(--space-8)">
-                                        Download the app for your desktop device.
-                                    </p>
-                                    <div
-                                        style="
-                                            display: flex;
-                                            flex-wrap: wrap;
-                                            gap: var(--space-4);
-                                            justify-content: center;
-                                            margin-bottom: var(--space-8);
-                                        "
-                                    >
-                                        <a
-                                            href="#"
-                                            class="btn-primary"
-                                            style="display: inline-flex; align-items: center; gap: 8px"
-                                        >
-                                            <use svg="!lucide/download.svg" size="18" />
-                                            Download from Github
-                                        </a>
-                                    </div>
-                                    <p style="color: var(--muted-foreground)">
-                                        If you need any help with the desktop app, please reach out to the developer of
-                                        the application. You can find their contact information on the GitHub page
-                                        linked above or
-                                        <a
-                                            href="https://discord.com/users/1520067028046577755"
-                                            style="color: var(--primary); text-decoration: underline"
-                                            ><i>contact @xf8n on Discord</i></a
-                                        >.
-                                    </p>
-                                </div>
-                            </td>
-                        </tr>
-                    </table>
-                </div>
                 <div id="page-reset-password" class="page">
                     <div
                         class="reset-password-container"

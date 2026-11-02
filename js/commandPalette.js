@@ -157,16 +157,6 @@ class CommandPalette {
                 },
             },
             {
-                id: 'nav-unreleased',
-                group: 'Navigation',
-                icon: 'calendar',
-                label: 'Go to Unreleased',
-                keywords: ['unreleased', 'upcoming', 'tracker'],
-                action: () => {
-                    navigate('/unreleased');
-                },
-            },
-            {
                 id: 'nav-settings',
                 group: 'Navigation',
                 icon: 'settings',
@@ -178,23 +168,33 @@ class CommandPalette {
                 },
             },
             {
-                id: 'nav-about',
+                id: 'nav-tos',
                 group: 'Navigation',
-                icon: 'info',
-                label: 'Go to About',
-                keywords: ['about', 'version', 'credits'],
+                icon: 'file-text',
+                label: 'Terms of Service',
+                keywords: ['terms', 'tos', 'service', 'legal', 'conditions'],
                 action: () => {
-                    navigate('/about');
+                    navigate('/tos');
                 },
             },
             {
-                id: 'nav-download',
+                id: 'nav-policy',
                 group: 'Navigation',
-                icon: 'download',
-                label: 'Go to Download',
-                keywords: ['download', 'desktop', 'app'],
+                icon: 'shield-check',
+                label: 'Privacy Policy',
+                keywords: ['privacy', 'policy', 'legal', 'data', 'gdpr'],
                 action: () => {
-                    navigate('/download');
+                    navigate('/policy');
+                },
+            },
+            {
+                id: 'nav-contact',
+                group: 'Navigation',
+                icon: 'mail',
+                label: 'Contact Us',
+                keywords: ['contact', 'email', 'support', 'help', 'feedback', 'dmca'],
+                action: () => {
+                    navigate('/contact');
                 },
             },
 

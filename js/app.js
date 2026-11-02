@@ -45,6 +45,12 @@ import {
     parseDynamicCSV,
     importToLibrary,
 } from './playlist-importer.js';
+import {
+    fetchSpotifyMetadata,
+    importSpotifyTracks,
+    fetchYouTubePlaylist,
+    initYouTubeAccountUI,
+} from './playlist-service-importer.js';
 import { generateFullCSV, generateFullJSON } from './playlist-generator.js';
 import { modernSettings } from './ModernSettings.js';
 import {
@@ -725,7 +731,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             spotifyGuide.style.display = 'block';
             appleGuide.style.display = 'none';
             ytmGuide.style.display = 'none';
-            inputContainer.style.display = 'block';
+            inputContainer.style.display = 'none';
         });
 
         appleBtn.addEventListener('click', () => {
@@ -765,6 +771,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             appleGuide.style.display = 'none';
             inputContainer.style.display = 'none';
         });
+
+        initYouTubeAccountUI();
     }
 
     // Cover image upload functionality
@@ -1301,21 +1309,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                         };
                     };
 
+                    const isSpotifyActive = document.getElementById('csv-spotify-btn')?.classList.contains('btn-primary');
+                    const spotifyUrlInput = document.getElementById('spotify-url-input');
                     const isYTMActive = document.getElementById('csv-ytm-btn')?.classList.contains('btn-primary');
                     const ytmUrlInput = document.getElementById('ytm-url-input');
 
-                    if (isYTMActive && ytmUrlInput.value.trim()) {
-                        importSource = 'ytm_import';
-                        const url = ytmUrlInput.value.trim();
-                        const playlistId = url.split('list=')[1]?.split('&')[0];
-
-                        const workerUrl = `https://ytmimport.samidy.workers.dev?playlistId=${playlistId}`;
-
-                        if (!playlistId) {
-                            alert("Invalid URL. Make sure it has 'list=' in it.");
-                            return;
-                        }
-
+                    if (isSpotifyActive && spotifyUrlInput?.value.trim()) {
+                        importSource = 'spotify_import';
+                        const url = spotifyUrlInput.value.trim();
                         const {
                             progressElement,
                             progressFill,
@@ -1329,58 +1330,78 @@ document.addEventListener('DOMContentLoaded', async () => {
                             progressElement.style.display = 'block';
                             progressFill.style.width = '0%';
                             progressCurrent.textContent = '0';
-                            currentTrackElement.textContent = 'Fetching from YouTube...';
+                            currentTrackElement.textContent = 'Fetching Spotify metadata...';
                             if (currentArtistElement) currentArtistElement.textContent = '';
 
-                            const response = await fetch(workerUrl);
-                            const songs = await response.json();
+                            const spData = await fetchSpotifyMetadata(url);
+                            if (!name) name = spData.name;
+                            if (!cover && spData.cover) cover = spData.cover;
+                            if (!description && spData.description) description = spData.description;
 
-                            if (songs.error) throw new Error(songs.error);
+                            const totalCount = spData.tracks?.length || 0;
+                            progressTotal.textContent = totalCount.toString();
 
-                            currentTrackElement.textContent = `Processing ${songs.length} songs...`;
-
-                            const headers = 'Title,Artist,URL\n';
-                            const csvText =
-                                headers +
-                                songs
-                                    .map(
-                                        (s) =>
-                                            `"${s.title.replace(/"/g, '""')}","${s.artist.replace(/"/g, '""')}","${s.url}"`
-                                    )
-                                    .join('\n');
-
-                            const totalTracks = songs.length;
-                            progressTotal.textContent = totalTracks.toString();
-
-                            const result = await parseCSV(
-                                csvText,
-                                MusicAPI.instance,
-                                (progress) => {
-                                    const percentage = totalTracks > 0 ? (progress.current / totalTracks) * 100 : 0;
-                                    progressFill.style.width = `${Math.min(percentage, 100)}%`;
-                                    progressCurrent.textContent = progress.current.toString();
-                                    currentTrackElement.textContent = progress.currentTrack;
-                                    if (currentArtistElement)
-                                        currentArtistElement.textContent = progress.currentArtist || '';
-                                },
-                                importOptions
-                            );
+                            const result = await importSpotifyTracks(spData, (progress) => {
+                                const percentage = progress.total > 0 ? (progress.current / progress.total) * 100 : 0;
+                                progressFill.style.width = `${Math.min(percentage, 100)}%`;
+                                progressCurrent.textContent = progress.current.toString();
+                                currentTrackElement.textContent = progress.trackTitle;
+                                if (currentArtistElement) {
+                                    currentArtistElement.textContent = progress.artist || '';
+                                }
+                            });
 
                             tracks = result.tracks;
-                            const missingTracks = result.missingTracks;
-
                             if (tracks.length === 0) {
-                                alert('No valid tracks found in the YouTube playlist!');
+                                alert('Could not match any tracks on YouTube Music.');
                                 progressElement.style.display = 'none';
                                 return;
                             }
 
-                            console.log(`Imported ${tracks.length} tracks from YouTube`);
-
-                            if (missingTracks.length > 0) {
+                            if (result.missingTracks?.length > 0) {
                                 setTimeout(() => {
-                                    showMissingTracksNotification(missingTracks, name || 'Untitled');
+                                    showMissingTracksNotification(result.missingTracks, name || 'Untitled');
                                 }, 500);
+                            }
+                        } catch (err) {
+                            console.error('Spotify Import Error:', err);
+                            alert(`Error importing from Spotify: ${err.message}`);
+                            progressElement.style.display = 'none';
+                            return;
+                        } finally {
+                            setTimeout(() => {
+                                progressElement.style.display = 'none';
+                            }, 1000);
+                        }
+                    } else if (isYTMActive && ytmUrlInput?.value.trim()) {
+                        importSource = 'ytm_import';
+                        const url = ytmUrlInput.value.trim();
+                        const {
+                            progressElement,
+                            progressFill,
+                            progressCurrent,
+                            progressTotal,
+                            currentTrackElement,
+                            currentArtistElement,
+                        } = setupProgressElements();
+
+                        try {
+                            progressElement.style.display = 'block';
+                            progressFill.style.width = '0%';
+                            progressCurrent.textContent = '0';
+                            currentTrackElement.textContent = 'Fetching YouTube playlist...';
+                            if (currentArtistElement) currentArtistElement.textContent = '';
+
+                            const ytData = await fetchYouTubePlaylist(url);
+                            if (!name) name = ytData.name;
+                            if (!cover && ytData.cover) cover = ytData.cover;
+                            if (!description && ytData.description) description = ytData.description;
+
+                            tracks = ytData.tracks || [];
+                            if (tracks.length === 0) {
+                                alert('No valid tracks found in the YouTube playlist!');
+                                progressElement.style.display = 'none';
+                                return;
                             }
                         } catch (err) {
                             console.error('YTM Import Error:', err);

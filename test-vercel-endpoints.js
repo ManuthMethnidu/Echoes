@@ -6,6 +6,8 @@ import pairInitHandler from './api/pair/init.js';
 import pairStatusHandler from './api/pair/status.js';
 import pairApproveHandler from './api/pair/approve.js';
 import healthHandler from './api/health.js';
+import spotifyHandler from './api/import/spotify.ts';
+import socialAuthHandler from './api/auth/sign-in/social.ts';
 
 // Load .env.local
 import { readFileSync, existsSync } from 'fs';
@@ -232,6 +234,37 @@ async function runTests() {
         throw new Error('Expected status to be approved with session token');
     }
     console.log('✓ TV QR Code Pairing flow passed end-to-end!\n');
+
+    console.log('--- Test 8: Spotify Playlist Import Handler ---');
+    const { req: spReq, res: spRes } = createMockReqRes({
+        method: 'GET',
+        query: { url: 'https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M' }
+    });
+    await spotifyHandler(spReq, spRes);
+    const spResult = spRes._getResult();
+    console.log('Spotify Import Status:', spResult.statusCode, 'Title:', spResult.data?.name, 'Tracks count:', spResult.data?.trackCount);
+    if (!spResult.data?.ok || !spResult.data?.tracks?.length) {
+        throw new Error('Spotify playlist import failed');
+    }
+    console.log('✓ Spotify Playlist Import passed! Extracted tracks without API keys\n');
+
+    console.log('--- Test 9: YouTube Account Social OAuth Scope Handler ---');
+    process.env.GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || 'mock-google-client-id.apps.googleusercontent.com';
+    const { req: ytAuthReq, res: ytAuthRes } = createMockReqRes({
+        method: 'POST',
+        headers: { host: 'echos.vercel.app' },
+        body: { provider: 'youtube', callbackURL: 'https://echos.vercel.app/library' }
+    });
+    await socialAuthHandler(ytAuthReq, ytAuthRes);
+    const ytAuthResult = ytAuthRes._getResult();
+    console.log('YouTube OAuth URL status:', ytAuthResult.statusCode);
+    const generatedUrl = ytAuthResult.data?.url || '';
+    const hasYouTubeScope = generatedUrl.includes('youtube.readonly');
+    console.log('Generated URL contains youtube.readonly scope:', hasYouTubeScope);
+    if (!hasYouTubeScope) {
+        throw new Error('Expected YouTube OAuth URL to include youtube.readonly scope');
+    }
+    console.log('✓ YouTube Account OAuth connection passed!\n');
 
     console.log('====================================================');
     console.log('🎉 ALL INTEGRATION TESTS PASSED SUCCESSFULLY! 🎉');

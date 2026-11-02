@@ -231,6 +231,9 @@ export class AuthManager {
         if (params.has('secret')) {
             storeAuthToken(params.get('secret'));
         }
+        if (params.has('yt_token')) {
+            localStorage.setItem('echos_yt_token', params.get('yt_token'));
+        }
         return true;
     }
 

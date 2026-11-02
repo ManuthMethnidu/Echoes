@@ -75,6 +75,43 @@ export class YouTubeMusicEngine {
             return null;
         }
     }
+
+    async importSpotify(urlOrId) {
+        if (!urlOrId) throw new Error('Please enter a Spotify playlist or album URL');
+        const res = await fetch(`/api/import/spotify?url=${encodeURIComponent(urlOrId.trim())}`);
+        const data = await res.json();
+        if (!res.ok || !data.ok) {
+            throw new Error(data.error || 'Failed to fetch Spotify playlist');
+        }
+        return data;
+    }
+
+    async getUserPlaylists(token = '') {
+        const authToken = token || localStorage.getItem('echos_yt_token') || '';
+        if (!authToken) {
+            throw new Error('Please connect your YouTube account first.');
+        }
+        const res = await fetch(`/api/yt/user-playlists?token=${encodeURIComponent(authToken)}`);
+        const data = await res.json();
+        if (!res.ok || !data.ok) {
+            throw new Error(data.error || 'Failed to load YouTube playlists');
+        }
+        return data.playlists || [];
+    }
+
+    async getUserPlaylistTracks(playlistId, token = '') {
+        const authToken = token || localStorage.getItem('echos_yt_token') || '';
+        const res = await fetch(
+            `/api/yt/user-playlist-tracks?playlistId=${encodeURIComponent(playlistId)}&token=${encodeURIComponent(
+                authToken
+            )}`
+        );
+        const data = await res.json();
+        if (!res.ok || !data.ok) {
+            throw new Error(data.error || 'Failed to load tracks from YouTube playlist');
+        }
+        return data.tracks || [];
+    }
 }
 
 export const ytEngine = new YouTubeMusicEngine();

@@ -35,7 +35,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         const redirectUri = `${origin}/api/auth/callback`;
 
-        if (provider === 'google') {
+        let googleAccessToken = '';
+
+        if (provider === 'google' || provider === 'youtube') {
             const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -51,6 +53,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             if (!tokenRes.ok || !tokenData.access_token) {
                 return res.redirect(`${callbackURL}?error=oauth_token_exchange_failed`);
             }
+            googleAccessToken = tokenData.access_token;
 
             const userRes = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
                 headers: { Authorization: `Bearer ${tokenData.access_token}` },
@@ -150,6 +153,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         const targetUrl = new URL(callbackURL);
         targetUrl.searchParams.set('secret', token);
+        if (googleAccessToken && provider === 'youtube') {
+            targetUrl.searchParams.set('yt_token', googleAccessToken);
+        }
         return res.redirect(targetUrl.toString());
     } catch (err: any) {
         console.error('[OAuth Callback Error]', err);

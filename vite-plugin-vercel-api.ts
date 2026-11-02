@@ -67,6 +67,12 @@ export default function vercelApiPlugin(): Plugin {
                         handlerPath = './api/yt/radio.ts';
                     } else if (subPath === 'yt/playlist') {
                         handlerPath = './api/yt/playlist.ts';
+                    } else if (subPath === 'import/spotify') {
+                        handlerPath = './api/import/spotify.ts';
+                    } else if (subPath === 'yt/user-playlists') {
+                        handlerPath = './api/yt/user-playlists.ts';
+                    } else if (subPath === 'yt/user-playlist-tracks') {
+                        handlerPath = './api/yt/user-playlist-tracks.ts';
                     } else if (subPath.startsWith('users/')) {
                         handlerPath = './api/users/[username].ts';
                         routeParams.username = decodeURIComponent(subPath.slice(6));

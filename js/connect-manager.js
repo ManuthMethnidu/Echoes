@@ -119,7 +119,8 @@ export class ConnectManager {
     getWsUrl(userId) {
         const override =
             localStorage.getItem('echos-connect-ws-url') ||
-            (typeof window !== 'undefined' && window.__ECHOS_CONNECT_WS_URL__);
+            (typeof window !== 'undefined' && window.__ECHOS_CONNECT_WS_URL__) ||
+            'wss://echoes-connect-worker.methnidumanuth.workers.dev/ws';
         if (override) {
             const u = new URL(override);
             u.searchParams.set('userId', userId || 'guest');

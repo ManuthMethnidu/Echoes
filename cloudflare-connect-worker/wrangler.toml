@@ -1,6 +1,7 @@
 name = "echoes-connect-worker"
 main = "src/index.ts"
 compatibility_date = "2024-09-23"
+workers_dev = true
 
 [durable_objects]
 bindings = [

@@ -329,11 +329,16 @@ export class AuthManager {
                 throw new Error(`Unexpected response from auth server: ${JSON.stringify(data)}`);
             }
 
-            await authClient.signIn.social({
+            const options = {
                 provider,
                 callbackURL: window.location.origin + '/index.html',
                 errorCallbackURL: window.location.origin + '/index.html',
-            });
+            };
+            if (provider === 'google') {
+                options.scope = ['openid', 'email', 'profile', 'https://www.googleapis.com/auth/youtube.readonly'];
+            }
+
+            await authClient.signIn.social(options);
         } catch (error) {
             console.error('Login failed:', error);
             alert(`Login failed: ${error.message}`);

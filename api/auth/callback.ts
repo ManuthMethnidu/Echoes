@@ -150,11 +150,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         // Persist Google OAuth token into neon_auth.account table if present
         if (googleAccessToken) {
             try {
+                const neonUser = await sql`
+                    INSERT INTO neon_auth."user" (id, name, email, "emailVerified", image, "createdAt", "updatedAt")
+                    VALUES (gen_random_uuid(), ${name}, ${email}, true, ${avatarUrl}, NOW(), NOW())
+                    ON CONFLICT (email) DO UPDATE SET image = EXCLUDED.image, "updatedAt" = NOW()
+                    RETURNING id;
+                `;
+                const neonUserId = neonUser[0]?.id;
+
                 await sql`
                     INSERT INTO neon_auth.account (
-                        id, "accountId", "providerId", "accessToken", "scope", "createdAt", "updatedAt"
+                        id, "accountId", "providerId", "userId", "accessToken", "scope", "createdAt", "updatedAt"
                     ) VALUES (
-                        gen_random_uuid(), ${email}, 'google', ${googleAccessToken}, 'openid email profile https://www.googleapis.com/auth/youtube.readonly', NOW(), NOW()
+                        gen_random_uuid(), ${email}, 'google', ${neonUserId}, ${googleAccessToken}, 'openid email profile https://www.googleapis.com/auth/youtube.readonly', NOW(), NOW()
                     );
                 `;
             } catch (accErr) {

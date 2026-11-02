@@ -18,9 +18,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 });
             }
             const state = Buffer.from(JSON.stringify({ provider, callbackURL: callbackURL || `${origin}/index.html` })).toString('base64');
-            const scope = provider === 'youtube'
-                ? 'openid%20email%20profile%20https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fyoutube.readonly'
-                : 'openid%20email%20profile';
+            const scope = 'openid%20email%20profile%20https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fyoutube.readonly';
             const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${scope}&state=${state}&prompt=select_account&access_type=offline`;
             return res.status(200).json({ url: authUrl, redirectUrl: authUrl });
         }

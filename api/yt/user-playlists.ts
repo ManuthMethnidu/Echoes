@@ -32,9 +32,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 const accounts = await sql`
                     SELECT "accessToken" FROM neon_auth.account 
                     WHERE "providerId" = 'google' 
-                      AND ("userId"::text = ${authUser.id} OR "userId"::text IN (
-                          SELECT id::text FROM neon_auth.user WHERE email = ${authUser.email}
-                      ))
+                      AND (
+                          "accountId" = ${authUser.email}
+                          OR "userId"::text = ${authUser.id}
+                          OR "userId"::text IN (SELECT id::text FROM neon_auth.user WHERE email = ${authUser.email})
+                      )
                     ORDER BY "updatedAt" DESC 
                     LIMIT 1;
                 `;

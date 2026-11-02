@@ -62,50 +62,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             email = userData.email;
             name = userData.name || userData.email.split('@')[0];
             avatarUrl = userData.picture || '';
-        } else if (provider === 'github') {
-            const tokenRes = await fetch('https://github.com/login/oauth/access_token', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    Accept: 'application/json',
-                },
-                body: JSON.stringify({
-                    client_id: process.env.GITHUB_CLIENT_ID || '',
-                    client_secret: process.env.GITHUB_CLIENT_SECRET || '',
-                    code,
-                    redirect_uri: redirectUri,
-                }),
-            });
-            const tokenData = await tokenRes.json();
-            if (!tokenRes.ok || !tokenData.access_token) {
-                return res.redirect(`${callbackURL}?error=oauth_token_exchange_failed`);
-            }
-
-            const userRes = await fetch('https://api.github.com/user', {
-                headers: {
-                    Authorization: `Bearer ${tokenData.access_token}`,
-                    'User-Agent': 'echos-Music-App',
-                },
-            });
-            const userData = await userRes.json();
-
-            // Fetch emails if private
-            if (!userData.email) {
-                const emailsRes = await fetch('https://api.github.com/user/emails', {
-                    headers: {
-                        Authorization: `Bearer ${tokenData.access_token}`,
-                        'User-Agent': 'echos-Music-App',
-                    },
-                });
-                const emails = await emailsRes.json();
-                const primary = Array.isArray(emails) ? emails.find((e: any) => e.primary) : null;
-                email = primary ? primary.email : `${userData.login}@users.noreply.github.com`;
-            } else {
-                email = userData.email;
-            }
-
-            name = userData.name || userData.login;
-            avatarUrl = userData.avatar_url || '';
+        } else {
+            return res.redirect(`${callbackURL}?error=unsupported_provider`);
         }
 
         if (!email) {

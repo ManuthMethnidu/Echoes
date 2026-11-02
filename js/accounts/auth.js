@@ -339,12 +339,6 @@ export class AuthManager {
     async signInWithGoogle() {
         return this._signInSocial('google');
     }
-    async signInWithGitHub() {
-        return this._signInSocial('github');
-    }
-    async signInWithDiscord() {
-        return this._signInSocial('discord');
-    }
 
     async signInWithEmail(email, password) {
         try {
@@ -494,14 +488,8 @@ export class AuthManager {
 
             if (clearDataBtn) clearDataBtn.style.display = 'none';
             if (emailToggleBtn) emailToggleBtn.style.display = 'inline-block';
-            if (githubBtn) {
-                githubBtn.style.display = 'inline-block';
-                githubBtn.onclick = () => this.signInWithGitHub();
-            }
-            if (discordBtn) {
-                discordBtn.style.display = 'inline-block';
-                discordBtn.onclick = () => this.signInWithDiscord();
-            }
+            if (githubBtn) githubBtn.style.display = 'none';
+            if (discordBtn) discordBtn.style.display = 'none';
             if (statusText) statusText.textContent = 'Sync your library across devices';
         }
     }

@@ -310,35 +310,26 @@ export class AuthManager {
             const callbackURL = isNative ? getNativeOAuthCallbackURL() : window.location.origin + '/index.html';
             const errorCallbackURL = callbackURL;
 
-            if (isNative) {
-                const res = await fetch(`${AUTH_BASE_URL}/api/auth/sign-in/social`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ provider, callbackURL, errorCallbackURL, disableRedirect: true }),
-                    credentials: 'include',
-                });
-                const data = await readAuthResponse(res);
-                const oauthUrl = findOAuthUrl(data, res);
-                if (oauthUrl) {
+            const res = await fetch(`${AUTH_BASE_URL}/api/auth/sign-in/social`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ provider, callbackURL, errorCallbackURL, disableRedirect: true }),
+                credentials: 'include',
+            });
+            const data = await readAuthResponse(res);
+            const oauthUrl = findOAuthUrl(data, res);
+            if (oauthUrl) {
+                if (isNative) {
                     await openNativeOAuthUrl(oauthUrl);
-                    return;
+                } else {
+                    window.location.href = oauthUrl;
                 }
-                if (!res.ok || data?.error || data?.message) {
-                    throw new Error(getErrorMessage(data, `OAuth URL fetch failed (${res.status})`));
-                }
-                throw new Error(`Unexpected response from auth server: ${JSON.stringify(data)}`);
+                return;
             }
-
-            const options = {
-                provider,
-                callbackURL: window.location.origin + '/index.html',
-                errorCallbackURL: window.location.origin + '/index.html',
-            };
-            if (provider === 'google') {
-                options.scope = ['openid', 'email', 'profile', 'https://www.googleapis.com/auth/youtube.readonly'];
+            if (!res.ok || data?.error || data?.message) {
+                throw new Error(getErrorMessage(data, `OAuth URL fetch failed (${res.status})`));
             }
-
-            await authClient.signIn.social(options);
+            throw new Error(`Unexpected response from auth server: ${JSON.stringify(data)}`);
         } catch (error) {
             console.error('Login failed:', error);
             alert(`Login failed: ${error.message}`);

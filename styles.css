@@ -6575,6 +6575,27 @@ img[src=''] {
     z-index: -1;
 }
 
+.modal-close {
+    cursor: pointer;
+    background: none;
+    border: none;
+    color: var(--muted-foreground, #888);
+    font-size: 1.35rem;
+    line-height: 1;
+    padding: 6px 10px;
+    border-radius: 6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.15s, background-color 0.15s;
+    user-select: none;
+}
+
+.modal-close:hover {
+    color: var(--foreground, #fff);
+    background: rgba(255, 255, 255, 0.12);
+}
+
 .modal-content {
     background: var(--card);
     padding: 2rem;

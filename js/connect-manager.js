@@ -95,6 +95,7 @@ export class ConnectManager {
                 };
             } catch (_e) {}
         }
+        this.currentUserId = null;
     }
 
     /**
@@ -106,11 +107,12 @@ export class ConnectManager {
 
         // Listen for auth state changes to connect to the user's specific room
         authManager.onAuthStateChanged((user) => {
-            this.connect(user?.$id || user?.id);
+            const uid = user?.$id || user?.id || 'guest';
+            this.connect(uid);
         });
 
         const currentUser = authManager.user;
-        this.connect(currentUser?.$id || currentUser?.id);
+        this.connect(currentUser?.$id || currentUser?.id || 'guest');
     }
 
     /**
@@ -144,11 +146,23 @@ export class ConnectManager {
      * Connect to Cloudflare Worker WebSocket
      */
     connect(userId = 'guest') {
-        if (this.ws && (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING)) {
+        const targetUserId = userId || 'guest';
+
+        // If already connected to this exact user room, no-op
+        if (this.ws && this.currentUserId === targetUserId && (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING)) {
             return;
         }
 
-        const wsUrl = this.getWsUrl(userId);
+        // If user changed (e.g., from guest to logged in), close existing socket
+        if (this.ws) {
+            try {
+                this.ws.close();
+            } catch (_) {}
+            this.ws = null;
+        }
+
+        this.currentUserId = targetUserId;
+        const wsUrl = this.getWsUrl(targetUserId);
 
         try {
             this.ws = new WebSocket(wsUrl);
@@ -619,10 +633,21 @@ export class ConnectManager {
                 </div>
             `;
             document.body.appendChild(el);
+        }
 
+        if (!el.dataset.boundListeners) {
+            el.dataset.boundListeners = 'true';
             const close = () => this.closeModal();
+
             el.querySelector('#close-devices-modal-btn')?.addEventListener('click', close);
             el.querySelector('.modal-overlay')?.addEventListener('click', close);
+            el.addEventListener('click', (e) => {
+                if (e.target === el) close();
+            });
+            window.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && el.classList.contains('active')) close();
+            });
+
             el.querySelector('#modal-pair-tv-btn')?.addEventListener('click', async () => {
                 this.closeModal();
                 const { devicePairing } = await import('./accounts/devicePairing.js');

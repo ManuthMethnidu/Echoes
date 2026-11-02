@@ -45,10 +45,19 @@ export const devicePairing = {
                 </div>
             `;
             document.body.appendChild(el);
+        }
 
+        if (!el.dataset.boundListeners) {
+            el.dataset.boundListeners = 'true';
             const close = () => this.close();
             el.querySelector('#tv-pair-close-btn')?.addEventListener('click', close);
             el.querySelector('.modal-overlay')?.addEventListener('click', close);
+            el.addEventListener('click', (e) => {
+                if (e.target === el) close();
+            });
+            window.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && el.classList.contains('active')) close();
+            });
         }
 
         this.modalEl = el;
@@ -217,6 +226,12 @@ export const devicePairing = {
 
         cancelBtn.onclick = closeApproval;
         overlay.querySelector('.modal-overlay').onclick = closeApproval;
+        overlay.onclick = (e) => {
+            if (e.target === overlay) closeApproval();
+        };
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && overlay.classList.contains('active')) closeApproval();
+        });
 
         approveBtn.onclick = async () => {
             const code = input.value.trim().toUpperCase();

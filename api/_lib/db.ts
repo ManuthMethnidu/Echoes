@@ -28,7 +28,7 @@ export async function ensureSchema(sql: ReturnType<typeof neon>) {
 
         await sql`
             CREATE TABLE IF NOT EXISTS profiles (
-                user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+                user_id TEXT PRIMARY KEY,
                 username TEXT UNIQUE,
                 display_name TEXT,
                 avatar_url TEXT,
@@ -42,6 +42,21 @@ export async function ensureSchema(sql: ReturnType<typeof neon>) {
                 favorite_albums JSONB DEFAULT '[]'::jsonb,
                 updated_at TIMESTAMPTZ DEFAULT NOW()
             );
+        `;
+
+        await sql`
+            ALTER TABLE profiles 
+            ADD COLUMN IF NOT EXISTS user_id TEXT,
+            ADD COLUMN IF NOT EXISTS username TEXT,
+            ADD COLUMN IF NOT EXISTS display_name TEXT,
+            ADD COLUMN IF NOT EXISTS banner TEXT,
+            ADD COLUMN IF NOT EXISTS status TEXT,
+            ADD COLUMN IF NOT EXISTS about TEXT,
+            ADD COLUMN IF NOT EXISTS website TEXT,
+            ADD COLUMN IF NOT EXISTS privacy JSONB DEFAULT '{"playlists":"public","lastfm":"public"}'::jsonb,
+            ADD COLUMN IF NOT EXISTS lastfm_username TEXT,
+            ADD COLUMN IF NOT EXISTS librefm_username TEXT,
+            ADD COLUMN IF NOT EXISTS favorite_albums JSONB DEFAULT '[]'::jsonb;
         `;
 
         await sql`
@@ -61,12 +76,16 @@ export async function ensureSchema(sql: ReturnType<typeof neon>) {
                 code VARCHAR(10) UNIQUE NOT NULL,
                 pairing_token TEXT NOT NULL,
                 status TEXT NOT NULL DEFAULT 'pending',
-                user_id TEXT REFERENCES users(id) ON DELETE CASCADE,
+                user_id TEXT,
                 session_token TEXT,
                 device_info TEXT,
                 expires_at TIMESTAMPTZ NOT NULL,
                 created_at TIMESTAMPTZ DEFAULT NOW()
             );
+        `;
+
+        await sql`
+            ALTER TABLE device_pairings ADD COLUMN IF NOT EXISTS device_info TEXT;
         `;
 
         await sql`

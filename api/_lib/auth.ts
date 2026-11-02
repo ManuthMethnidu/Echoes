@@ -1,9 +1,22 @@
-import { SignJWT, jwtVerify } from 'jose';
+import { SignJWT, jwtVerify, createRemoteJWKSet } from 'jose';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 const JWT_SECRET_STRING = process.env.AUTH_SECRET || process.env.JWT_SECRET || 'echos-vercel-jwt-fallback-secret-key-32b';
 const JWT_SECRET = new TextEncoder().encode(JWT_SECRET_STRING);
 const JWT_EXPIRES_IN = '30d';
+
+const NEON_JWKS_URL =
+    process.env.NEON_AUTH_JWKS_URL ||
+    'https://ep-bitter-paper-azrnco1h.neonauth.c-3.ap-southeast-1.aws.neon.tech/neondb/auth/.well-known/jwks.json';
+
+let remoteJWKS: ReturnType<typeof createRemoteJWKSet> | null = null;
+try {
+    if (NEON_JWKS_URL) {
+        remoteJWKS = createRemoteJWKSet(new URL(NEON_JWKS_URL));
+    }
+} catch (e) {
+    console.warn('[Neon Auth JWKS Init]', e);
+}
 
 // PBKDF2 Password Hashing using standard Web Crypto API
 export async function hashPassword(password: string): Promise<string> {
@@ -85,11 +98,22 @@ export async function verifyToken(token: string): Promise<AuthUser | null> {
     try {
         const { payload } = await jwtVerify(token, JWT_SECRET);
         return {
-            id: payload.id as string,
-            email: payload.email as string,
+            id: (payload.id || payload.sub) as string,
+            email: (payload.email || '') as string,
             name: payload.name as string | undefined,
         };
     } catch {
+        // Fallback: Verify with Neon Better Auth JWKS
+        if (remoteJWKS) {
+            try {
+                const { payload } = await jwtVerify(token, remoteJWKS);
+                return {
+                    id: (payload.sub || payload.id) as string,
+                    email: (payload.email || '') as string,
+                    name: payload.name as string | undefined,
+                };
+            } catch {}
+        }
         return null;
     }
 }

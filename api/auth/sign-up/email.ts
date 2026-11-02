@@ -41,8 +41,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         // Insert profile
         await sql`
-            INSERT INTO profiles (user_id, username, display_name)
-            VALUES (${userId}, ${username}, ${displayName})
+            INSERT INTO profiles (id, user_id, name, username, display_name)
+            VALUES (${userId}, ${userId}, ${displayName}, ${username}, ${displayName})
+            ON CONFLICT (id) DO UPDATE SET
+                username = EXCLUDED.username,
+                display_name = EXCLUDED.display_name
         `;
 
         // Insert initial sync data

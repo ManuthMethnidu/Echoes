@@ -132,6 +132,7 @@ export async function initializeSettings(scrobbler, player, api, ui) {
 
     // Email Auth UI Logic
     const toggleEmailBtn = document.getElementById('toggle-email-auth-btn');
+    const toggleTvPairBtn = document.getElementById('toggle-tv-pair-btn');
     const authModalCloseBtn = document.getElementById('email-auth-modal-close');
     const authModal = document.getElementById('email-auth-modal');
     const emailInput = document.getElementById('auth-email');
@@ -139,6 +140,17 @@ export async function initializeSettings(scrobbler, player, api, ui) {
     const signInBtn = document.getElementById('email-signin-btn');
     const signUpBtn = document.getElementById('email-signup-btn');
     const resetPasswordBtn = document.getElementById('reset-password-btn');
+
+    if (toggleTvPairBtn) {
+        toggleTvPairBtn.addEventListener('click', async () => {
+            const { devicePairing } = await import('./accounts/devicePairing.js');
+            if (authManager?.user) {
+                devicePairing.handlePairApprovalUI();
+            } else {
+                devicePairing.open();
+            }
+        });
+    }
 
     if (toggleEmailBtn && authModal) {
         toggleEmailBtn.addEventListener('click', () => {

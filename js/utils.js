@@ -594,7 +594,7 @@ export function buildErrorReportUrl(message, details = null) {
         '### Steps to reproduce',
         '1. ',
     ].join('\n');
-    const url = new URL('https://github.com/monochrome-music/monochrome/issues/new');
+    const url = new URL(window.location.origin);
     url.searchParams.set('title', title);
     url.searchParams.set('body', body);
     return url.toString();
@@ -846,7 +846,7 @@ export function positionMenu(menu, x, y, anchorRect = null) {
 }
 
 export const getShareUrl = (path) => {
-    const baseUrl = window.NL_MODE ? 'https://monochrome.tf' : window.location.origin;
+    const baseUrl = window.location.origin;
     const safePath = path.startsWith('/') ? path : `/${path}`;
     return `${baseUrl}${safePath}`;
 };

@@ -5,6 +5,7 @@ import authGatePlugin from './vite-plugin-auth-gate.js';
 import blobAssetPlugin from './vite-plugin-blob.js';
 import svgUse from './vite-plugin-svg-use.js';
 import uploadPlugin from './vite-plugin-upload.js';
+import vercelApiPlugin from './vite-plugin-vercel-api.ts';
 import { playwright } from '@vitest/browser-playwright';
 import { execSync } from 'child_process';
 
@@ -89,6 +90,7 @@ export default defineConfig(({ mode }) => {
             },
         },
         plugins: [
+            vercelApiPlugin(),
             proxyAudioPlugin(),
             authGatePlugin(),
             uploadPlugin(),

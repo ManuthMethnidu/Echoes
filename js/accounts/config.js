@@ -2,21 +2,13 @@
 import { createAuthClient } from 'better-auth/client';
 
 const getBaseURL = () => {
-    const local = localStorage.getItem('monochrome-auth-url');
+    const local = localStorage.getItem('echos-auth-url') || localStorage.getItem('monochrome-auth-url');
     if (local) return local;
 
     if (window.__AUTH_URL__) return window.__AUTH_URL__;
 
-    const hostname = window.location.hostname;
-    if (
-        hostname.endsWith('monochrome.st') ||
-        hostname === 'monochrome.st' ||
-        hostname.endsWith('monochrome.tf') ||
-        hostname === 'monochrome.tf'
-    ) {
-        return 'https://auth.monochrome.st';
-    }
-    return 'https://auth.monochrome.st';
+    // Default to current host when hosted on Vercel or custom domain
+    return typeof window !== 'undefined' ? window.location.origin : '';
 };
 
 export const AUTH_BASE_URL = getBaseURL();

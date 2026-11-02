@@ -10,7 +10,7 @@ function isValidIDBKey(value) {
 
 export class MusicDatabase {
     constructor() {
-        this.dbName = 'MonochromeDB';
+        this.dbName = 'EchosDB';
         this.version = 11;
         this.db = null;
     }

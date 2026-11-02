@@ -3295,7 +3295,7 @@ export class LosslessAPI {
 
     getCoverUrl(id, size = '320') {
         if (!id) {
-            return 'images/monochrome_logo.svg';
+            return 'images/echos_logo.svg';
         }
 
         if (typeof id === 'string' && (id.startsWith('http') || id.startsWith('blob:') || id.startsWith('assets/'))) {
@@ -3309,7 +3309,14 @@ export class LosslessAPI {
     getCoverSrcset(id) {
         if (
             !id ||
-            (typeof id === 'string' && (id.startsWith('http') || id.startsWith('blob:') || id.startsWith('assets/')))
+            (typeof id === 'string' &&
+                (id.startsWith('http') ||
+                    id.startsWith('blob:') ||
+                    id.startsWith('assets/') ||
+                    id.startsWith('yt:') ||
+                    id.startsWith('yt_') ||
+                    id.includes('ytimg.com') ||
+                    /^[a-zA-Z0-9_-]{11}$/.test(id)))
         ) {
             return '';
         }
@@ -3321,7 +3328,7 @@ export class LosslessAPI {
 
     getArtistPictureUrl(id, size = '320') {
         if (!id) {
-            return 'images/monochrome_logo.svg';
+            return 'images/echos_logo.svg';
         }
 
         if (typeof id === 'string' && (id.startsWith('http') || id.startsWith('blob:') || id.startsWith('assets/'))) {
@@ -3333,7 +3340,17 @@ export class LosslessAPI {
     }
 
     getArtistPictureSrcset(id) {
-        if (!id || (typeof id === 'string' && (id.startsWith('blob:') || id.startsWith('assets/')))) {
+        if (
+            !id ||
+            (typeof id === 'string' &&
+                (id.startsWith('http') ||
+                    id.startsWith('blob:') ||
+                    id.startsWith('assets/') ||
+                    id.startsWith('yt:') ||
+                    id.startsWith('yt_') ||
+                    id.includes('ytimg.com') ||
+                    /^[a-zA-Z0-9_-]{11}$/.test(id)))
+        ) {
             return '';
         }
 

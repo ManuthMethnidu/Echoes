@@ -1,8 +1,15 @@
 import { AUTH_BASE_URL } from './config.js';
 import { getAuthToken } from './auth.js';
 
-const DATA_BASE_URL =
-    window.__POCKETBASE_URL__ || localStorage.getItem('monochrome-pocketbase-url') || 'https://data.monochrome.st';
+const getDefaultDataUrl = () => {
+    if (window.__DATA_URL__) return window.__DATA_URL__;
+    const local = localStorage.getItem('echos-data-url') || localStorage.getItem('monochrome-pocketbase-url');
+    if (local) return local;
+
+    return typeof window !== 'undefined' ? window.location.origin : '';
+};
+
+const DATA_BASE_URL = getDefaultDataUrl();
 
 function buildApi(baseUrl, path, options = {}) {
     const token = getAuthToken();

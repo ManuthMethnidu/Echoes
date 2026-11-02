@@ -1,10 +1,10 @@
 {
-    "name": "monochrome",
+    "name": "echos",
     "type": "module",
-    "version": "2.5.1",
-    "description": "[<img src=\"https://github.com/monochrome-music/monochrome/blob/main/assets/512.png?raw=true\" alt=\"Monochrome Logo\">](https://monochrome.tf)",
+    "version": "1.0.0",
+    "description": "echos - clean, ad-free music player with cross-device sync and YouTube Music engine",
     "scripts": {
-        "dev": "vite",
+        "dev": "vite --port 3000 --host",
         "dev:pages": "bunx wrangler pages dev dist",
         "test": "vitest run --config=vite.config.ts",
         "test:headless": "HEADLESS=true vitest run --config=vite.config.ts",
@@ -25,20 +25,24 @@
     },
     "repository": {
         "type": "git",
-        "url": "git+https://github.com/monochrome-music/monochrome.git"
+        "url": "git+https://github.com/ManuthMethnidu/echos.git"
     },
     "keywords": [
-        "music"
+        "music",
+        "echos",
+        "streaming",
+        "pwa"
     ],
-    "author": "",
+    "author": "Manuth Methnidu",
     "license": "Apache-2.0",
     "bugs": {
-        "url": "https://github.com/monochrome-music/monochrome/issues"
+        "url": "https://github.com/ManuthMethnidu/echos/issues"
     },
-    "homepage": "https://github.com/monochrome-music/monochrome#readme",
+    "homepage": "https://github.com/ManuthMethnidu/echos#readme",
     "devDependencies": {
         "@lhci/cli": "^0.14.0",
         "@types/node": "^25.3.5",
+        "@vercel/node": "^29.0.1",
         "@vitest/browser-playwright": "^4.1.2",
         "eslint": "^9.39.3",
         "eslint-config-prettier": "^10.1.8",
@@ -72,7 +76,9 @@
         "@ffmpeg/ffmpeg": "^0.12.15",
         "@ffmpeg/util": "^0.12.2",
         "@kawarp/core": "^1.1.1",
+        "@neondatabase/serverless": "^1.2.0",
         "@sentry/browser": "^10.70.0",
+        "@types/qrcode": "^1.5.6",
         "@types/wicg-file-system-access": "^2023.10.7",
         "@uimaxbai/am-lyrics": "^1.8.9",
         "better-auth": "^1.6.26",
@@ -87,11 +93,13 @@
         "lucide-static": "^0.577.0",
         "mime": "^4.1.0",
         "pocketbase": "^0.26.8",
+        "qrcode": "^1.5.4",
         "shaka-player": "^5.0.7",
         "simple-icons": "^16.12.0",
         "svgo": "^4.0.1",
         "typescript-eslint": "^8.57.2",
         "uuid": "^13.0.0",
-        "vitest": "^4.1.2"
+        "vitest": "^4.1.2",
+        "youtubei.js": "^18.3.0"
     }
 }

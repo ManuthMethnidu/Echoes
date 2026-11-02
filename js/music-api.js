@@ -11,6 +11,7 @@ import {
 } from './apple-music-api.js';
 import { TracksStreamerAPI, tracksStreamerAPI, normalizeTracksSearchResults } from './tracks-api.js';
 import { getCommunityPlaylist } from './community-playlists.js';
+import { ytEngine } from './yt-music.js';
 
 /**
  * MusicAPI - Singleton class that provides a unified interface for accessing music streaming services.
@@ -107,8 +108,88 @@ export class MusicAPI {
         return this.getAPI().canPlayLegacyStream(trackInfo);
     }
 
+    // YouTube / ArchiveTune engine helpers
+    isYouTubeId(id) {
+        if (!id) return false;
+        const s = String(id);
+        return s.startsWith('yt:') || s.startsWith('youtube:') || s.startsWith('yt_alb_') || /^[a-zA-Z0-9_-]{11}$/.test(s);
+    }
+
+    getYouTubeId(id) {
+        if (!id) return '';
+        const s = String(id);
+        return s.replace(/^yt:playlist:/, '').replace(/^yt_alb_/, '').replace(/^yt:/, '').replace(/^youtube:/, '');
+    }
+
+    _formatYtTrack(t) {
+        if (!t) return null;
+        const vid = t.videoId || this.getYouTubeId(t.id);
+        const trackId = `yt:${vid}`;
+        const cover = `https://i.ytimg.com/vi/${vid}/hqdefault.jpg`;
+        return {
+            ...t,
+            id: trackId,
+            videoId: vid,
+            cover,
+            image: cover,
+            trackNumber: t.trackNumber || 1,
+            volumeNumber: 1,
+            audioQuality: 'LOSSLESS',
+            audioModes: ['STEREO'],
+            allowStreaming: true,
+            streamReady: true,
+            isUnavailable: false,
+            provider: 'youtube',
+            _href: `/track/${trackId}`,
+        };
+    }
+
     // Search methods
     async search(query, options = {}) {
+        try {
+            const ytResults = await ytEngine.search(query);
+            if (ytResults && ytResults.length > 0) {
+                const preparedTracks = ytResults.map((t) => this._formatYtTrack(t));
+                this.cacheTracks(preparedTracks);
+
+                const artistMap = new Map();
+                const albumMap = new Map();
+                for (const t of preparedTracks) {
+                    if (t.artist && !artistMap.has(t.artist.id)) {
+                        artistMap.set(t.artist.id, {
+                            id: t.artist.id,
+                            name: t.artist.name,
+                            picture: t.artist.picture || t.cover,
+                            avatar: t.artist.picture || t.cover,
+                            provider: 'youtube',
+                            _href: `/artist/${t.artist.id}`,
+                        });
+                    }
+                    if (t.album && !albumMap.has(t.album.id)) {
+                        albumMap.set(t.album.id, {
+                            id: t.album.id,
+                            title: t.album.title,
+                            cover: t.album.cover || t.cover,
+                            artist: t.artist,
+                            provider: 'youtube',
+                            _href: `/album/${t.album.id}`,
+                        });
+                    }
+                }
+
+                return {
+                    tracks: { items: preparedTracks, limit: preparedTracks.length, offset: 0, totalNumberOfItems: preparedTracks.length },
+                    artists: { items: Array.from(artistMap.values()), limit: artistMap.size, offset: 0, totalNumberOfItems: artistMap.size },
+                    albums: { items: Array.from(albumMap.values()), limit: albumMap.size, offset: 0, totalNumberOfItems: albumMap.size },
+                    playlists: { items: [], limit: 0, offset: 0, totalNumberOfItems: 0 },
+                    videos: { items: [], limit: 0, offset: 0, totalNumberOfItems: 0 },
+                };
+            }
+        } catch (error) {
+            if (error.name === 'AbortError') throw error;
+            if (import.meta.env.DEV) console.warn('[search] YouTube search failed, falling back', error);
+        }
+
         try {
             const tracksResults = await this.tracksStreamerAPI.search(query, options);
             if (
@@ -158,6 +239,17 @@ export class MusicAPI {
 
     async searchTracks(query, options = {}) {
         try {
+            const ytResults = await ytEngine.search(query);
+            if (ytResults && ytResults.length > 0) {
+                const prepared = ytResults.map((t) => this._formatYtTrack(t));
+                this.cacheTracks(prepared);
+                return { items: prepared, limit: prepared.length, offset: 0, totalNumberOfItems: prepared.length };
+            }
+        } catch (error) {
+            if (error.name === 'AbortError') throw error;
+        }
+
+        try {
             const result = await this.tracksStreamerAPI.searchTracks(query, options);
             if (result?.items && result.items.length > 0) {
                 this.cacheTracks(result.items);
@@ -172,6 +264,29 @@ export class MusicAPI {
     }
 
     async searchArtists(query, options = {}) {
+        try {
+            const ytResults = await ytEngine.search(query);
+            if (ytResults && ytResults.length > 0) {
+                const artistMap = new Map();
+                for (const t of ytResults) {
+                    if (t.artist && !artistMap.has(t.artist.id)) {
+                        artistMap.set(t.artist.id, {
+                            id: t.artist.id,
+                            name: t.artist.name,
+                            picture: t.artist.picture || t.cover,
+                            avatar: t.artist.picture || t.cover,
+                            provider: 'youtube',
+                            _href: `/artist/${t.artist.id}`,
+                        });
+                    }
+                }
+                const items = Array.from(artistMap.values());
+                return { items, limit: items.length, offset: 0, totalNumberOfItems: items.length };
+            }
+        } catch (error) {
+            if (error.name === 'AbortError') throw error;
+        }
+
         try {
             const result = await this.tracksStreamerAPI.searchArtists(query, options);
             if (result?.items && result.items.length > 0) {
@@ -191,6 +306,29 @@ export class MusicAPI {
     }
 
     async searchAlbums(query, options = {}) {
+        try {
+            const ytResults = await ytEngine.search(query);
+            if (ytResults && ytResults.length > 0) {
+                const albumMap = new Map();
+                for (const t of ytResults) {
+                    if (t.album && !albumMap.has(t.album.id)) {
+                        albumMap.set(t.album.id, {
+                            id: t.album.id,
+                            title: t.album.title,
+                            cover: t.album.cover || t.cover,
+                            artist: t.artist,
+                            provider: 'youtube',
+                            _href: `/album/${t.album.id}`,
+                        });
+                    }
+                }
+                const items = Array.from(albumMap.values());
+                return { items, limit: items.length, offset: 0, totalNumberOfItems: items.length };
+            }
+        } catch (error) {
+            if (error.name === 'AbortError') throw error;
+        }
+
         try {
             const result = await this.tracksStreamerAPI.searchAlbums(query, options);
             if (result?.items && result.items.length > 0) {
@@ -268,6 +406,12 @@ export class MusicAPI {
 
     // Get methods
     async getTrack(id, quality) {
+        if (this.isYouTubeId(id)) {
+            const cached = this.getCachedTracksTrack(id);
+            if (cached) return { track: cached, info: cached, originalTrackUrl: cached.url || null };
+            const metadata = await this.getTrackMetadata(id);
+            return { track: metadata, info: metadata, originalTrackUrl: metadata?.url || null };
+        }
         if (this.isTracksId(id, 'track') || this.isTracksId(id)) {
             const track = await this.getTrackMetadata(id);
             return { track, info: track, originalTrackUrl: track?.url || null };
@@ -286,6 +430,27 @@ export class MusicAPI {
     }
 
     async getTrackMetadata(id) {
+        if (this.isYouTubeId(id)) {
+            const cached = this.getCachedTracksTrack(id);
+            if (cached) return cached;
+            try {
+                const stream = await ytEngine.resolveStream(id);
+                const track = this._formatYtTrack({
+                    id: String(id).startsWith('yt:') ? id : `yt:${id}`,
+                    videoId: this.getYouTubeId(id),
+                    title: stream.title || 'Unknown Title',
+                    duration: stream.duration || 0,
+                    artist: { id: `yt_art_${(stream.author || '').toLowerCase().replace(/[^a-z0-9]/g, '')}`, name: stream.author || 'Unknown Artist', picture: null },
+                    artists: [{ id: `yt_art_${(stream.author || '').toLowerCase().replace(/[^a-z0-9]/g, '')}`, name: stream.author || 'Unknown Artist' }],
+                    album: { id: `yt_alb_${this.getYouTubeId(id)}`, title: stream.title, cover: null, artist: { name: stream.author } },
+                    url: stream.streamUrl,
+                });
+                this.cacheTracks([track]);
+                return track;
+            } catch (err) {
+                console.warn('[getTrackMetadata] YouTube stream fetch error:', err);
+            }
+        }
         if (this.isTracksId(id, 'track') || this.isTracksId(id)) {
             const cached = this.getCachedTracksTrack(id);
             if (cached) return cached;
@@ -322,6 +487,22 @@ export class MusicAPI {
     }
 
     async getAlbum(id, provider = null) {
+        if (this.isYouTubeId(id) || String(id).startsWith('yt_alb_') || String(id).startsWith('yt:playlist:')) {
+            const playlist = await ytEngine.getPlaylist(id);
+            if (playlist) {
+                if (playlist.tracks) this.cacheTracks(playlist.tracks);
+                return {
+                    id: playlist.id,
+                    title: playlist.title,
+                    cover: playlist.cover || playlist.thumbnail,
+                    artist: { name: playlist.author || 'YouTube Music' },
+                    artists: [{ name: playlist.author || 'YouTube Music' }],
+                    numberOfTracks: playlist.trackCount || playlist.tracks?.length || 0,
+                    tracks: playlist.tracks || [],
+                    provider: 'youtube',
+                };
+            }
+        }
         if (this.isTracksId(id, 'album', provider) || this.tracksAlbumIds.has(String(id))) {
             const tracksId = this.getTracksId(id, 'album');
             if (this.tracksAlbumCache.has(String(tracksId))) return this.tracksAlbumCache.get(String(tracksId));
@@ -445,6 +626,14 @@ export class MusicAPI {
     }
 
     async getPlaylist(id, provider = null) {
+        if (this.isYouTubeId(id) || String(id).startsWith('yt:playlist:') || String(id).startsWith('PL')) {
+            const playlist = await ytEngine.getPlaylist(id);
+            if (playlist) {
+                if (playlist.tracks) this.cacheTracks(playlist.tracks);
+                return playlist;
+            }
+        }
+
         if (id?.startsWith('VL')) {
             return getCommunityPlaylist(id);
         }
@@ -476,6 +665,13 @@ export class MusicAPI {
     }
 
     async getTrackRecommendations(id) {
+        if (this.isYouTubeId(id)) {
+            const radioTracks = await ytEngine.getRadio(id);
+            if (radioTracks && radioTracks.length > 0) {
+                this.cacheTracks(radioTracks);
+                return radioTracks;
+            }
+        }
         if (this.getCachedAppleTrack(id)) return [];
         const api = this.getAPI();
         const cleanId = this.stripProviderPrefix(id);
@@ -489,17 +685,72 @@ export class MusicAPI {
     async getStreamUrl(id, quality, options = {}) {
         let track = options?.track || this.getCachedTracksTrack(id) || this.getCachedAppleTrack(id);
 
-        if (!track && (this.isTracksId(id) || this.isAppleId(id) || /^\d{17,20}$/.test(String(id)))) {
+        if (!track && (this.isTracksId(id) || this.isAppleId(id) || this.isYouTubeId(id) || /^\d{17,20}$/.test(String(id)))) {
             track = await this.getTrackMetadata(id).catch(() => null);
         }
 
-        const stream = await this.tracksStreamerAPI.resolveTrackStream(id, quality, {
-            ...options,
-            track,
-        });
-        if (stream?.url) {
-            return stream;
+        // YouTube / ArchiveTune engine resolution
+        if (this.isYouTubeId(id) || track?.provider === 'youtube' || track?.videoId) {
+            try {
+                const stream = await ytEngine.resolveStream(track || id);
+                if (stream?.streamUrl) {
+                    return {
+                        url: stream.streamUrl,
+                        streamUrl: stream.streamUrl,
+                        mimeType: stream.mimeType || 'audio/webm',
+                        mediaMimeType: stream.mimeType || 'audio/webm',
+                        playbackType: 'direct',
+                        codec: stream.codec || (stream.mimeType?.includes('opus') ? 'OPUS' : 'AAC'),
+                        quality: 'HIGH',
+                        lossless: false,
+                        bitrateKbps: Math.round(Number(stream.bitrate || 160000) / 1000),
+                        duration: stream.duration || track?.duration,
+                        provider: 'youtube',
+                    };
+                }
+            } catch (err) {
+                console.error('[getStreamUrl] YouTube resolution failed:', err);
+            }
         }
+
+        // Primary fallback: search YouTube for track title + artist (ArchiveTune style playback)
+        if (track?.title) {
+            try {
+                const artistName = track.artist?.name || (Array.isArray(track.artists) ? track.artists[0]?.name : '') || '';
+                const query = `${track.title} ${artistName}`.trim();
+                const ytResults = await ytEngine.search(query);
+                if (ytResults && ytResults.length > 0) {
+                    const stream = await ytEngine.resolveStream(ytResults[0].id);
+                    if (stream?.streamUrl) {
+                        return {
+                            url: stream.streamUrl,
+                            streamUrl: stream.streamUrl,
+                            mimeType: stream.mimeType || 'audio/webm',
+                            mediaMimeType: stream.mimeType || 'audio/webm',
+                            playbackType: 'direct',
+                            codec: stream.codec || (stream.mimeType?.includes('opus') ? 'OPUS' : 'AAC'),
+                            quality: 'HIGH',
+                            lossless: false,
+                            bitrateKbps: Math.round(Number(stream.bitrate || 160000) / 1000),
+                            duration: stream.duration || track.duration,
+                            provider: 'youtube',
+                        };
+                    }
+                }
+            } catch (fallbackErr) {
+                console.warn('[getStreamUrl] YouTube fallback search failed:', fallbackErr);
+            }
+        }
+
+        try {
+            const stream = await this.tracksStreamerAPI.resolveTrackStream(id, quality, {
+                ...options,
+                track,
+            });
+            if (stream?.url) {
+                return stream;
+            }
+        } catch {}
 
         const cleanId = this.getTracksId(id);
         return this.tracksStreamerAPI.getStreamUrl(cleanId, quality, { track });
@@ -516,17 +767,39 @@ export class MusicAPI {
     // Cover/artwork methods
     getCoverUrl(id, size = '320') {
         if (!id) {
-            return 'images/monochrome_logo.svg';
+            return 'images/echos_logo.svg';
         }
-        if (typeof id === 'string' && /^(?:https?:|blob:|data:|assets\/)/.test(id)) {
-            return id;
+        if (typeof id === 'string') {
+            if (this.isYouTubeId(id)) {
+                const vid = this.getYouTubeId(id);
+                return `https://i.ytimg.com/vi/${vid}/hqdefault.jpg`;
+            }
+            const viMatch = id.match(/\/vi\/([a-zA-Z0-9_-]{11})\//);
+            if (viMatch) {
+                return `https://i.ytimg.com/vi/${viMatch[1]}/hqdefault.jpg`;
+            }
+            if (/^(?:https?:|blob:|data:|assets\/)/.test(id)) {
+                return id;
+            }
         }
         return this.tidalAPI.getCoverUrl(this.stripProviderPrefix(id), size);
     }
 
     getCoverSrcset(id) {
-        if (typeof id === 'string' && id.startsWith('blob:')) {
-            return '';
+        if (!id) return '';
+        if (typeof id === 'string') {
+            if (
+                this.isYouTubeId(id) ||
+                id.startsWith('blob:') ||
+                id.startsWith('http') ||
+                id.startsWith('assets/') ||
+                id.startsWith('yt:') ||
+                id.startsWith('yt_') ||
+                id.includes('ytimg.com') ||
+                /^[a-zA-Z0-9_-]{11}$/.test(id)
+            ) {
+                return '';
+            }
         }
         return this.tidalAPI.getCoverSrcset(this.stripProviderPrefix(id));
     }
@@ -535,8 +808,14 @@ export class MusicAPI {
         if (!imageId) {
             return null;
         }
-        if (typeof imageId === 'string' && imageId.startsWith('blob:')) {
-            return imageId;
+        if (typeof imageId === 'string') {
+            if (this.isYouTubeId(imageId)) {
+                const vid = this.getYouTubeId(imageId);
+                return `https://i.ytimg.com/vi/${vid}/hqdefault.jpg`;
+            }
+            if (imageId.startsWith('blob:') || imageId.startsWith('http') || imageId.startsWith('assets/')) {
+                return imageId;
+            }
         }
         return this.tidalAPI.getVideoCoverUrl(this.stripProviderPrefix(imageId), size);
     }
@@ -572,13 +851,38 @@ export class MusicAPI {
 
     getArtistPictureUrl(id, size = '320') {
         if (!id) {
-            return 'images/monochrome_logo.svg';
+            return 'images/echos_logo.svg';
         }
-        if (typeof id === 'string' && /^(?:https?:|blob:|data:|assets\/)/.test(id)) return id;
+        if (typeof id === 'string') {
+            if (this.isYouTubeId(id)) {
+                const vid = this.getYouTubeId(id);
+                return `https://i.ytimg.com/vi/${vid}/hqdefault.jpg`;
+            }
+            const viMatch = id.match(/\/vi\/([a-zA-Z0-9_-]{11})\//);
+            if (viMatch) {
+                return `https://i.ytimg.com/vi/${viMatch[1]}/hqdefault.jpg`;
+            }
+            if (/^(?:https?:|blob:|data:|assets\/)/.test(id)) return id;
+        }
         return this.tidalAPI.getArtistPictureUrl(this.stripProviderPrefix(id), size);
     }
 
     getArtistPictureSrcset(id) {
+        if (!id) return '';
+        if (typeof id === 'string') {
+            if (
+                this.isYouTubeId(id) ||
+                id.startsWith('blob:') ||
+                id.startsWith('http') ||
+                id.startsWith('assets/') ||
+                id.startsWith('yt:') ||
+                id.startsWith('yt_') ||
+                id.includes('ytimg.com') ||
+                /^[a-zA-Z0-9_-]{11}$/.test(id)
+            ) {
+                return '';
+            }
+        }
         return this.tidalAPI.getArtistPictureSrcset(this.stripProviderPrefix(id));
     }
 
@@ -813,10 +1117,24 @@ export class MusicAPI {
     }
 
     async getRecommendedTracksForPlaylist(tracks, limit = 20, options = {}) {
+        const ytSeeds = tracks.filter((track) => track?.provider === 'youtube' || this.isYouTubeId(track?.id));
+        if (ytSeeds.length > 0) {
+            try {
+                const radio = await ytEngine.getRadio(ytSeeds[0].id);
+                if (radio && radio.length > 0) {
+                    const formatted = radio.map((t) => this._formatYtTrack(t));
+                    this.cacheTracks(formatted);
+                    return formatted.slice(0, limit);
+                }
+            } catch (err) {
+                console.warn('[getRecommendedTracksForPlaylist] YouTube radio failed:', err);
+            }
+        }
+
         const appleSeeds = tracks.filter(
             (track) => track?.provider === 'apple' || this.isAppleId(track?.id) || this.getCachedAppleTrack(track?.id)
         );
-        const tidalSeeds = tracks.filter((track) => !appleSeeds.includes(track));
+        const tidalSeeds = tracks.filter((track) => !appleSeeds.includes(track) && !ytSeeds.includes(track));
         const canFallbackToTidal = tidalSeeds.length > 0;
         const [appleTracks, tidalTracks] = await Promise.all([
             appleSeeds.length
@@ -843,7 +1161,7 @@ export class MusicAPI {
             if (tidalTracks[index]) combined.push(tidalTracks[index]);
         }
         const seen = new Set();
-        return combined
+        const filtered = combined
             .filter((track) => {
                 const id = String(track?.id || '');
                 if (!id || excluded.has(id) || seen.has(id)) return false;
@@ -851,6 +1169,19 @@ export class MusicAPI {
                 return true;
             })
             .slice(0, limit);
+
+        if (filtered.length === 0 && tracks.length > 0) {
+            try {
+                const radio = await ytEngine.getRadio(tracks[0].id || tracks[0]);
+                if (radio && radio.length > 0) {
+                    const formatted = radio.map((t) => this._formatYtTrack(t));
+                    this.cacheTracks(formatted);
+                    return formatted.slice(0, limit);
+                }
+            } catch {}
+        }
+
+        return filtered;
     }
 
     // Cache methods

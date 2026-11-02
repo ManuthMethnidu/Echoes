@@ -27,7 +27,7 @@ const secondaryItems: NavigationItem[] = [
     { id: 'sidebar-nav-party', href: '/parties', label: 'Parties', icon: icons.users },
     {
         id: 'sidebar-nav-githubbtn',
-        href: 'https://github.com/monochrome-music/monochrome',
+        href: 'https://github.com/ManuthMethnidu/echos',
         label: 'GitHub',
         icon: icons.github,
         target: '_blank',
@@ -95,9 +95,9 @@ export function AppNavigation() {
     return (
         <>
             <div className="sidebar-logo">
-                <a aria-label="Monochrome home" className="sidebar-logo-link" href="/">
+                <a aria-label="echos home" className="sidebar-logo-link" href="/">
                     <Icon className="app-logo" svg={icons.logo} size={22} />
-                    <span>Monochrome</span>
+                    <span>echos</span>
                 </a>
                 <button
                     aria-label="Collapse sidebar"

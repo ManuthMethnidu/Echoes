@@ -4,9 +4,9 @@ import { db } from '../db.js';
 import { authManager } from './auth.js';
 import { authApi, dataApi } from './authApi.js';
 
-const DEFAULT_POCKETBASE_URL = 'https://data.monochrome.st';
+const DEFAULT_POCKETBASE_URL = typeof window !== 'undefined' ? window.location.origin : '';
 const POCKETBASE_URL =
-    window.__POCKETBASE_URL__ || localStorage.getItem('monochrome-pocketbase-url') || DEFAULT_POCKETBASE_URL;
+    window.__POCKETBASE_URL__ || localStorage.getItem('echos-data-url') || localStorage.getItem('monochrome-pocketbase-url') || DEFAULT_POCKETBASE_URL;
 
 console.log('[PocketBase] Using URL:', POCKETBASE_URL);
 

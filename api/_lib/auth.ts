@@ -1,0 +1,129 @@
+import { SignJWT, jwtVerify } from 'jose';
+import type { VercelRequest, VercelResponse } from '@vercel/node';
+
+const JWT_SECRET_STRING = process.env.AUTH_SECRET || process.env.JWT_SECRET || 'echos-vercel-jwt-fallback-secret-key-32b';
+const JWT_SECRET = new TextEncoder().encode(JWT_SECRET_STRING);
+const JWT_EXPIRES_IN = '30d';
+
+// PBKDF2 Password Hashing using standard Web Crypto API
+export async function hashPassword(password: string): Promise<string> {
+    const salt = crypto.getRandomValues(new Uint8Array(16));
+    const enc = new TextEncoder();
+    const keyMaterial = await crypto.subtle.importKey(
+        'raw',
+        enc.encode(password),
+        { name: 'PBKDF2' },
+        false,
+        ['deriveBits', 'deriveKey']
+    );
+
+    const derivedKey = await crypto.subtle.deriveBits(
+        {
+            name: 'PBKDF2',
+            salt,
+            iterations: 100000,
+            hash: 'SHA-256',
+        },
+        keyMaterial,
+        256
+    );
+
+    const saltHex = Array.from(salt).map((b) => b.toString(16).padStart(2, '0')).join('');
+    const hashHex = Array.from(new Uint8Array(derivedKey)).map((b) => b.toString(16).padStart(2, '0')).join('');
+    return `${saltHex}:${hashHex}`;
+}
+
+export async function verifyPassword(password: string, storedHash: string): Promise<boolean> {
+    const parts = storedHash.split(':');
+    if (parts.length !== 2) return false;
+    const [saltHex, originalHashHex] = parts;
+    const salt = new Uint8Array(saltHex.match(/.{1,2}/g)!.map((byte) => parseInt(byte, 16)));
+
+    const enc = new TextEncoder();
+    const keyMaterial = await crypto.subtle.importKey(
+        'raw',
+        enc.encode(password),
+        { name: 'PBKDF2' },
+        false,
+        ['deriveBits', 'deriveKey']
+    );
+
+    const derivedKey = await crypto.subtle.deriveBits(
+        {
+            name: 'PBKDF2',
+            salt,
+            iterations: 100000,
+            hash: 'SHA-256',
+        },
+        keyMaterial,
+        256
+    );
+
+    const hashHex = Array.from(new Uint8Array(derivedKey)).map((b) => b.toString(16).padStart(2, '0')).join('');
+    return hashHex === originalHashHex;
+}
+
+export interface AuthUser {
+    id: string;
+    email: string;
+    name?: string;
+}
+
+export async function createToken(user: AuthUser): Promise<string> {
+    return new SignJWT({
+        id: user.id,
+        email: user.email,
+        name: user.name || '',
+    })
+        .setProtectedHeader({ alg: 'HS256' })
+        .setIssuedAt()
+        .setExpirationTime(JWT_EXPIRES_IN)
+        .sign(JWT_SECRET);
+}
+
+export async function verifyToken(token: string): Promise<AuthUser | null> {
+    try {
+        const { payload } = await jwtVerify(token, JWT_SECRET);
+        return {
+            id: payload.id as string,
+            email: payload.email as string,
+            name: payload.name as string | undefined,
+        };
+    } catch {
+        return null;
+    }
+}
+
+export function extractToken(req: VercelRequest): string | null {
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+        return authHeader.substring(7).trim();
+    }
+
+    // Also check cookies
+    const cookieHeader = req.headers.cookie;
+    if (cookieHeader) {
+        const match = cookieHeader.match(/(?:^|;\s*)mono_session=([^;]+)/);
+        if (match) return decodeURIComponent(match[1]);
+        const betterMatch = cookieHeader.match(/(?:^|;\s*)better-auth\.session_token=([^;]+)/);
+        if (betterMatch) return decodeURIComponent(betterMatch[1]);
+    }
+
+    return null;
+}
+
+export async function getAuthenticatedUser(req: VercelRequest): Promise<AuthUser | null> {
+    const token = extractToken(req);
+    if (!token) return null;
+    return verifyToken(token);
+}
+
+export function setSessionCookie(res: VercelResponse, token: string) {
+    const isProd = process.env.NODE_ENV === 'production';
+    const cookieStr = `mono_session=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${30 * 24 * 60 * 60}${isProd ? '; Secure' : ''}`;
+    res.setHeader('Set-Cookie', cookieStr);
+}
+
+export function clearSessionCookie(res: VercelResponse) {
+    res.setHeader('Set-Cookie', 'mono_session=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0');
+}

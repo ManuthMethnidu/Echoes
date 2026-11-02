@@ -462,50 +462,75 @@ export class LyricsManager {
     }
 
     async fetchLyrics(trackId, track = null) {
-        if (track) {
-            if (this.lyricsCache.has(trackId)) {
-                return this.lyricsCache.get(trackId);
-            }
+        if (!track) return null;
 
+        if (this.lyricsCache.has(trackId)) {
+            return this.lyricsCache.get(trackId);
+        }
+
+        try {
+            let artist = Array.isArray(track.artists)
+                ? track.artists.map((a) => a.name || a).join(', ')
+                : track.artist?.name || '';
+            let rawTitle = track.title || '';
+
+            // Clean title and artist from YouTube noise
+            let cleanTitle = rawTitle
+                .replace(/^.+?\s*[-–—]\s*/, '') // remove "Artist - "
+                .replace(/\s*\([^)]*(?:official|video|audio|lyric|visualizer|hd|4k|version)[^)]*\)/gi, '')
+                .replace(/\s*\[[^\]]*(?:official|video|audio|lyric|visualizer|hd|4k|version)[^\]]*\]/gi, '')
+                .replace(/\b(feat|ft)\.?\s+.*$/i, '')
+                .trim();
+
+            if (!cleanTitle) cleanTitle = rawTitle;
+
+            const cleanArtist = artist.replace(/vevo$/i, '').replace(/\s*-\s*topic$/i, '').trim();
+            const duration = track.duration ? Math.round(track.duration) : null;
+
+            // 1. Try exact match on lrclib.net/api/get
+            let foundData = null;
             try {
-                const artist = Array.isArray(track.artists)
-                    ? track.artists.map((a) => a.name || a).join(', ')
-                    : track.artist?.name || '';
-                const title = track.title || '';
-                const album = track.album?.title || '';
-                const duration = track.duration ? Math.round(track.duration) : null;
-
-                if (!title || !artist) {
-                    console.warn('Missing required fields for LRCLIB');
-                    return null;
-                }
-
                 const params = new URLSearchParams({
-                    track_name: title,
-                    artist_name: artist,
+                    track_name: cleanTitle,
+                    artist_name: cleanArtist,
                 });
-
-                if (album) params.append('album_name', album);
                 if (duration) params.append('duration', duration.toString());
-
-                const response = await fetch(`https://lrclib.net/api/get?${params.toString()}`);
-
-                if (response.ok) {
-                    const data = await response.json();
-
-                    if (data.syncedLyrics) {
-                        const lyricsData = {
-                            subtitles: data.syncedLyrics,
-                            lyricsProvider: 'LRCLIB',
-                        };
-
-                        this.lyricsCache.set(trackId, lyricsData);
-                        return lyricsData;
+                const res = await fetch(`https://lrclib.net/api/get?${params.toString()}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data?.syncedLyrics || data?.plainLyrics) {
+                        foundData = data;
                     }
                 }
-            } catch (error) {
-                console.warn('LRCLIB fetch failed:', error);
+            } catch {}
+
+            // 2. Fallback to lrclib.net/api/search
+            if (!foundData) {
+                try {
+                    const query = `${cleanArtist} ${cleanTitle}`.trim();
+                    const sRes = await fetch(`https://lrclib.net/api/search?q=${encodeURIComponent(query)}`);
+                    if (sRes.ok) {
+                        const items = await sRes.json();
+                        if (Array.isArray(items) && items.length > 0) {
+                            foundData = items.find((i) => i.syncedLyrics) || items[0];
+                        }
+                    }
+                } catch {}
             }
+
+            if (foundData && (foundData.syncedLyrics || foundData.plainLyrics)) {
+                const subtitles = foundData.syncedLyrics || foundData.plainLyrics;
+                const lyricsData = {
+                    subtitles,
+                    plainLyrics: foundData.plainLyrics,
+                    syncedLyrics: foundData.syncedLyrics,
+                    lyricsProvider: 'LRCLIB',
+                };
+                this.lyricsCache.set(trackId, lyricsData);
+                return lyricsData;
+            }
+        } catch (error) {
+            console.warn('LRCLIB fetch failed:', error);
         }
 
         return null;

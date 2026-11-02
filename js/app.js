@@ -109,55 +109,7 @@ async function loadDownloadsModule() {
 let contributorsLoaded = false;
 
 async function fetchcontributors() {
-    if (contributorsLoaded) return;
-    contributorsLoaded = true;
-    try {
-        const response = await fetch('https://tracks.monochrome.st/contributors');
-        if (!response.ok) {
-            contributorsLoaded = false;
-            return;
-        }
-        const data1 = await response.json();
-        if (!Array.isArray(data1)) {
-            contributorsLoaded = false;
-            return;
-        }
-
-        let data = data1.filter(
-            (user) => user.type !== 'Bot' && user.login !== 'edidealt' && user.login !== 'satanyahoo'
-        );
-
-        const edideaur = data.find((user) => user.login === 'edideaur');
-        if (edideaur) {
-            edideaur.contributions += data1.find((u) => u.login === 'edidealt')?.contributions || 0;
-            edideaur.contributions += data1.find((u) => u.login === 'satanyahoo')?.contributions || 0;
-            edideaur.contributions += 300;
-        }
-
-        data.sort((a, b) => b.contributions - a.contributions);
-
-        const con = document.querySelector('.about-contributors');
-        if (!con) return;
-
-        data.forEach((user) => {
-            const userDIV = document.createElement('div');
-            userDIV.innerHTML = `
-            <a href="${user.html_url}" target="_blank">
-            <img crossorigin="anonymous" referrerpolicy="no-referrer" src="${user.avatar_url}&s=50" alt="${user.login}" width="50" height="50" style="border-radius: 50%;" loading="lazy">
-            <span>${user.login}</span>
-            <span class="contrib">Contributions: ${user.contributions}</span>
-            </a>
-            `;
-            con.appendChild(userDIV);
-        });
-    } catch (e) {
-        contributorsLoaded = false;
-        const con = document.querySelector('.about-contributors-failed');
-        if (!con) return;
-        con.innerHTML = `
-        <h4 style="text-align: center; color: var(--muted-foreground);">Failed to Fetch Contributor List</h4>
-        `;
-    }
+    return;
 }
 
 async function loadMetadataModule() {
@@ -368,7 +320,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     if (import.meta.env.DEV) {
-        window.monochrome = {
+        window.echos = {
             HiFiClient,
             LyricsManager,
             MusicAPI,
@@ -385,15 +337,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Populate commit info
     {
-        const repo = 'https://github.com/monochrome-music/monochrome';
-        // eslint-disable-next-line no-undef
-        const hash = typeof __COMMIT_HASH__ !== 'undefined' ? __COMMIT_HASH__ : 'dev';
-        const commitLink =
-            hash !== 'dev' && hash !== 'unknown'
-                ? `<a href="${repo}/commit/${hash}" target="_blank" rel="noopener noreferrer" style="color:inherit;text-decoration:underline">${hash}</a>`
-                : hash;
-        const repoLink = `<a href="${repo}" target="_blank" rel="noopener noreferrer" style="color:inherit;text-decoration:underline">monochrome-music/monochrome</a>`;
-        const html = `Commit ${commitLink} · ${repoLink}`;
+        const html = `echos · Web Edition`;
         const aboutEl = document.getElementById('about-commit-info');
         const settingsEl = document.getElementById('settings-commit-info');
         if (aboutEl) aboutEl.innerHTML = html;
@@ -2796,20 +2740,23 @@ document.addEventListener('DOMContentLoaded', async () => {
                     </div>
                     <hr style="border:none;border-top:1px solid var(--border);margin:0.25rem 0">
                     <button class="btn-secondary" id="header-email-auth">Connect with Email</button>
+                    <button class="btn-secondary" id="header-tv-pair" style="margin-top:6px;display:flex;align-items:center;justify-content:center;gap:6px;">📺 Pair TV / Secondary Device</button>
                 `;
 
                 for (const id of ['header-discord-auth', 'header-google-auth', 'header-github-auth']) {
                     const btn = document.getElementById(id);
-                    const svg = btn.querySelector('svg');
-                    svg.style.display = 'block';
-                    svg.style.filter = 'brightness(0) invert(1)';
-                    svg.style.transition = 'filter 0.15s';
-                    btn.addEventListener('mouseenter', () => {
-                        svg.style.filter = 'brightness(0) invert(0.5)';
-                    });
-                    btn.addEventListener('mouseleave', () => {
+                    const svg = btn?.querySelector('svg');
+                    if (svg) {
+                        svg.style.display = 'block';
                         svg.style.filter = 'brightness(0) invert(1)';
-                    });
+                        svg.style.transition = 'filter 0.15s';
+                        btn.addEventListener('mouseenter', () => {
+                            svg.style.filter = 'brightness(0) invert(0.5)';
+                        });
+                        btn.addEventListener('mouseleave', () => {
+                            svg.style.filter = 'brightness(0) invert(1)';
+                        });
+                    }
                 }
 
                 document.getElementById('header-google-auth').onclick = () => authManager.signInWithGoogle();
@@ -2819,6 +2766,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                     document.getElementById('email-auth-modal').classList.add('active');
                     headerAccountDropdown.classList.remove('active');
                 };
+                document.getElementById('header-tv-pair').onclick = async () => {
+                    headerAccountDropdown.classList.remove('active');
+                    const { devicePairing } = await import('./accounts/devicePairing.js');
+                    devicePairing.open();
+                };
             } else {
                 const data = await syncManager.getUserData();
                 const hasProfile = data && data.profile && data.profile.username;
@@ -2826,20 +2778,32 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (hasProfile) {
                     headerAccountDropdown.innerHTML = `
                         <button class="btn-secondary" id="header-view-profile">My Profile</button>
+                        <button class="btn-secondary" id="header-pair-device">📺 Pair a TV / Screen</button>
                         <button class="btn-secondary danger" id="header-sign-out">Sign Out</button>
                     `;
                     document.getElementById('header-view-profile').onclick = () => {
                         navigate(`/user/@${data.profile.username}`);
                         headerAccountDropdown.classList.remove('active');
                     };
+                    document.getElementById('header-pair-device').onclick = async () => {
+                        headerAccountDropdown.classList.remove('active');
+                        const { devicePairing } = await import('./accounts/devicePairing.js');
+                        devicePairing.handlePairApprovalUI();
+                    };
                 } else {
                     headerAccountDropdown.innerHTML = `
                         <button class="btn-primary" id="header-create-profile">Create Profile</button>
+                        <button class="btn-secondary" id="header-pair-device">📺 Pair a TV / Screen</button>
                         <button class="btn-secondary danger" id="header-sign-out">Sign Out</button>
                     `;
                     document.getElementById('header-create-profile').onclick = async () => {
                         openEditProfile().catch(console.error);
                         headerAccountDropdown.classList.remove('active');
+                    };
+                    document.getElementById('header-pair-device').onclick = async () => {
+                        headerAccountDropdown.classList.remove('active');
+                        const { devicePairing } = await import('./accounts/devicePairing.js');
+                        devicePairing.handlePairApprovalUI();
                     };
                 }
 
@@ -2875,7 +2839,7 @@ function showUpdateNotification(updateCallback) {
     notification.innerHTML = `
         <div>
             <strong>Update Available</strong>
-            <p>A new version of Monochrome is available.</p>
+            <p>A new version of echos is available.</p>
         </div>
         <div class="update-notification-actions">
             <button class="btn-primary" id="update-now-btn">Update Now</button>

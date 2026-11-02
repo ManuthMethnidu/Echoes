@@ -454,7 +454,7 @@ export class UIRenderer {
                             ? this.api.getArtistPictureUrl(item.cover)
                             : this.api.getCoverUrl(item.cover);
                     const coverClass = item.type === 'artist' ? 'artist' : '';
-                    iconHTML = `<img crossorigin="anonymous" referrerpolicy="no-referrer" src="${coverUrl}" class="pinned-item-cover ${coverClass}" alt="${escapeHtml(item.name)}" loading="lazy" onerror="this.src='images/monochrome_logo.svg'">`;
+                    iconHTML = `<img crossorigin="anonymous" referrerpolicy="no-referrer" src="${coverUrl}" class="pinned-item-cover ${coverClass}" alt="${escapeHtml(item.name)}" loading="lazy" onerror="this.src='images/echos_logo.svg'">`;
                 }
 
                 return `
@@ -586,14 +586,14 @@ export class UIRenderer {
             if (isVideo && this.currentPage === 'playlist') {
                 const videoCoverUrl = this.api.getVideoCoverUrl(track.imageId);
                 if (videoCoverUrl) {
-                    trackImageHTML = `<img crossorigin="anonymous" referrerpolicy="no-referrer" src="${videoCoverUrl}" alt="" class="track-item-cover" loading="eager" onerror="this.src='images/monochrome_logo.svg';this.onerror=null;">`;
+                    trackImageHTML = `<img crossorigin="anonymous" referrerpolicy="no-referrer" src="${videoCoverUrl}" alt="" class="track-item-cover" loading="eager" onerror="this.src='images/echos_logo.svg';this.onerror=null;">`;
                 } else {
                     trackImageHTML = `<div class="track-item-cover video-icon-placeholder" style="display: flex; align-items: center; justify-content: center; background: var(--secondary);">${SVG_VIDEO(20, { style: 'opacity: 0.7;' })}</div>`;
                 }
             } else if (isVideo && (this.currentPage === 'search' || this.currentPage === 'library')) {
                 const videoCoverUrl = this.api.getVideoCoverUrl(track.imageId);
                 if (videoCoverUrl) {
-                    trackImageHTML = `<img crossorigin="anonymous" referrerpolicy="no-referrer" src="${videoCoverUrl}" alt="" class="track-item-cover" loading="eager" onerror="this.src='images/monochrome_logo.svg';this.onerror=null;">`;
+                    trackImageHTML = `<img crossorigin="anonymous" referrerpolicy="no-referrer" src="${videoCoverUrl}" alt="" class="track-item-cover" loading="eager" onerror="this.src='images/echos_logo.svg';this.onerror=null;">`;
                 } else {
                     trackImageHTML = `<div class="track-item-cover video-icon-placeholder" style="display: flex; align-items: center; justify-content: center; background: var(--secondary);">${SVG_PLAY(16, { style: 'opacity: 0.7;' })}</div>`;
                 }
@@ -719,7 +719,7 @@ export class UIRenderer {
         let imageUrl =
             type === 'artist' ? this.api.getArtistPictureUrl(cover, size) : this.api.getCoverUrl(cover, size);
         if (!imageUrl) {
-            imageUrl = 'images/monochrome_logo.svg';
+            imageUrl = 'images/echos_logo.svg';
         }
 
         if (videoCoverUrl) {
@@ -738,12 +738,12 @@ export class UIRenderer {
             const tidalUrl = `https://resources.tidal.com/images/${formattedId}/320x320.jpg`;
             const wsrvUrl = `https://wsrv.nl/?url=${encodeURIComponent(tidalUrl)}&w=250&h=250&output=webp`;
             const fetchPriorityAttr = loading === 'eager' ? ' fetchpriority="high"' : '';
-            return `<img crossorigin="anonymous" referrerpolicy="no-referrer" src="${wsrvUrl}" class="${className}" alt="${alt}" loading="${loading}"${fetchPriorityAttr} onerror="this.src='images/monochrome_logo.svg';this.onerror=null;">`;
+            return `<img crossorigin="anonymous" referrerpolicy="no-referrer" src="${wsrvUrl}" class="${className}" alt="${alt}" loading="${loading}"${fetchPriorityAttr} onerror="this.src='images/echos_logo.svg';this.onerror=null;">`;
         }
 
         const loadingAttr = loading && loading !== 'eager' ? ` loading="${loading}"` : '';
         const fetchPriorityAttr = loading === 'eager' ? ' fetchpriority="high"' : '';
-        return `<img crossorigin="anonymous" referrerpolicy="no-referrer" src="${imageUrl}" class="${className}" alt="${alt}"${loadingAttr}${fetchPriorityAttr} onerror="this.src='images/monochrome_logo.svg';this.onerror=null;">`;
+        return `<img crossorigin="anonymous" referrerpolicy="no-referrer" src="${imageUrl}" class="${className}" alt="${alt}"${loadingAttr}${fetchPriorityAttr} onerror="this.src='images/echos_logo.svg';this.onerror=null;">`;
     }
 
     createBaseCardHTML({
@@ -2673,37 +2673,7 @@ export class UIRenderer {
     }
 
     async loadDonateGoal() {
-        this.setupCryptoCopy();
-
-        const goalPercent = document.getElementById('donate-goal-percent');
-        const goalProgress = document.getElementById('donate-goal-progress');
-        const donateBtn = document.querySelector('#page-donate a.btn-primary');
-
-        const sidebarProgress = document.getElementById('sidebar-donate-goal-progress');
-        const sidebarText = document.getElementById('sidebar-donate-goal-text');
-
-        try {
-            const response = await fetch('https://tracks.monochrome.st/goal');
-            const data = await response.json();
-            let percentage = 0;
-
-            if (data && data.percentage) {
-                // New format: {"percentage":"76%"}
-                percentage = parseFloat(data.percentage.replace('%', ''));
-            }
-
-            if (goalPercent) goalPercent.textContent = `${percentage.toFixed(1)}%`;
-            if (goalProgress) goalProgress.style.width = `${percentage}%`;
-
-            if (sidebarText) {
-                sidebarText.textContent = `${percentage.toFixed(0)}%`;
-            }
-            if (sidebarProgress) {
-                sidebarProgress.style.width = `${percentage}%`;
-            }
-        } catch (error) {
-            // lowk wrapping it in the try-catch for the larp
-        }
+        return;
     }
 
     async renderPartiesPage() {
@@ -3131,14 +3101,9 @@ export class UIRenderer {
         if (container.children.length > 0) return;
 
         container.classList.remove('card-grid');
-
         container.innerHTML = `<div class="card-grid">${this.createSkeletonCards(12)}</div>`;
 
         try {
-            const response = await fetch('https://hot.monochrome.tf/');
-            if (!response.ok) throw new Error('Failed to load explore data');
-            const data = await response.json();
-
             container.innerHTML = '';
 
             const GENRES = [
@@ -3189,31 +3154,9 @@ export class UIRenderer {
                 }
             }
 
-            if (data.top_albums && data.top_albums.length > 0) {
-                await this.renderExploreSection(container, 'Trending Albums', data.top_albums, 'album');
-            }
-
-            if (data.top_tracks && data.top_tracks.length > 0) {
-                await this.renderExploreSection(container, 'Trending Tracks', data.top_tracks, 'track');
-            }
-
-            if (data.featured_playlists && data.featured_playlists.length > 0) {
-                await this.renderExploreSection(container, 'Featured Playlists', data.featured_playlists, 'playlist');
-            }
-
-            if (data.sections && data.sections.length > 0) {
-                for (const section of data.sections) {
-                    if (section.items && section.items.length > 0) {
-                        let type = null;
-                        if (section.type === 'ALBUM_LIST') type = 'album';
-                        else if (section.type === 'TRACK_LIST') type = 'track';
-                        else if (section.type === 'PLAYLIST_LIST') type = 'playlist';
-
-                        if (type) {
-                            await this.renderExploreSection(container, section.title, section.items, type);
-                        }
-                    }
-                }
+            const trending = await this.api.searchTracks('Top Music Hits 2026');
+            if (trending?.items?.length > 0) {
+                await this.renderExploreSection(container, 'Trending Tracks', trending.items.slice(0, 20), 'track');
             }
 
             if (container.children.length === 0) {
@@ -3479,14 +3422,14 @@ export class UIRenderer {
                 const img = document.createElement('img');
                 img.crossOrigin = 'anonymous';
                 img.referrerPolicy = 'no-referrer';
-                img.src = aotyCoverUrl(item.image) || 'images/monochrome_logo.svg';
+                img.src = aotyCoverUrl(item.image) || 'images/echos_logo.svg';
                 img.width = 88;
                 img.height = 56;
                 img.style.cssText =
                     'width:88px;height:56px;border-radius:6px;object-fit:cover;flex-shrink:0;background:var(--secondary);';
                 img.loading = 'lazy';
                 img.onerror = () => {
-                    img.src = 'images/monochrome_logo.svg';
+                    img.src = 'images/echos_logo.svg';
                     img.onerror = null;
                 };
                 el.appendChild(img);
@@ -3558,12 +3501,12 @@ export class UIRenderer {
                     const thumb = document.createElement('img');
                     thumb.crossOrigin = 'anonymous';
                     thumb.referrerPolicy = 'no-referrer';
-                    thumb.src = entry.cover || 'images/monochrome_logo.svg';
+                    thumb.src = entry.cover || 'images/echos_logo.svg';
                     thumb.width = 44;
                     thumb.height = 44;
                     thumb.loading = 'lazy';
                     thumb.onerror = () => {
-                        thumb.src = 'images/monochrome_logo.svg';
+                        thumb.src = 'images/echos_logo.svg';
                         thumb.onerror = null;
                     };
                     thumb.style.cssText =
@@ -3628,9 +3571,9 @@ export class UIRenderer {
                 'display:flex;align-items:center;gap:1rem;padding:0.75rem 0;border-bottom:1px solid var(--border);cursor:pointer;';
             row.innerHTML = `
                 ${rank ? `<span style="font-size:0.8rem;font-weight:700;color:var(--primary);min-width:2rem;text-align:right;flex-shrink:0;">#${escapeHtml(rank)}</span>` : ''}
-                <img crossorigin="anonymous" referrerpolicy="no-referrer" src="${aotyCoverUrl(item.cover || item.artistImage) || 'images/monochrome_logo.svg'}" width="48" height="48"
+                <img crossorigin="anonymous" referrerpolicy="no-referrer" src="${aotyCoverUrl(item.cover || item.artistImage) || 'images/echos_logo.svg'}" width="48" height="48"
                     style="border-radius:6px;object-fit:cover;flex-shrink:0;background:var(--secondary);"
-                    loading="lazy" onerror="this.src='images/monochrome_logo.svg';this.onerror=null;">
+                    loading="lazy" onerror="this.src='images/echos_logo.svg';this.onerror=null;">
                 <div style="flex:1;min-width:0;">
                     <div style="font-weight:500;font-size:0.875rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" class="row-title"></div>
                     <div style="font-size:0.75rem;color:var(--muted-foreground);margin-top:2px;" class="row-meta"></div>
@@ -3895,9 +3838,9 @@ export class UIRenderer {
                     el.style.cssText =
                         'display:flex;align-items:center;gap:1rem;padding:0.75rem 0;border-bottom:1px solid var(--border);cursor:pointer;';
                     el.innerHTML = `
-                        <img crossorigin="anonymous" referrerpolicy="no-referrer" src="${aotyCoverUrl(img) || 'images/monochrome_logo.svg'}" width="44" height="44"
+                        <img crossorigin="anonymous" referrerpolicy="no-referrer" src="${aotyCoverUrl(img) || 'images/echos_logo.svg'}" width="44" height="44"
                             style="width:44px;height:44px;border-radius:6px;object-fit:cover;flex-shrink:0;background:var(--secondary);"
-                            loading="lazy" onerror="this.src='images/monochrome_logo.svg';this.onerror=null;">
+                            loading="lazy" onerror="this.src='images/echos_logo.svg';this.onerror=null;">
                         <div style="flex:1;min-width:0;">
                             <div style="font-weight:500;font-size:0.875rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" class="row-title"></div>
                             <div style="font-size:0.75rem;color:var(--muted-foreground);margin-top:2px;" class="row-meta"></div>
@@ -4029,9 +3972,9 @@ export class UIRenderer {
 
                 row.innerHTML = `
                     <span style="font-size:0.8rem;font-weight:700;color:var(--primary);min-width:2rem;text-align:right;flex-shrink:0;">#${escapeHtml(itemRank)}</span>
-                    <img crossorigin="anonymous" referrerpolicy="no-referrer" src="${aotyCoverUrl(item.cover) || 'images/monochrome_logo.svg'}" width="48" height="48"
+                    <img crossorigin="anonymous" referrerpolicy="no-referrer" src="${aotyCoverUrl(item.cover) || 'images/echos_logo.svg'}" width="48" height="48"
                         style="border-radius:6px;object-fit:cover;flex-shrink:0;background:var(--secondary);"
-                        loading="lazy" onerror="this.src='images/monochrome_logo.svg';this.onerror=null;">
+                        loading="lazy" onerror="this.src='images/echos_logo.svg';this.onerror=null;">
                     <div style="flex:1;min-width:0;">
                         <div style="font-weight:500;font-size:0.875rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" class="row-title"></div>
                         <div style="font-size:0.75rem;color:var(--muted-foreground);margin-top:2px;" class="row-meta"></div>
@@ -4165,7 +4108,7 @@ export class UIRenderer {
     createAOTYAlbumCardHTML(album, isUpcoming = false) {
         const title = escapeHtml(album.title || 'Unknown Album');
         const artist = escapeHtml(album.artist || '');
-        const cover = `<img crossorigin="anonymous" referrerpolicy="no-referrer" src="${aotyCoverUrl(album.cover) || 'images/monochrome_logo.svg'}" alt="${title}" class="card-image" loading="lazy" onerror="this.src='images/monochrome_logo.svg'">`;
+        const cover = `<img crossorigin="anonymous" referrerpolicy="no-referrer" src="${aotyCoverUrl(album.cover) || 'images/echos_logo.svg'}" alt="${title}" class="card-image" loading="lazy" onerror="this.src='images/echos_logo.svg'">`;
 
         const critic = aotyScore(album.criticScore);
         const user = aotyScore(album.userScore);
@@ -4268,10 +4211,6 @@ export class UIRenderer {
         });
 
         try {
-            const response = await fetch(`https://hot.monochrome.tf/explore/genre/?id=${genreId}`);
-            if (!response.ok) throw new Error('Failed to load genre data');
-            const data = await response.json();
-
             const header = container.firstElementChild;
             container.innerHTML = '';
             container.appendChild(header);
@@ -4279,22 +4218,12 @@ export class UIRenderer {
             const contentContainer = document.createElement('div');
             container.appendChild(contentContainer);
 
-            if (data.sections && data.sections.length > 0) {
-                for (const section of data.sections) {
-                    if (section.items && section.items.length > 0) {
-                        let type = null;
-                        if (section.type === 'ALBUM_LIST') type = 'album';
-                        else if (section.type === 'TRACK_LIST') type = 'track';
-                        else if (section.type === 'PLAYLIST_LIST') type = 'playlist';
+            const query = `${genreName || genreId} Hits`;
+            const result = await this.api.searchTracks(query);
 
-                        if (type) {
-                            await this.renderExploreSection(contentContainer, section.title, section.items, type);
-                        }
-                    }
-                }
-            }
-
-            if (contentContainer.children.length === 0) {
+            if (result?.items && result.items.length > 0) {
+                await this.renderExploreSection(contentContainer, `${genreName} Hits`, result.items, 'track');
+            } else {
                 contentContainer.innerHTML = createPlaceholder('No content found for this genre.');
             }
         } catch (e) {
@@ -5635,7 +5564,7 @@ export class UIRenderer {
                                 const quote = decodeHtml(review.text || 'No review text available.');
                                 reviewdiv.innerHTML = `
                                 <img crossorigin="anonymous" src="${review.image || ''}" width="50" height="50" style="border-radius:8px;object-fit:cover;background:var(--highlight);flex-shrink:0;"
-                                     onerror="this.src='images/monochrome_logo.svg';this.onerror=null;" loading="lazy" referrerpolicy="no-referrer">
+                                     onerror="this.src='images/echos_logo.svg';this.onerror=null;" loading="lazy" referrerpolicy="no-referrer">
                                 <div style="flex:1;">
                                     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.25rem;">
                                         <div class="pub-name" style="font-weight:600;color:var(--foreground);"></div>
@@ -6158,7 +6087,7 @@ export class UIRenderer {
                     numberOfTracks: playlistData.tracks ? playlistData.tracks.length : 0,
                     isUserPlaylist: true,
                 });
-                document.title = `${playlistData.name || playlistData.title} - Monochrome`;
+                document.title = `${playlistData.name || playlistData.title} - echos`;
 
                 // Setup playlist search
                 this.setupTracklistSearch();
@@ -7938,7 +7867,7 @@ export class UIRenderer {
             trendingContainer.innerHTML = createPlaceholder('Failed to load trending podcasts.');
         }
 
-        document.title = 'Podcasts - Monochrome Music';
+        document.title = 'Podcasts - echos';
     }
 
     cleanupPodcastState() {
@@ -7984,7 +7913,7 @@ export class UIRenderer {
                 this.podcastState.podcastTitle = 'Unknown Podcast';
             }
 
-            document.title = `${podcastResult?.title || 'Podcast'} - Monochrome Music`;
+            document.title = `${podcastResult?.title || 'Podcast'} - echos`;
 
             episodesContainer.innerHTML = '';
             await this.loadAllPodcastEpisodes();

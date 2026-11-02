@@ -52,6 +52,13 @@ export function createRouter(ui) {
         };
 
         switch (page) {
+            case 'pair': {
+                const searchParams = new URLSearchParams(window.location.search);
+                const code = searchParams.get('code') || param || '';
+                const { devicePairing } = await import('./accounts/devicePairing.js');
+                await devicePairing.handlePairApprovalUI(code);
+                break;
+            }
             case 'parties':
                 await ui.renderPartiesPage();
                 break;

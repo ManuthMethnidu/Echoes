@@ -1,11 +1,12 @@
 // js/accounts/auth.js
 import { AUTH_BASE_URL, authClient } from './config.js';
 
+const PRIMARY_AUTH_TOKEN_KEY = 'echos-auth-token';
 const LEGACY_AUTH_TOKEN_KEY = 'monochrome-auth-token';
-const NATIVE_OAUTH_HANDLED_URLS_KEY = 'monochrome-native-oauth-handled-urls';
-const NATIVE_OAUTH_SCHEME = 'monochrome';
+const NATIVE_OAUTH_HANDLED_URLS_KEY = 'echos-native-oauth-handled-urls';
+const NATIVE_OAUTH_SCHEME = 'echos';
 const NATIVE_OAUTH_HOST = 'auth-callback';
-let authToken = localStorage.getItem(LEGACY_AUTH_TOKEN_KEY) || '';
+let authToken = localStorage.getItem(PRIMARY_AUTH_TOKEN_KEY) || localStorage.getItem(LEGACY_AUTH_TOKEN_KEY) || '';
 
 function normalizeUser(user) {
     if (!user) return null;
@@ -18,12 +19,18 @@ export function getAuthToken() {
 
 function storeAuthToken(token) {
     authToken = token || '';
-    if (authToken) localStorage.setItem(LEGACY_AUTH_TOKEN_KEY, authToken);
-    else localStorage.removeItem(LEGACY_AUTH_TOKEN_KEY);
+    if (authToken) {
+        localStorage.setItem(PRIMARY_AUTH_TOKEN_KEY, authToken);
+        localStorage.setItem(LEGACY_AUTH_TOKEN_KEY, authToken);
+    } else {
+        localStorage.removeItem(PRIMARY_AUTH_TOKEN_KEY);
+        localStorage.removeItem(LEGACY_AUTH_TOKEN_KEY);
+    }
 }
 
 function clearAuthToken() {
     authToken = '';
+    localStorage.removeItem(PRIMARY_AUTH_TOKEN_KEY);
     localStorage.removeItem(LEGACY_AUTH_TOKEN_KEY);
 }
 

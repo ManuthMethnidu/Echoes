@@ -920,16 +920,11 @@ export const donationPromptSettings = {
     STORAGE_KEY: 'donation-prompts-enabled',
 
     isEnabled() {
-        try {
-            const value = localStorage.getItem(this.STORAGE_KEY);
-            return value === null ? true : value === 'true';
-        } catch {
-            return true;
-        }
+        return false;
     },
 
     setEnabled(enabled) {
-        localStorage.setItem(this.STORAGE_KEY, enabled ? 'true' : 'false');
+        localStorage.setItem(this.STORAGE_KEY, 'false');
     },
 };
 
@@ -2582,13 +2577,10 @@ export const sidebarSectionSettings = {
         'sidebar-nav-library',
         'sidebar-nav-recent',
         'sidebar-nav-unreleased',
-        'sidebar-nav-donate',
         'sidebar-nav-settings',
         'sidebar-nav-about-bottom',
         'sidebar-nav-mobile',
-        'sidebar-nav-discordbtn',
         'sidebar-nav-party',
-        'sidebar-nav-githubbtn',
     ],
 
     getBottomNavIds() {
@@ -2650,16 +2642,11 @@ export const sidebarSectionSettings = {
     },
 
     shouldShowDonate() {
-        try {
-            const val = localStorage.getItem(this.SHOW_DONATE_KEY);
-            return val === null ? true : val === 'true';
-        } catch {
-            return true;
-        }
+        return false;
     },
 
     setShowDonate(enabled) {
-        localStorage.setItem(this.SHOW_DONATE_KEY, enabled ? 'true' : 'false');
+        localStorage.setItem(this.SHOW_DONATE_KEY, 'false');
     },
 
     shouldShowSettings() {
@@ -2688,29 +2675,19 @@ export const sidebarSectionSettings = {
     },
 
     shouldShowDiscord() {
-        try {
-            const val = localStorage.getItem(this.SHOW_DISCORD_KEY);
-            return val === null ? true : val === 'true';
-        } catch {
-            return true;
-        }
+        return false;
     },
 
     setShowDiscord(enabled) {
-        localStorage.setItem(this.SHOW_DISCORD_KEY, enabled ? 'true' : 'false');
+        localStorage.setItem(this.SHOW_DISCORD_KEY, 'false');
     },
 
     shouldShowGithub() {
-        try {
-            const val = localStorage.getItem(this.SHOW_GITHUB_KEY);
-            return val === null ? true : val === 'true';
-        } catch {
-            return true;
-        }
+        return false;
     },
 
     setShowGithub(enabled) {
-        localStorage.setItem(this.SHOW_GITHUB_KEY, enabled ? 'true' : 'false');
+        localStorage.setItem(this.SHOW_GITHUB_KEY, 'false');
     },
 
     shouldShowParty() {

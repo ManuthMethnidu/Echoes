@@ -1,4 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { getDb } from '../_lib/db.js';
+import { verifyToken } from '../_lib/auth.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method !== 'GET') {
@@ -16,9 +18,47 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(400).json({ error: 'Missing playlistId parameter (?playlistId=)' });
     }
 
-    if (!token) {
+    let googleAccessToken = '';
+
+    // If token starts with Google access token prefix 'ya29.', use it directly
+    if (token && token.startsWith('ya29.')) {
+        googleAccessToken = token;
+    } else {
+        // Try resolving Google OAuth access token from Neon Auth
+        try {
+            const sql = getDb();
+            let authUser = null;
+
+            if (token) {
+                authUser = await verifyToken(token);
+            }
+
+            if (authUser) {
+                const accounts = await sql`
+                    SELECT "accessToken" FROM neon_auth.account 
+                    WHERE "providerId" = 'google' 
+                      AND ("userId"::text = ${authUser.id} OR "userId"::text IN (
+                          SELECT id::text FROM neon_auth.user WHERE email = ${authUser.email}
+                      ))
+                    ORDER BY "updatedAt" DESC 
+                    LIMIT 1;
+                `;
+                if (accounts.length > 0 && accounts[0].accessToken) {
+                    googleAccessToken = accounts[0].accessToken;
+                }
+            }
+        } catch (dbErr) {
+            console.warn('[Neon Auth Lookup Error in YouTube Tracks]', dbErr);
+        }
+    }
+
+    if (!googleAccessToken && token) {
+        googleAccessToken = token;
+    }
+
+    if (!googleAccessToken) {
         return res.status(401).json({
-            error: 'Missing Google YouTube access token. Please connect your YouTube account.',
+            error: 'Missing Google YouTube access token. Please sign in with Google or connect your YouTube account.',
         });
     }
 
@@ -29,7 +69,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             )}&maxResults=50`,
             {
                 headers: {
-                    Authorization: `Bearer ${token}`,
+                    Authorization: `Bearer ${googleAccessToken}`,
                     Accept: 'application/json',
                 },
             }
@@ -98,14 +138,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                         artist: { name: artistName },
                     },
                     cover: thumb,
-                    image: thumb,
-                    audioQuality: 'LOSSLESS',
-                    audioModes: ['STEREO'],
-                    allowStreaming: true,
-                    streamReady: true,
-                    isUnavailable: false,
-                    provider: 'youtube',
-                    _href: `/track/yt:${videoId}`,
+                    streamProvider: 'yt',
                 };
             })
             .filter(Boolean);
@@ -113,7 +146,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(200).json({
             ok: true,
             playlistId,
-            trackCount: tracks.length,
             tracks,
         });
     } catch (err: any) {

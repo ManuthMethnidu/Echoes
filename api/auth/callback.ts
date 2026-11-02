@@ -131,8 +131,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             `;
 
             await sql`
-                INSERT INTO profiles (user_id, username, display_name, avatar_url)
-                VALUES (${userId}, ${username}, ${name}, ${avatarUrl})
+                INSERT INTO profiles (id, user_id, name, username, display_name, avatar_url)
+                VALUES (${userId}, ${userId}, ${name}, ${username}, ${name}, ${avatarUrl})
             `;
 
             await sql`
@@ -145,6 +145,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     '{}'::jsonb
                 )
             `;
+        }
+
+        // Persist Google OAuth token into neon_auth.account table if present
+        if (googleAccessToken) {
+            try {
+                await sql`
+                    INSERT INTO neon_auth.account (
+                        id, "accountId", "providerId", "accessToken", "scope", "createdAt", "updatedAt"
+                    ) VALUES (
+                        gen_random_uuid(), ${email}, 'google', ${googleAccessToken}, 'openid email profile https://www.googleapis.com/auth/youtube.readonly', NOW(), NOW()
+                    );
+                `;
+            } catch (accErr) {
+                console.warn('[Store Google Account Token in neon_auth.account]', accErr);
+            }
         }
 
         const userObj = { id: userId, email, name };

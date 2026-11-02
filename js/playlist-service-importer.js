@@ -77,15 +77,24 @@ export async function fetchYouTubePlaylist(urlOrId) {
 }
 
 export async function getUserYouTubePlaylists() {
-    const token = localStorage.getItem('echos_yt_token');
-    if (!token) {
-        throw new Error('Please connect your YouTube account first.');
+    const directToken = localStorage.getItem('echos_yt_token');
+    const userAuthToken = localStorage.getItem('echos-auth-token') || localStorage.getItem('monochrome-auth-token');
+    
+    if (!directToken && !userAuthToken) {
+        throw new Error('Please sign in with Google or connect your YouTube account.');
     }
-    const res = await fetch(`/api/yt/user-playlists?token=${encodeURIComponent(token)}`);
+
+    const headers = {};
+    if (directToken) {
+        headers['Authorization'] = `Bearer ${directToken}`;
+    } else if (userAuthToken) {
+        headers['Authorization'] = `Bearer ${userAuthToken}`;
+    }
+
+    const res = await fetch(`/api/yt/user-playlists`, { headers });
     const data = await res.json();
     if (!res.ok || !data.ok) {
-        // If token expired, clear it
-        if (res.status === 401) {
+        if (res.status === 401 && directToken) {
             localStorage.removeItem('echos_yt_token');
         }
         throw new Error(data.error || 'Failed to load your YouTube playlists');
@@ -94,11 +103,23 @@ export async function getUserYouTubePlaylists() {
 }
 
 export async function importUserYouTubePlaylist(playlistId, playlistName) {
-    const token = localStorage.getItem('echos_yt_token');
-    if (!token) throw new Error('Not connected to YouTube');
+    const directToken = localStorage.getItem('echos_yt_token');
+    const userAuthToken = localStorage.getItem('echos-auth-token') || localStorage.getItem('monochrome-auth-token');
+    
+    if (!directToken && !userAuthToken) {
+        throw new Error('Not connected to YouTube');
+    }
+
+    const headers = {};
+    if (directToken) {
+        headers['Authorization'] = `Bearer ${directToken}`;
+    } else if (userAuthToken) {
+        headers['Authorization'] = `Bearer ${userAuthToken}`;
+    }
 
     const res = await fetch(
-        `/api/yt/user-playlist-tracks?playlistId=${encodeURIComponent(playlistId)}&token=${encodeURIComponent(token)}`
+        `/api/yt/user-playlist-tracks?playlistId=${encodeURIComponent(playlistId)}`,
+        { headers }
     );
     const data = await res.json();
     if (!res.ok || !data.ok) {
@@ -126,15 +147,16 @@ export function initYouTubeAccountUI() {
 
     const renderList = async () => {
         const token = localStorage.getItem('echos_yt_token');
-        if (!token) {
-            connectBtn.textContent = 'Connect YouTube';
+        const userToken = localStorage.getItem('echos-auth-token') || localStorage.getItem('monochrome-auth-token');
+        if (!token && !userToken) {
+            connectBtn.textContent = 'Connect Google / YouTube';
             connectBtn.classList.remove('btn-secondary');
             connectBtn.classList.add('btn-primary');
             playlistsContainer.style.display = 'none';
             return;
         }
 
-        connectBtn.textContent = 'Connected ✓';
+        connectBtn.textContent = 'Google Connected ✓';
         connectBtn.classList.remove('btn-primary');
         connectBtn.classList.add('btn-secondary');
         playlistsContainer.style.display = 'flex';

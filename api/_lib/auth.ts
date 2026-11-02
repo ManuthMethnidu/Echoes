@@ -7,7 +7,7 @@ const JWT_EXPIRES_IN = '30d';
 
 const NEON_JWKS_URL =
     process.env.NEON_AUTH_JWKS_URL ||
-    'https://ep-bitter-paper-azrnco1h.neonauth.c-3.ap-southeast-1.aws.neon.tech/neondb/auth/.well-known/jwks.json';
+    'https://ep-small-mouse-a11jp1gr.neonauth.ap-southeast-1.aws.neon.tech/neondb/auth/.well-known/jwks.json';
 
 let remoteJWKS: ReturnType<typeof createRemoteJWKSet> | null = null;
 try {

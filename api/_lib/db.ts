@@ -28,7 +28,9 @@ export async function ensureSchema(sql: ReturnType<typeof neon>) {
 
         await sql`
             CREATE TABLE IF NOT EXISTS profiles (
-                user_id TEXT PRIMARY KEY,
+                id TEXT PRIMARY KEY,
+                user_id TEXT,
+                name TEXT,
                 username TEXT UNIQUE,
                 display_name TEXT,
                 avatar_url TEXT,
@@ -46,7 +48,9 @@ export async function ensureSchema(sql: ReturnType<typeof neon>) {
 
         await sql`
             ALTER TABLE profiles 
+            ADD COLUMN IF NOT EXISTS id TEXT,
             ADD COLUMN IF NOT EXISTS user_id TEXT,
+            ADD COLUMN IF NOT EXISTS name TEXT,
             ADD COLUMN IF NOT EXISTS username TEXT,
             ADD COLUMN IF NOT EXISTS display_name TEXT,
             ADD COLUMN IF NOT EXISTS banner TEXT,

@@ -1,282 +1,244 @@
- <p align="center">
-  <a href="https://monochrome.st">
-    <img src="https://github.com/monochrome-music/monochrome/blob/main/public/assets/512.png?raw=true" alt="Monochrome Logo" width="150px">
-  </a>
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="public/images/echoes_logo_white.png" />
+    <source media="(prefers-color-scheme: light)" srcset="public/images/echoes_logo_black.png" />
+    <img src="public/images/echoes_logo_white.png" alt="Echoes Logo" width="140px" style="border-radius: 20px;" />
+  </picture>
 </p>
 
-<h1 align="center">Monochrome</h1>
+<h1 align="center">Echoes</h1>
 
 <p align="center">
-  <strong>An open-source, privacy-respecting, ad-free music app.</strong>
-</p>
-
-<p align="center">
-  <a href="https://monochrome.st">Website</a> -
-  <a href="https://ko-fi.com/monochrometf">Donate</a> -
-  <a href="#features">Features</a> -
-  <a href="#usage">Usage</a> -
-  <a href="#self-hosting">Self-Hosting</a> -
-  <a href="CONTRIBUTING.md">Contributing</a>
+  <strong>Minimalist, ad-free music streaming client with real-time cross-device sync.</strong>
 </p>
 
 <p align="center">
-  <a href="https://github.com/monochrome-music/monochrome/stargazers">
-    <img src="https://img.shields.io/github/stars/monochrome-music/monochrome?style=for-the-badge&color=ffffff&labelColor=000000" alt="GitHub stars">
-  </a>
-  <a href="https://github.com/monochrome-music/monochrome/forks">
-    <img src="https://img.shields.io/github/forks/monochrome-music/monochrome?style=for-the-badge&color=ffffff&labelColor=000000" alt="GitHub forks">
-  </a>
-  <a href="https://github.com/monochrome-music/monochrome/issues">
-    <img src="https://img.shields.io/github/issues/monochrome-music/monochrome?style=for-the-badge&color=ffffff&labelColor=000000" alt="GitHub issues">
-  </a>
+  <a href="#features">Features</a> •
+  <a href="#architecture">Architecture</a> •
+  <a href="#getting-started">Getting Started</a> •
+  <a href="#echoes-connect">Echoes Connect</a> •
+  <a href="#environment-variables">Environment Variables</a> •
+  <a href="#keyboard-shortcuts">Shortcuts</a> •
+  <a href="#legal--contact">Contact & Legal</a>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Status-Active-10b981?style=for-the-badge" alt="Status Active" />
+  <img src="https://img.shields.io/badge/Platform-Vercel%20%7C%20Cloudflare-000000?style=for-the-badge&logo=vercel" alt="Platform Vercel Cloudflare" />
+  <img src="https://img.shields.io/badge/Database-Neon%20Postgres-00e599?style=for-the-badge&logo=postgresql" alt="Neon Postgres" />
+  <img src="https://img.shields.io/badge/License-MIT-blue?style=for-the-badge" alt="License MIT" />
 </p>
 
 ---
 
-## What is Monochrome?
+## What is Echoes?
 
-**Monochrome** is an open-source, privacy-respecting, ad-free web music player. It provides a beautiful, minimalist interface for streaming high-quality music without the clutter of traditional streaming platforms.
+**Echoes** is a privacy-first, open-source audio streaming player designed for music enthusiasts who demand uncompromising fidelity, clean aesthetics, and cross-device continuity without tracking or subscription paywalls.
 
-## Features
-
-### Audio Quality
-
-- High-quality High-Res/lossless audio streaming
-- Support for local music files
-- API caching for improved performance
-
-### Interface
-
-- Dark, minimalist interface optimized for focus
-- Animated Album Covers For Supported Albums
-- Customizable themes & Community Theme Store
-- Accurate and unique audio visualizer
-- Offline-capable Progressive Web App (PWA)
-- Media Session API integration for system controls
-
-### Library & Organization
-
-- Recently Played tracking for easy history access
-- Comprehensive Personal Library for favorites
-- Queue management with shuffle and repeat modes
-- Native Podcast support & organization
-- Playlist import from other platforms
-- Public playlists for social sharing
-- Smart recommendations for new songs, albums & artists
-- Infinite Recommendation Radio
-- Explore Page (Hot & New) for discovering newly added music and whats trending overall or within each genre
-
-### Lyrics & Metadata
-
-- Lyrics support with karaoke mode
-- Genius integration for lyrics
-- Track downloads with automatic metadata embedding
-
-### Integrations
-
-- Account system for cross-device syncing
-- Customizable & Public Profiles
-- Real-time Listening Parties for synced playback with friends
-- Last.fm and ListenBrainz integration for scrobbling
-- OAuth support (Google, Discord, GitHub, Spotify)
-- Unreleased music from [ArtistGrid](https://artistgrid.cx)
-- Dynamic Discord Embeds
-- Artist Biography + Social Links for learning more about your favorite artists
-- Multiple API instance support with failover
-
-### Power User Features
-
-- Keyboard shortcuts & Command Palette (CTRL+K) for power users
+Echoes combines high-bitrate audio streaming with a serverless edge architecture: your library seamlessly follows you from your laptop to your phone and your living room TV, complete with real-time Spotify Connect-style remote playback handoff.
 
 ---
 
-## Quick Start
+## Key Features
 
-### Live Instance
+### 🎧 High-Fidelity Audio Playback
+- **Lossless & Hi-Res Streaming:** Crystal clear, low-latency playback with automatic stream fallback.
+- **Parametric & Graphic EQ:** 16-band equalizer with AutoEQ headphone profile import support.
+- **Audio Processing:** Gapless playback, ReplayGain normalization, binaural DSP crossfeed, and pitch/speed control.
+- **Audio Visualizers:** Integrated Milkdrop/Butterchurn WebGL engine, particle fields, and LCD visualizer modes.
 
-Our Recommended way to use monochrome is through our official instance:
+### 📱 Echoes Connect (Spotify Connect-Style Remote Control)
+- **Real-Time Edge WebSocket Sync:** Backed by **Cloudflare Workers & Durable Objects**, allowing seamless device switching.
+- **Zero-Latency State Synchronization:** Play, pause, seek, queue changes, and volume adjustments sync instantly across all active displays.
+- **Smart TV QR Pairing:** Pair your television or secondary screen in seconds by scanning an on-screen QR code (`/pair`). No remote typing required.
 
-**[monochrome.st](https://monochrome.st)**
+### ☁️ Cross-Device Cloud Library
+- **Neon Serverless Postgres Integration:** Synchronizes your liked songs, albums, custom playlists, and playback history in milliseconds.
+- **Device Continuity:** Pick up exactly where you left off on any browser, mobile PWA, or desktop session.
+- **Data Ownership:** Export your entire library anytime or bring your own database credentials.
 
-For alternative instances, check [INSTANCES.md](INSTANCES.md).
+### 🔄 Multi-Platform Playlist Importer
+- **YouTube Playlists via Google OAuth:** Direct, secure import of your personal YouTube playlists via Google OAuth 2.0 (`youtube.readonly`).
+- **Spotify Playlist Importer:** Instant extraction of public Spotify playlists into your personal Echoes library without requiring developer API keys.
+
+### 💾 Offline Audio Exporter & Caching
+- **Direct Track Download:** Download any track, album, or playlist directly to your local device with embedded tags and cover art for offline listening.
+
+### 🎨 Minimalist Aesthetic & Adaptive Branding
+- **Theme Support:** Clean, distraction-free monochrome aesthetic with automatic dark/light theme switching and custom user stylesheets.
+- **Installable PWA:** Full Progressive Web App support with offline caching and background audio playback.
 
 ---
 
-## Self-Hosting
+## Architecture
 
-NOTE: Accounts will not work on self-hosted instances. Our Appwrite authentication system only allows authorized domains.
+Echoes is engineered with an edge-first, decoupled architecture:
 
-We had to heavily customize the authentication system and write several custom scripts to support features like SMTP and Google OAuth (which are currently bugged in Appwrite). Because of this, we can no longer provide a self-hostable accounts system.
+```
+┌────────────────────────────────────────────────────────┐
+│                   Echoes Frontend (PWA)                │
+│     (Vite + TypeScript + Web Audio API + Shaka Player) │
+└───────────────────────┬─────────────────┬──────────────┘
+                        │                 │
+              HTTPS REST API (Vercel)     │ WebSockets (WSS)
+                        │                 │
+                        ▼                 ▼
+        ┌─────────────────────────┐  ┌─────────────────────────┐
+        │    Vercel Serverless    │  │  Cloudflare Worker + DO │
+        │     API Endpoints       │  │     (Echoes Connect)    │
+        │   (/api/auth, /api/sync)│  │ (Durable Object Rooms)  │
+        └───────────┬─────────────┘  └─────────────────────────┘
+                    │
+                    ▼
+        ┌─────────────────────────┐
+        │ Neon Serverless Postgres│
+        │  (User profiles, sync,  │
+        │  device pairings, auth) │
+        └─────────────────────────┘
+```
 
-> [!WARNING]
-> You will not be able to stream music after self-hosting and placing the website on a domain. Our API is configured to only accept official instances of Monochrome so you can only stream music on localhost after self-hosting. However, if you have a working and paid HiFi API endpoint then Settings > Instances > Turn on Dev Mode > Place your endpoint there.
+- **Frontend:** Pure browser performance with Vite, Preact UI components, and native Web Audio graph nodes.
+- **Backend API:** Vercel Node.js Serverless Functions (`/api/sync`, `/api/auth`, `/api/pair`, `/api/yt`, `/api/import`).
+- **Database:** [Neon](https://neon.tech) Serverless PostgreSQL using connection pooling and schema migrations.
+- **Real-Time Edge:** Cloudflare Worker running SQLite-backed Durable Objects managing concurrent playback rooms.
 
-### Option 1: Docker (Recommended)
+---
+
+## Project Structure
+
+```
+├── api/                           # Vercel Serverless API handlers
+│   ├── _lib/                      # Database client, auth tokens, QR generation
+│   ├── auth/                      # Authentication (Google OAuth, email, session)
+│   ├── pair/                      # TV QR-code device pairing endpoints
+│   ├── sync/                      # Neon Postgres cloud library sync (GET/PATCH)
+│   ├── yt/                        # YouTube stream resolution & playlist import
+│   └── import/                    # Spotify zero-key playlist parser
+├── cloudflare-connect-worker/     # Cloudflare Worker + Durable Objects backend
+│   ├── src/index.ts               # PlaybackRoom DO class & WebSocket server
+│   └── wrangler.toml              # Cloudflare Worker configuration
+├── js/                            # Core client application logic
+│   ├── accounts/                  # Auth manager & Better Auth client
+│   ├── connect-manager.js         # Echoes Connect edge WebSocket sync client
+│   ├── player.js                  # Audio playback engine & queue controller
+│   ├── audio-context.js           # Web Audio API DSP & EQ graphs
+│   └── ui.js                      # DOM views, modals, and interaction states
+├── public/                        # Static assets, SVG icons, adaptive favicons
+├── src/                           # Modern navigation & Preact components
+└── styles.css                     # Minimalist design system & theme variables
+```
+
+---
+
+## Getting Started
+
+### Prerequisites
+
+- [Node.js](https://nodejs.org/) v18.0.0 or higher
+- [npm](https://www.npmjs.com/) v9.0.0 or higher
+- A free [Neon](https://neon.tech) Postgres account
+
+### 1. Clone & Install
 
 ```bash
-git clone https://github.com/monochrome-music/monochrome.git
-cd monochrome/docker
-docker compose up -d
+git clone https://github.com/ManuthMethnidu/echos.git
+cd echos
+npm install
 ```
 
-Visit `http://localhost:3000`
+### 2. Configure Environment Variables
 
-### Tailscale Access
-
-Visit `http://<tailscale_server_hostname_or_ip>:3000`
-
-By default, the app uses Vite preview, which restricts access to localhost.  
-To allow access over Tailscale:
-
-1. Open `vite.config.js`
-
-2. Uncomment and configure the `preview` section:
-
-```js
-preview: {
-    host: true,
-    allowedHosts: ['<your_tailscale_hostname>'], // e.g. pi5.tailf5f622.ts.net
-},
-```
-
-3. Restart with a fresh container (if already running):
+Create a `.env.local` file in the root directory (refer to `.env.example`):
 
 ```bash
-docker compose down
-docker compose up -d
+cp .env.example .env.local
 ```
 
-For development mode and advanced setups, see [DOCKER.md](DOCKER.md).
+Populate the required environment variables:
 
-### Option 2: Manual Installation
+```env
+# Neon Serverless Postgres Connection String
+DATABASE_URL=postgresql://user:password@ep-your-database-pooler.neon.tech/neondb?sslmode=require
+POSTGRES_URL=postgresql://user:password@ep-your-database-pooler.neon.tech/neondb?sslmode=require
 
-#### Prerequisites
+# JWT and Session Signing (minimum 32 random characters)
+AUTH_SECRET=your_32_character_super_secret_key_here
+JWT_SECRET=your_32_character_super_secret_key_here
 
-- [Bun](https://bun.sh/) (Preferred) or [Node.js](https://nodejs.org/) (Version 20+ or 22+ recommended)
-- [Git](https://git-scm.com/)
+# Google OAuth 2.0 (Optional - for Google Sign-In & YouTube Import)
+GOOGLE_CLIENT_ID=your_client_id.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=your_client_secret
+```
 
-#### Apple Music Search
-
-Monochrome requests an Apple Music developer token from `https://am-mint.binimum.org/token` in the browser and caches
-it locally until the JWT expires. Apple Music supplies catalog ordering and autocomplete suggestions; when token minting,
-Apple's API, or CORS is unavailable, Monochrome automatically uses its existing search ordering.
-
-When Apple exposes editorial motion artwork for a matched album, Monochrome also uses its square HLS video cover on
-album and now-playing surfaces, with the static cover retained as the fallback.
-
-#### PocketBase Schema
-
-The current PocketBase collection schema is stored in [`database/pb_schema.json`](database/pb_schema.json). Import this schema into a fresh PocketBase instance when setting up account data storage.
-
-#### Local Development
-
-1. **Clone the repository:**
-
-    ```bash
-    git clone https://github.com/monochrome-music/monochrome.git
-    cd monochrome
-    ```
-
-2. **Install dependencies:**
-
-    ```bash
-    bun install
-    # or
-    npm install # NPM is included with Node.js
-    ```
-
-3. **Start the development server:**
-
-    ```bash
-    bun run dev
-    # or
-    npm run dev
-    ```
-
-4. **Open your browser:**
-   Navigate to `http://localhost:5173/`
-
-#### Building for Production
+### 3. Run Development Server
 
 ```bash
-bun run build
-# or
-npm run build
+npm run dev
+```
+
+Open your browser at `http://localhost:5173`.
+
+### 4. Run Integration Tests
+
+Verify that all database connections, pairing APIs, Spotify extractors, and auth endpoints work:
+
+```bash
+npx tsx test-vercel-endpoints.js
 ```
 
 ---
 
-## Usage
+## Echoes Connect (Cloudflare Worker)
 
-### Basic Usage
+Echoes Connect synchronizes playback between devices in real-time. The worker source code is located in [`cloudflare-connect-worker/`](cloudflare-connect-worker/).
 
-1. Visit the [Website](https://monochrome.st) or your local development server
-2. Search for your favorite artists, albums, or tracks
-3. Click play to start streaming
-4. Use the media controls to manage playback, queue, and volume
+### Deployment via Wrangler
 
-### Keyboard Shortcuts
+```bash
+cd cloudflare-connect-worker
+npm install
+npx wrangler deploy
+```
 
-| Shortcut      | Action                       |
-| ------------- | ---------------------------- |
-| `Space`       | Play / Pause                 |
-| `→`           | Seek forward 10s             |
-| `←`           | Seek backward 10s            |
-| `Shift` + `→` | Next track                   |
-| `Shift` + `←` | Previous track               |
-| `↑`           | Volume up                    |
-| `↓`           | Volume down                  |
-| `M`           | Mute / Unmute                |
-| `S`           | Toggle shuffle               |
-| `R`           | Toggle repeat                |
-| `Q`           | Open queue                   |
-| `L`           | Toggle lyrics                |
-| `/`           | Focus search                 |
-| `Esc`         | Close modals                 |
-| `[`           | Previous visualizer preset   |
-| `]`           | Next visualizer preset       |
-| `\`           | Toggle visualizer auto-cycle |
-| `Ctrl` + `K`  | Command Palette              |
-
-### Account Features
-
-To sync your library, history, and playlists across devices:
-
-1. Click the "Accounts" Section
-2. Sign in with Google or Email
-3. Your data will automatically sync across all devices
+Once deployed:
+1. Ensure the `workers.dev` route toggle is enabled in your [Cloudflare Dashboard](https://dash.cloudflare.com/) under **Workers & Pages** > **`echoes-connect-worker`** > **Settings** > **Domains & Routes**.
+2. Test the health endpoint:
+   ```bash
+   curl https://echoes-connect-worker.methnidumanuth.workers.dev/health
+   # → {"service":"echoes-connect-worker","status":"online"}
+   ```
 
 ---
 
-## Contributing
+## Keyboard Shortcuts
 
-We welcome contributions from the community! Please see our [Contributing Guide](CONTRIBUTING.md) for:
+| Shortcut | Action |
+| :--- | :--- |
+| `Space` | Play / Pause |
+| `→` / `←` | Seek forward / backward 10s |
+| `Shift` + `→` / `Shift` + `←` | Next / Previous track |
+| `↑` / `↓` | Volume Up / Down |
+| `M` | Mute / Unmute audio |
+| `S` | Toggle Shuffle |
+| `R` | Toggle Repeat mode |
+| `Q` | Open Playback Queue |
+| `L` | Toggle Synchronized Lyrics |
+| `/` | Focus Search Bar |
+| `Ctrl` + `K` (`Cmd` + `K`) | Open Command Palette |
+| `Esc` | Close active modals & panels |
 
-- Setting up your development environment
-- Code style and linting
-- Project structure
-- Before You Contribute
-- Commit message conventions
-- Deployment information
+---
+
+## Legal & Contact
+
+- **Terms of Service:** [`/tos`](https://echos.vercel.app/tos)
+- **Privacy Policy:** [`/policy`](https://echos.vercel.app/policy)
+- **Direct Contact:** [`contact.Echoes@proton.me`](mailto:contact.Echoes@proton.me)
+
+For bug reports, feature requests, or DMCA copyright inquiries, please contact us directly at **contact.Echoes@proton.me**.
 
 ---
 
 <p align="center">
-  <a href="https://fmhy.net/audio#streaming-sites">
-    <img src="https://raw.githubusercontent.com/monochrome-music/monochrome/refs/heads/main/public/assets/asseenonfmhy880x310.png" alt="As seen on FMHY" height="50">
-  </a>
+  <strong>Echoes</strong> — Crafted for pure sound and focused listening.
 </p>
-
-<p align="center">
-  Made with ❤️ by the Monochrome team
-</p>
-
-## Star History
-
-<a href="https://star-history.dera.page/#monochrome-music/monochrome&type=date&logscale&legend=top-left">
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://star-history.dera.page/svg?repos=monochrome-music/monochrome&type=date&theme=dark&logscale&legend=top-left" />
-   <source media="(prefers-color-scheme: light)" srcset="https://star-history.dera.page/svg?repos=monochrome-music/monochrome&type=date&logscale&legend=top-left" />
-   <img alt="Star History Chart" src="https://star-history.dera.page/svg?repos=monochrome-music/monochrome&type=date&logscale&legend=top-left" />
- </picture>
-</a>

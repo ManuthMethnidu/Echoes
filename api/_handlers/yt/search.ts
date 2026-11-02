@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { fetchWithFailover } from '../_lib/invidious.js';
+import { fetchWithFailover } from '../../_lib/invidious.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { q, type } = req.query;

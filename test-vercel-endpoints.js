@@ -1,17 +1,7 @@
-import { getDb, ensureSchema } from './api/_lib/db.js';
-import signUpHandler from './api/auth/sign-up/email.js';
-import signInHandler from './api/auth/sign-in/email.js';
-import syncHandler from './api/sync.js';
-import pairInitHandler from './api/pair/init.js';
-import pairStatusHandler from './api/pair/status.js';
-import pairApproveHandler from './api/pair/approve.js';
-import healthHandler from './api/health.js';
-import spotifyHandler from './api/import/spotify.ts';
-import socialAuthHandler from './api/auth/sign-in/social.ts';
-import downloadHandler from './api/yt/download.ts';
+import apiRouter from './api/index.ts';
+import { readFileSync, existsSync } from 'fs';
 
 // Load .env.local
-import { readFileSync, existsSync } from 'fs';
 if (existsSync('.env.local')) {
     const envLines = readFileSync('.env.local', 'utf-8').split('\n');
     for (const line of envLines) {
@@ -28,6 +18,7 @@ function createMockReqRes(options = {}) {
         headers: options.headers || {},
         query: options.query || {},
         body: options.body || {},
+        url: options.url || '/api',
     };
 
     let statusCode = 200;
@@ -51,6 +42,9 @@ function createMockReqRes(options = {}) {
             headers['Location'] = url;
             return res;
         },
+        end() {
+            return res;
+        },
         _getResult() {
             return { statusCode, headers, data: responseData };
         },
@@ -59,14 +53,33 @@ function createMockReqRes(options = {}) {
     return { req, res };
 }
 
+async function callApi(pathname, options = {}) {
+    const { req, res } = createMockReqRes({
+        ...options,
+        url: pathname,
+    });
+    const cleanRoute = pathname.split('?')[0].replace(/^\/api\/?/, '');
+    req.query = req.query || {};
+    req.query.__route = cleanRoute;
+    await apiRouter(req, res);
+    return res._getResult();
+}
+
 async function runTests() {
-    console.log('🚀 Starting echos on Vercel Integration Tests...\n');
+    console.log('🚀 Starting Echoes on Vercel Consolidated API Integration Tests...\n');
+
+    // Test 0: CORS Preflight
+    console.log('--- Test 0: CORS Preflight Check ---');
+    const preflight = await callApi('/api/health', { method: 'OPTIONS' });
+    console.log('OPTIONS status:', preflight.statusCode);
+    if (preflight.statusCode !== 204) {
+        throw new Error('CORS preflight failed with status ' + preflight.statusCode);
+    }
+    console.log('✓ OPTIONS preflight returned 204 with CORS headers\n');
 
     // Test 1: Health check & Neon DB connection
     console.log('--- Test 1: Health Check & Neon Postgres Connection ---');
-    const { req: hReq, res: hRes } = createMockReqRes();
-    await healthHandler(hReq, hRes);
-    const hResult = hRes._getResult();
+    const hResult = await callApi('/api/health');
     console.log('Status Code:', hResult.statusCode);
     console.log('Health Output:', hResult.data);
     if (hResult.statusCode !== 200 || !hResult.data.connected) {
@@ -78,12 +91,10 @@ async function runTests() {
     console.log('--- Test 2: User Registration (Email & Password) ---');
     const testEmail = `audiophile_${Date.now()}@example.com`;
     const testPassword = 'LosslessAudio2026!';
-    const { req: suReq, res: suRes } = createMockReqRes({
+    const suResult = await callApi('/api/auth/sign-up/email', {
         method: 'POST',
         body: { email: testEmail, password: testPassword, name: 'Hifi Listener' },
     });
-    await signUpHandler(suReq, suRes);
-    const suResult = suRes._getResult();
     console.log('Sign Up Response Status:', suResult.statusCode);
     console.log('User created:', suResult.data?.user?.email, 'ID:', suResult.data?.user?.id);
     if (suResult.statusCode !== 200 || !suResult.data?.token) {
@@ -94,12 +105,10 @@ async function runTests() {
 
     // Test 3: User Sign In
     console.log('--- Test 3: User Login ---');
-    const { req: siReq, res: siRes } = createMockReqRes({
+    const siResult = await callApi('/api/auth/sign-in/email', {
         method: 'POST',
         body: { email: testEmail, password: testPassword },
     });
-    await signInHandler(siReq, siRes);
-    const siResult = siRes._getResult();
     if (siResult.statusCode !== 200 || !siResult.data?.token) {
         throw new Error('Sign in failed: ' + JSON.stringify(siResult.data));
     }
@@ -107,12 +116,10 @@ async function runTests() {
 
     // Test 4: Library Sync (GET initial)
     console.log('--- Test 4: Library Sync (Initial GET) ---');
-    const { req: gSyncReq, res: gSyncRes } = createMockReqRes({
+    const gSyncResult = await callApi('/api/sync', {
         method: 'GET',
         headers: { authorization: `Bearer ${authToken}` },
     });
-    await syncHandler(gSyncReq, gSyncRes);
-    const gSyncResult = gSyncRes._getResult();
     console.log('Sync Response Status:', gSyncResult.statusCode);
     console.log('Initial Library tracks count:', Object.keys(gSyncResult.data?.library?.tracks || {}).length);
     console.log('✓ Initial GET /api/sync returned empty client-ready structure\n');
@@ -155,27 +162,23 @@ async function runTests() {
         ],
     };
 
-    const { req: pSyncReq, res: pSyncRes } = createMockReqRes({
+    const pSyncResult = await callApi('/api/sync', {
         method: 'PATCH',
         headers: { authorization: `Bearer ${authToken}` },
         body: samplePayload,
     });
-    await syncHandler(pSyncReq, pSyncRes);
-    const pSyncResult = pSyncRes._getResult();
     console.log('PATCH /api/sync status:', pSyncResult.statusCode, pSyncResult.data);
     if (pSyncResult.statusCode !== 200 || !pSyncResult.data?.ok) {
         throw new Error('PATCH /api/sync failed');
     }
     console.log('✓ Cloud Sync PATCH succeeded!\n');
 
-    // Test 6: Verify Synced Data on second fetch (simulating another app / phone / TV)
+    // Test 6: Verify Synced Data on second fetch
     console.log('--- Test 6: Verify Synced Data (Simulating a New Device / App Session) ---');
-    const { req: vSyncReq, res: vSyncRes } = createMockReqRes({
+    const vSyncResult = await callApi('/api/sync', {
         method: 'GET',
         headers: { authorization: `Bearer ${authToken}` },
     });
-    await syncHandler(vSyncReq, vSyncRes);
-    const vSyncResult = vSyncRes._getResult();
     const syncedTracks = Object.keys(vSyncResult.data?.library?.tracks || {});
     const syncedAlbums = Object.keys(vSyncResult.data?.library?.albums || {});
     const syncedPlaylists = Object.keys(vSyncResult.data?.userPlaylists || {});
@@ -190,9 +193,7 @@ async function runTests() {
     // Test 7: TV Pairing Flow (RFC 8628 Device Flow)
     console.log('--- Test 7: TV QR Code Device Pairing Flow ---');
     console.log('Step 7a: TV initiates pairing request...');
-    const { req: tInitReq, res: tInitRes } = createMockReqRes({ method: 'POST', headers: { host: 'echos.vercel.app' } });
-    await pairInitHandler(tInitReq, tInitRes);
-    const tInitResult = tInitRes._getResult();
+    const tInitResult = await callApi('/api/pair/init', { method: 'POST', headers: { host: 'echos.vercel.app' } });
     console.log('TV Pairing Code:', tInitResult.data?.code, 'Formatted:', tInitResult.data?.formattedCode);
     console.log('TV Pair URL:', tInitResult.data?.pairUrl);
     console.log('QR Code Data URL Length:', tInitResult.data?.qrDataUrl?.length);
@@ -203,31 +204,25 @@ async function runTests() {
     const pairingToken = tInitResult.data.pairingToken;
 
     console.log('Step 7b: TV polls status (expecting "pending")...');
-    const { req: tPollReq1, res: tPollRes1 } = createMockReqRes({ method: 'GET', query: { token: pairingToken } });
-    await pairStatusHandler(tPollReq1, tPollRes1);
-    const tPollResult1 = tPollRes1._getResult();
+    const tPollResult1 = await callApi('/api/pair/status', { method: 'GET', query: { token: pairingToken } });
     console.log('TV Poll 1 Status:', tPollResult1.data?.status);
     if (tPollResult1.data?.status !== 'pending') {
         throw new Error('Expected status to be pending');
     }
 
     console.log('Step 7c: Phone scans QR code and approves pairing with user token...');
-    const { req: tApproveReq, res: tApproveRes } = createMockReqRes({
+    const tApproveResult = await callApi('/api/pair/approve', {
         method: 'POST',
         headers: { authorization: `Bearer ${authToken}` },
         body: { code: pairingCode },
     });
-    await pairApproveHandler(tApproveReq, tApproveRes);
-    const tApproveResult = tApproveRes._getResult();
     console.log('Approval Status:', tApproveResult.data);
     if (!tApproveResult.data?.success) {
         throw new Error('Phone pair approval failed');
     }
 
     console.log('Step 7d: TV polls status again (expecting "approved" + session token)...');
-    const { req: tPollReq2, res: tPollRes2 } = createMockReqRes({ method: 'GET', query: { token: pairingToken } });
-    await pairStatusHandler(tPollReq2, tPollRes2);
-    const tPollResult2 = tPollRes2._getResult();
+    const tPollResult2 = await callApi('/api/pair/status', { method: 'GET', query: { token: pairingToken } });
     console.log('TV Poll 2 Status:', tPollResult2.data?.status);
     console.log('TV Received Token:', tPollResult2.data?.token ? 'Yes (Valid JWT)' : 'No');
     console.log('TV Received User:', tPollResult2.data?.user?.email);
@@ -237,12 +232,10 @@ async function runTests() {
     console.log('✓ TV QR Code Pairing flow passed end-to-end!\n');
 
     console.log('--- Test 8: Spotify Playlist Import Handler ---');
-    const { req: spReq, res: spRes } = createMockReqRes({
+    const spResult = await callApi('/api/import/spotify', {
         method: 'GET',
         query: { url: 'https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M' }
     });
-    await spotifyHandler(spReq, spRes);
-    const spResult = spRes._getResult();
     console.log('Spotify Import Status:', spResult.statusCode, 'Title:', spResult.data?.name, 'Tracks count:', spResult.data?.trackCount);
     if (!spResult.data?.ok || !spResult.data?.tracks?.length) {
         throw new Error('Spotify playlist import failed');
@@ -251,13 +244,11 @@ async function runTests() {
 
     console.log('--- Test 9: YouTube Account Social OAuth Scope Handler ---');
     process.env.GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || 'mock-google-client-id.apps.googleusercontent.com';
-    const { req: ytAuthReq, res: ytAuthRes } = createMockReqRes({
+    const ytAuthResult = await callApi('/api/auth/sign-in/social', {
         method: 'POST',
         headers: { host: 'echos.vercel.app' },
         body: { provider: 'youtube', callbackURL: 'https://echos.vercel.app/library' }
     });
-    await socialAuthHandler(ytAuthReq, ytAuthRes);
-    const ytAuthResult = ytAuthRes._getResult();
     console.log('YouTube OAuth URL status:', ytAuthResult.statusCode);
     const generatedUrl = ytAuthResult.data?.url || '';
     const hasYouTubeScope = generatedUrl.includes('youtube.readonly');
@@ -268,13 +259,10 @@ async function runTests() {
     console.log('✓ YouTube Account OAuth connection passed!\n');
 
     console.log('--- Test 10: Browser Direct Download / Export Audio Endpoint ---');
-    const { req: dlReq, res: dlRes } = createMockReqRes({
+    const dlResult = await callApi('/api/yt/download', {
         method: 'HEAD',
         query: { id: '34Na4j8AVgA', filename: 'The Weeknd - Starboy' }
     });
-    dlRes.end = () => {};
-    await downloadHandler(dlReq, dlRes);
-    const dlResult = dlRes._getResult();
     console.log('Download Status Code:', dlResult.statusCode);
     console.log('Content-Type:', dlResult.headers['Content-Type']);
     console.log('Content-Disposition:', dlResult.headers['Content-Disposition']);
@@ -284,7 +272,7 @@ async function runTests() {
     console.log('✓ Browser Direct Download / Export Audio endpoint passed!\n');
 
     console.log('====================================================');
-    console.log('🎉 ALL INTEGRATION TESTS PASSED SUCCESSFULLY! 🎉');
+    console.log('🎉 ALL CONSOLIDATED ROUTER INTEGRATION TESTS PASSED! 🎉');
     console.log('====================================================');
 }
 

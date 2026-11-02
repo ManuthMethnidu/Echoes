@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getDb, ensureSchema } from '../_lib/db.js';
-import { generateQrDataUrl } from '../_lib/qr.js';
+import { getDb, ensureSchema } from '../../_lib/db.js';
+import { generateQrDataUrl } from '../../_lib/qr.js';
 
 // Generate human-friendly 6-character code (excluding ambiguous chars: 0, O, 1, I, L)
 function generatePairingCode(): string {

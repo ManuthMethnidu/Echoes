@@ -5,8 +5,12 @@
   "cleanUrls": true,
   "rewrites": [
     {
+      "source": "/api",
+      "destination": "/api/index?__route="
+    },
+    {
       "source": "/api/(.*)",
-      "destination": "/api/$1"
+      "destination": "/api/index?__route=$1"
     },
     {
       "source": "/((?!api/).*)",

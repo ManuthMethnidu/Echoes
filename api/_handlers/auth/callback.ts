@@ -22,11 +22,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if (error) {
-        return res.redirect(`${callbackURL}?error=${encodeURIComponent(String(error))}`);
+        const errTarget = `${callbackURL}?error=${encodeURIComponent(String(error))}`;
+        res.status(200);
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        return res.send(`<!DOCTYPE html><html><head><meta http-equiv="refresh" content="0;url=${errTarget}"><script>window.location.replace(${JSON.stringify(errTarget)});</script></head><body>Redirecting...</body></html>`);
     }
 
     if (!code || typeof code !== 'string') {
-        return res.redirect(`${callbackURL}?error=missing_code`);
+        const errTarget = `${callbackURL}?error=missing_code`;
+        res.status(200);
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        return res.send(`<!DOCTYPE html><html><head><meta http-equiv="refresh" content="0;url=${errTarget}"><script>window.location.replace(${JSON.stringify(errTarget)});</script></head><body>Redirecting...</body></html>`);
     }
 
     try {
@@ -88,6 +94,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         if (existing.length > 0) {
             userId = existing[0].id;
+            if (avatarUrl && !existing[0].avatar_url) {
+                await sql`UPDATE users SET avatar_url = ${avatarUrl} WHERE id = ${userId}`;
+                await sql`UPDATE profiles SET avatar_url = ${avatarUrl} WHERE user_id = ${userId}`;
+            }
         } else {
             userId = 'usr_' + crypto.randomUUID().replace(/-/g, '').slice(0, 16);
             const baseUsername = (name || email.split('@')[0]).toLowerCase().replace(/[^a-z0-9_]/g, '') || 'user';
@@ -147,9 +157,50 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (googleAccessToken && provider === 'youtube') {
             targetUrl.searchParams.set('yt_token', googleAccessToken);
         }
-        return res.redirect(targetUrl.toString());
+
+        res.status(200);
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        return res.send(`<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="refresh" content="0;url=${targetUrl.toString()}">
+    <title>Connecting to Echoes...</title>
+</head>
+<body style="background:#000;color:#fff;font-family:-apple-system,BlinkMacSystemFont,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;">
+    <div style="text-align:center;">
+        <h2 style="font-weight:500;margin-bottom:0.5rem;">Connecting your account...</h2>
+        <p style="color:#888;font-size:0.9rem;">Redirecting to Echoes. If this page does not reload, <a href="${targetUrl.toString()}" style="color:#fff;text-decoration:underline;">click here</a>.</p>
+    </div>
+    <script>
+        try {
+            localStorage.setItem('echos-auth-token', ${JSON.stringify(token)});
+            localStorage.setItem('monochrome-auth-token', ${JSON.stringify(token)});
+            ${googleAccessToken && provider === 'youtube' ? `localStorage.setItem('echos_yt_token', ${JSON.stringify(googleAccessToken)});` : ''}
+        } catch (e) {}
+        window.location.replace(${JSON.stringify(targetUrl.toString())});
+    </script>
+</body>
+</html>`);
     } catch (err: any) {
         console.error('[OAuth Callback Error]', err);
-        return res.redirect(`${callbackURL}?error=${encodeURIComponent(err.message || 'oauth_failed')}`);
+        const errTarget = `${callbackURL}?error=${encodeURIComponent(err.message || 'oauth_failed')}`;
+        res.status(200);
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        return res.send(`<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="refresh" content="1;url=${errTarget}">
+    <title>Authentication Error</title>
+</head>
+<body style="background:#000;color:#fff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;">
+    <div style="text-align:center;">
+        <p style="color:#ef4444;font-size:1.1rem;margin-bottom:1rem;">Authentication error: ${err.message || 'oauth_failed'}</p>
+        <p><a href="${errTarget}" style="color:#fff;">Click here to return to Echoes</a></p>
+    </div>
+    <script>window.location.replace(${JSON.stringify(errTarget)});</script>
+</body>
+</html>`);
     }
 }

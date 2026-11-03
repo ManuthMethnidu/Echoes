@@ -2820,12 +2820,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         authManager.onAuthStateChanged(async (user) => {
             if (user) {
                 const data = await syncManager.getUserData();
-                if (data && data.profile && data.profile.avatar_url) {
-                    headerAccountImg.src = data.profile.avatar_url + '?s=100';
-                    headerAccountImg.style.display = 'block';
-                    headerAccountIcon.style.display = 'none';
-                    return;
-                }
+                const avatarSrc = data?.profile?.avatar_url
+                    ? data.profile.avatar_url + '?s=100'
+                    : '/images/default-avatar.png';
+                headerAccountImg.src = avatarSrc;
+                headerAccountImg.style.display = 'block';
+                headerAccountIcon.style.display = 'none';
+                return;
             }
             headerAccountImg.style.display = 'none';
             headerAccountIcon.style.display = 'flex';

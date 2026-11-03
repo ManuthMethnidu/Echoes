@@ -2,8 +2,16 @@
   "version": 2,
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
-  "cleanUrls": true,
+  "cleanUrls": false,
   "rewrites": [
+    {
+      "source": "/googlecc07749c8a73346d.html",
+      "destination": "/googlecc07749c8a73346d.html"
+    },
+    {
+      "source": "/googlecc07749c8a73346d",
+      "destination": "/googlecc07749c8a73346d.html"
+    },
     {
       "source": "/api",
       "destination": "/api/index?__route="
@@ -18,6 +26,32 @@
     }
   ],
   "headers": [
+    {
+      "source": "/googlecc07749c8a73346d.html",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "text/html; charset=utf-8"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=0, must-revalidate"
+        }
+      ]
+    },
+    {
+      "source": "/googlecc07749c8a73346d",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "text/html; charset=utf-8"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=0, must-revalidate"
+        }
+      ]
+    },
     {
       "source": "/sw.js",
       "headers": [

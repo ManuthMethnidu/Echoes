@@ -12381,3 +12381,131 @@ body.sidebar-collapsed #sidebar-nav-donate {
     }
 }
 
+/* Connect Autoplay Recovery Overlay (Smart TV & Mobile Autoplay Handover) */
+.connect-autoplay-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 99999;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.75);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    padding: 24px;
+    animation: fadeInPrompt 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.connect-autoplay-card {
+    position: relative;
+    max-width: 460px;
+    width: 100%;
+    background: #181818;
+    border: 1px solid rgba(30, 215, 96, 0.4);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8), 0 0 30px rgba(30, 215, 96, 0.25);
+    border-radius: 20px;
+    padding: 32px 28px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 18px;
+    transform: translateY(0);
+    animation: popUpCard 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.autoplay-pulse-icon {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: #1ed760;
+    color: #000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 0 24px rgba(30, 215, 96, 0.5);
+    animation: greenGlowPulse 1.8s infinite ease-in-out;
+}
+
+.autoplay-pulse-icon svg {
+    margin-left: 4px;
+}
+
+.autoplay-header {
+    font-size: 0.85rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: #1ed760;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+}
+
+.autoplay-track-title {
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: #fff;
+    line-height: 1.25;
+    word-break: break-word;
+}
+
+.autoplay-track-artist {
+    font-size: 1rem;
+    color: #b3b3b3;
+    margin-top: 4px;
+}
+
+.autoplay-hint {
+    font-size: 0.85rem;
+    color: #888;
+    margin-top: 10px;
+}
+
+.autoplay-resume-btn {
+    width: 100%;
+    padding: 14px 24px;
+    font-size: 1rem;
+    font-weight: 700;
+    border-radius: 30px;
+    background: #1ed760;
+    color: #000;
+    border: none;
+    cursor: pointer;
+    box-shadow: 0 4px 14px rgba(30, 215, 96, 0.4);
+    transition: transform 0.15s ease, background-color 0.15s ease;
+}
+
+.autoplay-resume-btn:focus,
+.autoplay-resume-btn:hover {
+    transform: scale(1.04);
+    background: #22e668;
+    outline: 2px solid #fff;
+}
+
+@keyframes greenGlowPulse {
+    0%, 100% {
+        box-shadow: 0 0 16px rgba(30, 215, 96, 0.4);
+        transform: scale(1);
+    }
+    50% {
+        box-shadow: 0 0 32px rgba(30, 215, 96, 0.8);
+        transform: scale(1.06);
+    }
+}
+
+@keyframes fadeInPrompt {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes popUpCard {
+    from {
+        opacity: 0;
+        transform: scale(0.9) translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+

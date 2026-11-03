@@ -223,7 +223,11 @@ export class PlaybackRoom {
         }
 
         const currentActive = this.activeDeviceId ? this.findDeviceById(this.activeDeviceId) : null;
-        const currentPlayback = this.getCurrentPlaybackState();
+        
+        // Merge latest track/position provided by the sender in the transfer command
+        const trackToPlay = msg.track || this.playbackState.track;
+        const positionToPlay = typeof msg.position === 'number' ? msg.position : this.getCurrentPlaybackState().position;
+        const volumeToPlay = typeof msg.volume === 'number' ? msg.volume : this.playbackState.volume;
 
         // 1. Tell current active device to pause locally
         if (currentActive && currentActive.deviceId !== targetDeviceId) {
@@ -236,14 +240,21 @@ export class PlaybackRoom {
 
         // 2. Transfer playback baton to target device
         this.activeDeviceId = targetDeviceId;
-        this.playbackState.isPlaying = true;
-        this.playbackState.lastUpdated = Date.now();
+        this.playbackState = {
+          track: trackToPlay,
+          position: positionToPlay,
+          isPlaying: true,
+          volume: volumeToPlay,
+          lastUpdated: Date.now(),
+        };
 
         this.send(target.ws, {
           type: 'LOAD_AND_PLAY',
-          track: currentPlayback.track,
-          position: currentPlayback.position,
-          volume: currentPlayback.volume,
+          track: trackToPlay,
+          position: positionToPlay,
+          volume: volumeToPlay,
+          queue: msg.queue || null,
+          queueIndex: typeof msg.queueIndex === 'number' ? msg.queueIndex : 0,
           sourceDeviceId: sender.deviceId,
         });
 

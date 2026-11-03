@@ -185,6 +185,35 @@ export class Player {
             }
         });
 
+        window.addEventListener('player:autoplay-blocked', () => {
+            const onGestureUnlock = async () => {
+                window.removeEventListener('click', onGestureUnlock, true);
+                window.removeEventListener('keydown', onGestureUnlock, true);
+                window.removeEventListener('touchstart', onGestureUnlock, true);
+
+                if (!this.autoplayBlocked) return;
+                this.autoplayBlocked = false;
+                const el = this.activeElement;
+                if (!el) return;
+
+                try {
+                    if (!audioContextManager.isReady()) {
+                        audioContextManager.init(el);
+                    }
+                    await audioContextManager.resume();
+                    if (el.paused) {
+                        await el.play();
+                    }
+                } catch (e) {
+                    console.debug('Gesture autoplay unlock retry:', e);
+                }
+            };
+
+            window.addEventListener('click', onGestureUnlock, true);
+            window.addEventListener('keydown', onGestureUnlock, true);
+            window.addEventListener('touchstart', onGestureUnlock, true);
+        });
+
         this._setupVideoSync();
         this._setupAnimatedCoverSync();
     }
@@ -1642,6 +1671,16 @@ export class Player {
 
                     // Instantly trigger playback rather than explicitly waiting for 'canplay'
                     // which delays the event loop and natively adds gap/latency
+                    if (startTime > 0) {
+                        const onPlayingSeekCheck = () => {
+                            if (startTime > 0 && Math.abs((activeElement.currentTime || 0) - startTime) > 2) {
+                                try {
+                                    activeElement.currentTime = startTime;
+                                } catch (_) {}
+                            }
+                        };
+                        activeElement.addEventListener('playing', onPlayingSeekCheck, { once: true });
+                    }
                     await this.safePlay(activeElement);
                 } else {
                     await this.prepareNativePlayback(activeElement, streamUrl, {
@@ -1652,7 +1691,19 @@ export class Player {
                     this.updateAdaptiveQualityBadge();
 
                     if (startTime > 0) {
+                        // Wait for metadata so seeking sets currentTime accurately and avoids being reset to 0
+                        await this.waitForCanPlayOrTimeout(activeElement, 4000).catch(() => {});
                         await this.seekTo(startTime);
+
+                        // Ensure timestamp is held once media starts outputting audio
+                        const onPlayingSeekCheck = () => {
+                            if (startTime > 0 && Math.abs((activeElement.currentTime || 0) - startTime) > 2) {
+                                try {
+                                    activeElement.currentTime = startTime;
+                                } catch (_) {}
+                            }
+                        };
+                        activeElement.addEventListener('playing', onPlayingSeekCheck, { once: true });
                     }
                     const played = await this.safePlay(activeElement);
                     if (!played) return;
@@ -3166,6 +3217,11 @@ export class Player {
         } catch (error) {
             if (error && (error.name === 'NotAllowedError' || error.name === 'AbortError')) {
                 this.autoplayBlocked = true;
+                window.dispatchEvent(
+                    new CustomEvent('player:autoplay-blocked', {
+                        detail: { element, track: this.currentTrack },
+                    })
+                );
                 return false;
             }
             throw error;

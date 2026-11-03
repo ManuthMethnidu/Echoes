@@ -3,6 +3,50 @@ import { authManager } from './accounts/auth.js';
 import { Player } from './player.js';
 
 /**
+ * Safely serialize track object preserving all metadata required for playback streaming
+ * (artists, album, isrc, provider, audioUrl, tracksTrackId, tidalTrackId, type, etc.)
+ */
+export function serializeTrack(track) {
+    if (!track || typeof track !== 'object') return null;
+    try {
+        const copy = JSON.parse(
+            JSON.stringify(track, (key, value) => {
+                if (typeof value === 'function' || value instanceof Element || (typeof key === 'string' && key.startsWith('_'))) {
+                    return undefined;
+                }
+                return value;
+            })
+        );
+        // Ensure artists array is always populated for getTrackArtists / getTrackArtistsHTML
+        if (!Array.isArray(copy.artists) || copy.artists.length === 0) {
+            const name = typeof copy.artist === 'string' ? copy.artist : (copy.artist?.name || 'Unknown Artist');
+            copy.artists = [{ id: '', name }];
+        }
+        if (!copy.artist) {
+            copy.artist = copy.artists[0]?.name || 'Unknown Artist';
+        }
+        return copy;
+    } catch (_e) {
+        const artistStr = typeof track.artist === 'string' ? track.artist : (track.artists?.[0]?.name || 'Unknown Artist');
+        return {
+            id: track.id,
+            title: track.title || 'Unknown Title',
+            artist: artistStr,
+            artists: Array.isArray(track.artists) ? track.artists : [{ id: '', name: artistStr }],
+            album: track.album || null,
+            cover: track.cover || track.image || track.album?.cover || null,
+            duration: track.duration || 0,
+            provider: track.provider || null,
+            isrc: track.isrc || null,
+            audioUrl: track.audioUrl || null,
+            type: track.type || 'track',
+            tracksTrackId: track.tracksTrackId || null,
+            tidalTrackId: track.tidalTrackId || null,
+        };
+    }
+}
+
+/**
  * Detect friendly device type and OS description
  */
 export function getDeviceInfo() {
@@ -269,9 +313,12 @@ export class ConnectManager {
                 if (msg.activeDeviceId) {
                     this.setActiveDevice(msg.activeDeviceId, msg.activeDeviceName);
                 }
-                if (msg.playback && !this.isLocalActive) {
-                    this.remotePlayback = msg.playback;
-                    this.renderRemoteState(msg.playback);
+                if (msg.playback || msg.playbackState) {
+                    const pb = msg.playback || msg.playbackState;
+                    this.remotePlayback = pb;
+                    if (!this.isLocalActive) {
+                        this.renderRemoteState(pb);
+                    }
                 }
                 this.renderModalDeviceList();
                 this.updateRemoteBanner();
@@ -299,8 +346,13 @@ export class ConnectManager {
             case 'REMOTE_STATE_UPDATE':
                 if (msg.activeDeviceId !== this.deviceId) {
                     this.setActiveDevice(msg.activeDeviceId, msg.activeDeviceName);
-                    this.remotePlayback = msg.playback;
-                    this.renderRemoteState(msg.playback);
+                    this.remotePlayback = msg.playback || {
+                        track: msg.track,
+                        position: msg.position,
+                        isPlaying: msg.isPlaying,
+                        volume: msg.volume,
+                    };
+                    this.renderRemoteState(this.remotePlayback);
                     this.updateRemoteBanner();
                 }
                 break;
@@ -310,6 +362,24 @@ export class ConnectManager {
                 this.pauseLocalPlayer();
                 this.isLocalActive = false;
                 this.updateRemoteBanner();
+                break;
+
+            case 'TRANSFER_PLAYBACK':
+                // Handles BroadcastChannel and peer transfer frames
+                if (msg.targetDeviceId === this.deviceId) {
+                    console.log('[Echos Connect] Received direct TRANSFER_PLAYBACK for this device.');
+                    this.isLocalActive = true;
+                    this.activeDeviceId = this.deviceId;
+                    this.activeDeviceName = this.deviceName;
+                    this.handleTransferToHere(msg);
+                    this.updateRemoteBanner();
+                    this.renderModalDeviceList();
+                } else if (msg.fromDeviceId !== this.deviceId && this.isLocalActive) {
+                    this.pauseLocalPlayer();
+                    this.isLocalActive = false;
+                    this.activeDeviceId = msg.targetDeviceId;
+                    this.updateRemoteBanner();
+                }
                 break;
 
             case 'LOAD_AND_PLAY':
@@ -344,33 +414,164 @@ export class ConnectManager {
     /**
      * Handover playback to this device with exact track & timestamp
      */
-    async handleTransferToHere({ track, position, volume }) {
+    async handleTransferToHere(msg) {
         try {
             const player = Player.instance;
             if (!player) return;
+
+            const { volume, queue, queueIndex } = msg || {};
+            // Resolve track from msg.track, or fallback to msg.playback?.track or this.remotePlayback?.track
+            const track = msg.track || msg.playback?.track || this.remotePlayback?.track || null;
+            const rawPosition =
+                typeof msg.position === 'number'
+                    ? msg.position
+                    : typeof msg.playback?.position === 'number'
+                    ? msg.playback.position
+                    : typeof this.remotePlayback?.position === 'number'
+                    ? this.remotePlayback.position
+                    : 0;
+            const targetPosition = Number.isFinite(rawPosition) && rawPosition > 0 ? rawPosition : 0;
+
+            console.log('[Echos Connect] handleTransferToHere resolving:', {
+                trackTitle: track?.title,
+                trackId: track?.id,
+                targetPosition,
+                hasQueue: Boolean(queue?.length),
+            });
 
             if (typeof volume === 'number' && Number.isFinite(volume)) {
                 player.setVolume(volume);
             }
 
-            if (track) {
-                // If the track is already loaded, just seek and play
-                if (player.currentTrack && player.currentTrack.id === track.id) {
-                    if (typeof position === 'number' && Number.isFinite(position)) {
-                        player.activeElement.currentTime = position;
+            if (!track) {
+                console.warn('[Echos Connect] No track provided in transfer payload.');
+                return;
+            }
+
+            // Restore queue context if sent
+            if (Array.isArray(queue) && queue.length > 0) {
+                const qIdx =
+                    typeof queueIndex === 'number' && queueIndex >= 0 && queueIndex < queue.length ? queueIndex : 0;
+                await player.setQueue(queue, qIdx);
+            } else if (!player.currentTrack || player.currentTrack.id !== track.id) {
+                await player.setQueue([track], 0);
+            }
+
+            let playSuccess = false;
+
+            // If current active track is already this track, seek and resume
+            if (player.currentTrack && player.currentTrack.id === track.id && player.activeElement) {
+                if (targetPosition > 0) {
+                    if (typeof player.seekTo === 'function') {
+                        await player.seekTo(targetPosition);
+                    } else {
+                        player.activeElement.currentTime = targetPosition;
                     }
-                    if (player.activeElement.paused) {
-                        await player.handlePlayPause();
-                    }
-                } else {
-                    // Set queue and play track from specified position
-                    await player.setQueue([track], 0);
-                    await player.playTrackFromQueue(position || 0);
                 }
+                playSuccess = await player.safePlay(player.activeElement);
+            } else {
+                await player.playTrackFromQueue(targetPosition);
+                playSuccess = !player.autoplayBlocked && player.activeElement && !player.activeElement.paused;
+            }
+
+            // If browser blocked autoplay (common on Smart TVs / cold browser tabs),
+            // show the one-touch prompt so user can tap anywhere or press remote OK button
+            if (!playSuccess || player.autoplayBlocked) {
+                this.showAutoplayPrompt(track, targetPosition, msg.sourceDeviceId || msg.fromDeviceId);
             }
         } catch (err) {
             console.error('[Echos Connect] Failed to resume playback on transfer:', err);
         }
+    }
+
+    /**
+     * Show non-intrusive interactive prompt for un-clicked tabs/Smart TVs blocked by autoplay policy
+     */
+    showAutoplayPrompt(track, position = 0, sourceDeviceId = null) {
+        let overlay = document.getElementById('connect-autoplay-overlay');
+        if (!overlay) {
+            overlay = document.createElement('div');
+            overlay.id = 'connect-autoplay-overlay';
+            overlay.className = 'connect-autoplay-overlay';
+            document.body.appendChild(overlay);
+        }
+
+        const title = track?.title || 'Playback';
+        const artist =
+            track?.artist ||
+            (track?.artists && track.artists[0]?.name) ||
+            (Array.isArray(track?.artists) ? track.artists.map((a) => a.name).join(', ') : '');
+
+        overlay.innerHTML = `
+            <div class="connect-autoplay-card">
+                <div class="autoplay-pulse-icon">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
+                        <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                    </svg>
+                </div>
+                <div class="autoplay-info">
+                    <div class="autoplay-header">Playback Transferred</div>
+                    <div class="autoplay-track-title">${title}</div>
+                    ${artist ? `<div class="autoplay-track-artist">${artist}</div>` : ''}
+                    <div class="autoplay-hint">Press OK on remote or tap anywhere to start listening</div>
+                </div>
+                <button type="button" class="btn-primary autoplay-resume-btn">Play Now</button>
+            </div>
+        `;
+
+        overlay.style.display = 'flex';
+
+        const resumePlayback = async (e) => {
+            if (e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+            window.removeEventListener('click', resumePlayback, true);
+            window.removeEventListener('keydown', resumePlayback, true);
+            window.removeEventListener('touchstart', resumePlayback, true);
+
+            overlay.style.display = 'none';
+
+            const player = Player.instance;
+            if (!player) return;
+
+            try {
+                const { audioContextManager } = await import('./audio-context.js');
+                if (audioContextManager && !audioContextManager.isReady()) {
+                    audioContextManager.init(player.activeElement);
+                }
+                if (audioContextManager) {
+                    await audioContextManager.resume();
+                }
+            } catch (_) {}
+
+            if (position > 0 && Math.abs((player.activeElement?.currentTime || 0) - position) > 2) {
+                try {
+                    await player.seekTo(position);
+                } catch (_) {}
+            }
+
+            if (player.activeElement) {
+                try {
+                    await player.activeElement.play();
+                    player.autoplayBlocked = false;
+                } catch (playErr) {
+                    console.error('[Echos Connect] Autoplay resume failed:', playErr);
+                    await player.handlePlayPause();
+                }
+            }
+        };
+
+        const playBtn = overlay.querySelector('.autoplay-resume-btn');
+        if (playBtn) {
+            playBtn.addEventListener('click', resumePlayback);
+        }
+
+        setTimeout(() => {
+            window.addEventListener('click', resumePlayback, true);
+            window.addEventListener('keydown', resumePlayback, true);
+            window.addEventListener('touchstart', resumePlayback, true);
+        }, 50);
     }
 
     pauseLocalPlayer() {
@@ -430,35 +631,42 @@ export class ConnectManager {
     /**
      * Request to transfer playback to another device
      */
-    transferPlayback(targetDeviceId) {
+    async transferPlayback(targetDeviceId) {
         if (!targetDeviceId || targetDeviceId === 'undefined') return;
         if (targetDeviceId === this.activeDeviceId && !this.isLocalActive) return;
 
         const player = Player.instance;
-        const currentTrack = player?.currentTrack
-            ? {
-                  id: player.currentTrack.id,
-                  title: player.currentTrack.title,
-                  artist: player.currentTrack.artist,
-                  album: player.currentTrack.album,
-                  cover: player.currentTrack.cover,
-                  duration: player.currentTrack.duration,
-              }
-            : null;
+        const currentTrack = serializeTrack(player?.currentTrack);
         const position = player?.activeElement?.currentTime || 0;
         const volume = player?.userVolume ?? 1;
 
-        // Proactively emit state so room has current playback state
+        let serializedQueue = null;
+        let queueIndex = 0;
+        try {
+            const rawQueue = player?.getCurrentQueue ? player.getCurrentQueue() : player?.queue || [];
+            const curIdx = player?.currentQueueIndex >= 0 ? player.currentQueueIndex : 0;
+            if (rawQueue && rawQueue.length > 0) {
+                const start = Math.max(0, curIdx - 5);
+                const end = Math.min(rawQueue.length, curIdx + 45);
+                serializedQueue = rawQueue.slice(start, end).map(serializeTrack).filter(Boolean);
+                queueIndex = curIdx - start;
+            }
+        } catch (_qErr) {}
+
+        // Proactively emit state first so Cloudflare Durable Object updates its state
         if (currentTrack) {
             this.send({
                 type: 'PLAYBACK_STATE',
                 deviceId: this.deviceId,
                 track: currentTrack,
                 position,
-                isPlaying: !player.activeElement?.paused,
+                isPlaying: !player?.activeElement?.paused,
                 volume,
             });
         }
+
+        // Brief delay (120ms) to ensure Durable Object commits state before TRANSFER_PLAYBACK
+        await new Promise((r) => setTimeout(r, 120));
 
         this.send({
             type: 'TRANSFER_PLAYBACK',
@@ -467,6 +675,8 @@ export class ConnectManager {
             track: currentTrack,
             position,
             volume,
+            queue: serializedQueue,
+            queueIndex,
         });
 
         if (targetDeviceId === this.deviceId) {
@@ -493,19 +703,13 @@ export class ConnectManager {
             if (!player || !player.activeElement) return;
 
             const audio = player.activeElement;
+            const currentTrack = serializeTrack(player.currentTrack);
+            if (!currentTrack) return;
+
             this.send({
                 type: 'PLAYBACK_STATE',
                 deviceId: this.deviceId,
-                track: player.currentTrack
-                    ? {
-                          id: player.currentTrack.id,
-                          title: player.currentTrack.title,
-                          artist: player.currentTrack.artist,
-                          album: player.currentTrack.album,
-                          cover: player.currentTrack.cover,
-                          duration: player.currentTrack.duration,
-                      }
-                    : null,
+                track: currentTrack,
                 position: audio.currentTime || 0,
                 isPlaying: !audio.paused,
                 volume: player.userVolume,

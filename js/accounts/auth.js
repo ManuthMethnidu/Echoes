@@ -190,12 +190,15 @@ async function getSessionFromBearerToken() {
 }
 
 async function getCurrentSession() {
-    if (isCapacitorNative() && getAuthToken()) {
-        return getSessionFromBearerToken();
+    if (getAuthToken()) {
+        const bearerSession = await getSessionFromBearerToken().catch(() => null);
+        if (bearerSession?.user) return bearerSession;
     }
 
-    const { data: session } = await authClient.getSession();
-    if (session?.user) return session;
+    try {
+        const { data: session } = await authClient.getSession();
+        if (session?.user) return session;
+    } catch (_e) {}
 
     return getSessionFromBearerToken();
 }
@@ -225,6 +228,15 @@ export class AuthManager {
         if (nativeOAuthError) {
             console.error('Native OAuth failed:', nativeOAuthError);
             alert(`Login failed: ${nativeOAuthError}`);
+            return true;
+        }
+
+        if (params.has('error')) {
+            const err = params.get('error');
+            const details = params.get('details');
+            const msg = details ? `${err}: ${details}` : err;
+            console.error('OAuth failed:', msg);
+            alert(`Google sign in failed: ${msg}`);
             return true;
         }
 
@@ -342,38 +354,70 @@ export class AuthManager {
 
     async signInWithEmail(email, password) {
         try {
-            const { data, error } = await authClient.signIn.email({ email, password });
-            if (error) throw new Error(error.message);
+            const res = await fetch(`${AUTH_BASE_URL}/api/auth/sign-in/email`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: email.trim(), password }),
+                credentials: 'include',
+            });
+            const data = await res.json().catch(() => null);
 
-            storeAuthToken(data?.token);
+            if (res.status === 429) {
+                const msg = data?.error?.message || 'Too many login attempts. Please wait before trying again.';
+                alert(msg);
+                throw new Error(msg);
+            }
+
+            if (!res.ok || data?.error) {
+                const msg = data?.error?.message || `Login failed (${res.status})`;
+                alert(`Login failed: ${msg}`);
+                throw new Error(msg);
+            }
+
+            storeAuthToken(data.token);
             this.user = normalizeUser(data.user);
             this.updateUI(this.user);
             this.authListeners.forEach((listener) => listener(this.user));
             return this.user;
         } catch (error) {
             console.error('Email Login failed:', error);
-            alert(`Login failed: ${error.message}`);
             throw error;
         }
     }
 
     async signUpWithEmail(email, password) {
         try {
-            const { data, error } = await authClient.signUp.email({
-                email,
-                password,
-                name: email.split('@')[0],
+            const res = await fetch(`${AUTH_BASE_URL}/api/auth/sign-up/email`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    email: email.trim(),
+                    password,
+                    name: email.split('@')[0],
+                }),
+                credentials: 'include',
             });
-            if (error) throw new Error(error.message);
+            const data = await res.json().catch(() => null);
 
-            storeAuthToken(data?.token);
+            if (res.status === 429) {
+                const msg = data?.error?.message || 'Too many sign-up attempts. Please wait before creating another account.';
+                alert(msg);
+                throw new Error(msg);
+            }
+
+            if (!res.ok || data?.error) {
+                const msg = data?.error?.message || `Sign up failed (${res.status})`;
+                alert(`Sign Up failed: ${msg}`);
+                throw new Error(msg);
+            }
+
+            storeAuthToken(data.token);
             this.user = normalizeUser(data.user);
             this.updateUI(this.user);
             this.authListeners.forEach((listener) => listener(this.user));
             return this.user;
         } catch (error) {
             console.error('Sign Up failed:', error);
-            alert(`Sign Up failed: ${error.message}`);
             throw error;
         }
     }

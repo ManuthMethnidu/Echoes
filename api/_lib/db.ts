@@ -106,6 +106,18 @@ export async function ensureSchema(sql: ReturnType<typeof neon>) {
             );
         `;
 
+        await sql`
+            CREATE TABLE IF NOT EXISTS auth_rate_limits (
+                key TEXT PRIMARY KEY,
+                points INT NOT NULL DEFAULT 1,
+                expire_at TIMESTAMPTZ NOT NULL
+            );
+        `;
+
+        await sql`
+            CREATE INDEX IF NOT EXISTS idx_auth_rate_limits_expire ON auth_rate_limits(expire_at);
+        `;
+
         // Create index on pairing code and expiry
         await sql`
             CREATE INDEX IF NOT EXISTS idx_device_pairings_code ON device_pairings(code);

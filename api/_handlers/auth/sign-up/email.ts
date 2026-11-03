@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getDb, ensureSchema } from '../../../_lib/db.js';
 import { hashPassword, createToken, setSessionCookie } from '../../../_lib/auth.js';
+import { getClientIp, consumeRateLimit } from '../../../_lib/rateLimit.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method !== 'POST') {
@@ -10,6 +11,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     try {
         const sql = getDb();
         await ensureSchema(sql);
+
+        const clientIp = getClientIp(req);
+        // Rate limit: 5 signups per hour per IP
+        const signupLimit = await consumeRateLimit(`signup_ip:${clientIp}`, 5, 3600);
+        if (!signupLimit.allowed) {
+            const minutes = Math.max(1, Math.ceil(signupLimit.retryAfterSeconds / 60));
+            res.setHeader('Retry-After', String(signupLimit.retryAfterSeconds));
+            return res.status(429).json({
+                error: {
+                    message: `Too many sign-up attempts from this network. Please wait ${minutes} minute${minutes > 1 ? 's' : ''} before creating another account.`,
+                    retryAfter: signupLimit.retryAfterSeconds,
+                },
+            });
+        }
 
         const { email, password, name } = req.body || {};
         if (!email || !password) {

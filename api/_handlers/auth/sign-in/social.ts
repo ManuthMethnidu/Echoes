@@ -7,7 +7,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     try {
         const { provider, callbackURL } = req.body || {};
-        const origin = req.headers.origin || `https://${req.headers.host}`;
+        const forwardedHost = (req.headers['x-forwarded-host'] || req.headers.host || '') as string;
+        const host = forwardedHost.split(',')[0].trim();
+        const origin = (req.headers.origin as string) || (host ? `https://${host}` : 'https://echoes.mteck.tech');
         const redirectUri = `${origin}/api/auth/callback`;
 
         if (provider === 'google' || provider === 'youtube') {
@@ -32,7 +34,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     error: { message: 'Google OAuth is not configured. Please set GOOGLE_CLIENT_ID in Vercel environment variables.' }
                 });
             }
-            const state = Buffer.from(JSON.stringify({ provider, callbackURL: callbackURL || `${origin}/index.html` })).toString('base64');
+            const state = Buffer.from(JSON.stringify({
+                provider,
+                callbackURL: callbackURL || `${origin}/index.html`,
+                redirectUri,
+            })).toString('base64');
             // For standard login/signup, use non-sensitive basic identity scopes (does not trigger app verification requirement)
             // For YouTube playlist import, request youtube.readonly
             const scope = provider === 'youtube'

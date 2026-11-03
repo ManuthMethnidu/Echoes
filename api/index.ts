@@ -40,6 +40,7 @@ const STATIC_ROUTES: Record<string, ApiHandler> = {
     'auth/get-session': authGetSessionHandler,
     'auth/sign-out': authSignOutHandler,
     'auth/callback': authCallbackHandler,
+    'auth/callback/google': authCallbackHandler,
     'me': meIndexHandler,
     'me/profile': meProfileHandler,
     'pair/init': pairInitHandler,

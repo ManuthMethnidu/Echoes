@@ -4,16 +4,20 @@ import { createToken, setSessionCookie } from '../../_lib/auth.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { code, state, error } = req.query;
-    const origin = req.headers.origin || `https://${req.headers.host}`;
+    const forwardedHost = (req.headers['x-forwarded-host'] || req.headers.host || '') as string;
+    const host = forwardedHost.split(',')[0].trim();
+    const origin = (req.headers.origin as string) || (host ? `https://${host}` : 'https://echoes.mteck.tech');
 
     let callbackURL = `${origin}/index.html`;
     let provider = 'google';
+    let redirectUri = `${origin}/api/auth/callback`;
 
     if (state && typeof state === 'string') {
         try {
             const parsed = JSON.parse(Buffer.from(state, 'base64').toString('utf-8'));
             if (parsed.callbackURL) callbackURL = parsed.callbackURL;
             if (parsed.provider) provider = parsed.provider;
+            if (parsed.redirectUri) redirectUri = parsed.redirectUri;
         } catch {}
     }
 
@@ -33,8 +37,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         let name = '';
         let avatarUrl = '';
 
-        const redirectUri = `${origin}/api/auth/callback`;
-
         let googleAccessToken = '';
 
         if (provider === 'google' || provider === 'youtube') {
@@ -51,7 +53,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             });
             const tokenData = await tokenRes.json();
             if (!tokenRes.ok || !tokenData.access_token) {
-                return res.redirect(`${callbackURL}?error=oauth_token_exchange_failed`);
+                console.error('[Google OAuth Token Exchange Error]', {
+                    status: tokenRes.status,
+                    error: tokenData,
+                    redirectUri,
+                    hasClientId: !!process.env.GOOGLE_CLIENT_ID,
+                    hasClientSecret: !!process.env.GOOGLE_CLIENT_SECRET,
+                });
+                const errDetail = encodeURIComponent(tokenData.error_description || tokenData.error || 'token_exchange_failed');
+                return res.redirect(`${callbackURL}?error=oauth_token_exchange_failed&details=${errDetail}`);
             }
             googleAccessToken = tokenData.access_token;
 

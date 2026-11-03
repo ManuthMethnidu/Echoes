@@ -113,10 +113,10 @@ export async function onRequest(context) {
 
             if (artist && artist.name && trackerData && trackerData.eras) {
                 const era = trackerData.eras.find((e) => e.name === projectName);
-                const imageUrl = era && era.cover_art ? era.cover_art : 'https://monochrome.tf/assets/appicon.png';
+                const imageUrl = era && era.cover_art ? era.cover_art : 'https://echoes.mteck.tech/images/default-cover.png';
                 const pageUrl = new URL(request.url).href;
                 const title = `${projectName} - ${artist.name}`;
-                const description = `Stream ${projectName} by ${artist.name} on Monochrome`;
+                const description = `Stream ${projectName} by ${artist.name} on Echoes`;
 
                 const metaHtml = `
                     <!DOCTYPE html>
@@ -127,7 +127,7 @@ export async function onRequest(context) {
                         <meta name="description" content="${description}">
                         <meta name="theme-color" content="#000000">
 
-                        <meta property="og:site_name" content="Monochrome">
+                        <meta property="og:site_name" content="Echoes">
                         <meta property="og:title" content="${title}">
                         <meta property="og:description" content="${description}">
                         <meta property="og:image" content="${imageUrl}">

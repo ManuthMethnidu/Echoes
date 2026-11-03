@@ -149,11 +149,11 @@ export async function onRequest(context) {
             try {
                 const title = playlist.title || playlist.name;
                 const trackCount = playlist.numberOfTracks;
-                const description = `Playlist • ${trackCount} Tracks\nListen on Monochrome`;
+                const description = `Playlist • ${trackCount} Tracks\nListen on Echoes`;
                 const imageId = playlist.squareImage || playlist.image;
                 const imageUrl = imageId
                     ? api.getCoverUrl(imageId, '1080')
-                    : 'https://monochrome.st/assets/appicon.png';
+                    : 'https://echoes.mteck.tech/images/default-cover.png';
                 const pageUrl = new URL(request.url).href;
 
                 const metaHtml = `
@@ -165,7 +165,7 @@ export async function onRequest(context) {
                         <meta name="description" content="${description}">
                         <meta name="theme-color" content="#000000">
 
-                        <meta property="og:site_name" content="Monochrome">
+                        <meta property="og:site_name" content="Echoes">
                         <meta property="og:title" content="${title}">
                         <meta property="og:description" content="${description}">
                         <meta property="og:image" content="${imageUrl}">

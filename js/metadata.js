@@ -153,7 +153,7 @@ export async function readTrackMetadata(file, { filename = file?.name || 'Unknow
         title: filename?.replace(/\.[^/.]+$/, ''),
         artists: [],
         artist: { name: 'Unknown Artist' }, // For fallback/compatibility
-        album: { title: 'Unknown Album', cover: 'assets/appicon.png', releaseDate: null },
+        album: { title: 'Unknown Album', cover: 'images/default-cover.svg', releaseDate: null },
         duration: 0,
         isrc: null,
         copyright: null,
@@ -264,7 +264,7 @@ export async function readTrackMetadata(file, { filename = file?.name || 'Unknow
         console.warn('Error reading metadata for', filename, e);
     }
 
-    if (metadata.album.cover === 'assets/appicon.png' && siblings?.length > 0) {
+    if ((metadata.album.cover === 'images/default-cover.svg' || metadata.album.cover === 'assets/appicon.png') && siblings?.length > 0) {
         const baseName = filename.substring(0, filename.lastIndexOf('.'));
         const imageExtensions = ['.jpg', '.jpeg', '.png', '.webp'];
         const coverFile = siblings.find((f) => {

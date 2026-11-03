@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <linearGradient id="coverBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1e1e22"/>
+      <stop offset="50%" stop-color="#121214"/>
+      <stop offset="100%" stop-color="#0a0a0c"/>
+    </linearGradient>
+    <radialGradient id="vinylShine" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.08"/>
+      <stop offset="40%" stop-color="#ffffff" stop-opacity="0.02"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0.4"/>
+    </radialGradient>
+  </defs>
+  <!-- Background Card -->
+  <rect width="512" height="512" rx="16" fill="url(#coverBg)"/>
+  <!-- Concentric Vinyl Grooves -->
+  <circle cx="256" cy="256" r="210" fill="none" stroke="#ffffff" stroke-opacity="0.03" stroke-width="2"/>
+  <circle cx="256" cy="256" r="170" fill="none" stroke="#ffffff" stroke-opacity="0.035" stroke-width="2"/>
+  <circle cx="256" cy="256" r="130" fill="none" stroke="#ffffff" stroke-opacity="0.04" stroke-width="2"/>
+  <circle cx="256" cy="256" r="90" fill="none" stroke="#ffffff" stroke-opacity="0.05" stroke-width="2"/>
+  <circle cx="256" cy="256" r="230" fill="url(#vinylShine)"/>
+  <!-- Center Music / Waveform Disc -->
+  <circle cx="256" cy="256" r="64" fill="#18181c" stroke="#ffffff" stroke-opacity="0.1" stroke-width="2"/>
+  <!-- Echoes Soundwave Bars -->
+  <g stroke="#ffffff" stroke-width="6" stroke-linecap="round">
+    <line x1="226" y1="246" x2="226" y2="266"/>
+    <line x1="238" y1="236" x2="238" y2="276"/>
+    <line x1="250" y1="224" x2="250" y2="288"/>
+    <line x1="262" y1="238" x2="262" y2="274"/>
+    <line x1="274" y1="230" x2="274" y2="282"/>
+    <line x1="286" y1="246" x2="286" y2="266"/>
+  </g>
+</svg>

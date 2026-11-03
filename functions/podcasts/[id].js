@@ -17,7 +17,7 @@ async function getAuthHeaders() {
     const combined = PODCAST_API_KEY + PODCAST_API_SECRET + apiHeaderTime;
     const authHeader = await sha1(combined);
     return {
-        'User-Agent': 'MonochromeMusic/1.0',
+        'User-Agent': 'Echoes/1.0',
         'X-Auth-Key': PODCAST_API_KEY,
         'X-Auth-Date': apiHeaderTime,
         Authorization: authHeader,
@@ -52,9 +52,9 @@ export async function onRequest(context) {
                 const episodeCount = feed.episodeCount || 0;
                 const _rawDescription = feed.description || '';
                 const description = author
-                    ? `Podcast by ${author} • ${episodeCount} Episodes\nListen on Monochrome`
-                    : `Podcast • ${episodeCount} Episodes\nListen on Monochrome`;
-                const imageUrl = feed.image || feed.artwork || 'https://monochrome.tf/assets/appicon.png';
+                    ? `Podcast by ${author} • ${episodeCount} Episodes\nListen on Echoes`
+                    : `Podcast • ${episodeCount} Episodes\nListen on Echoes`;
+                const imageUrl = feed.image || feed.artwork || 'https://echoes.mteck.tech/images/default-cover.png';
                 const pageUrl = new URL(request.url).href;
 
                 const metaHtml = `
@@ -66,7 +66,7 @@ export async function onRequest(context) {
                         <meta name="description" content="${description}">
                         <meta name="theme-color" content="#000000">
 
-                        <meta property="og:site_name" content="Monochrome">
+                        <meta property="og:site_name" content="Echoes">
                         <meta property="og:title" content="${title}">
                         <meta property="og:description" content="${description}">
                         <meta property="og:image" content="${imageUrl}">

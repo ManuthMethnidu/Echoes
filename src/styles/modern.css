@@ -1,7 +1,7 @@
 /* stylelint-disable no-descending-specificity -- This compatibility layer must override the legacy cascade. */
 
 /*
- * Monochrome 3 app chrome
+ * Echoes app chrome
  *
  * This layer intentionally sits after the compatibility stylesheet. It gives
  * the existing feature surfaces one restrained design language while their

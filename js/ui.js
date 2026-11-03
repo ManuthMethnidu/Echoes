@@ -628,7 +628,7 @@ export class UIRenderer {
         const trackTitle = getTrackTitle(track);
         const isCurrentTrack = this.player?.currentTrack?.id === track.id;
 
-        if (track.isLocal && (!track.album?.cover || track.album.cover === 'assets/appicon.png')) {
+        if (track.isLocal && (!track.album?.cover || track.album.cover === 'assets/appicon.png' || track.album.cover === 'images/default-cover.svg')) {
             showCover = false;
         }
 
@@ -831,7 +831,7 @@ export class UIRenderer {
     }
 
     createMixCardHTML(mix) {
-        const imageSrc = mix.cover || '/assets/appicon.png';
+        const imageSrc = mix.cover || '/images/default-cover.svg';
         const description = mix.subTitle || mix.description || '';
         const isCompact = cardSettings.isCompactAlbum();
 
@@ -891,7 +891,7 @@ export class UIRenderer {
             } else if (uniqueCovers.length > 0) {
                 imageHTML = `<img crossorigin="anonymous" referrerpolicy="no-referrer" src="${this.api.getCoverUrl(uniqueCovers[0])}" alt="${playlist.name}" class="card-image" loading="lazy">`;
             } else {
-                imageHTML = `<img crossorigin="anonymous" referrerpolicy="no-referrer" src="/assets/appicon.png" alt="${playlist.name}" class="card-image" loading="lazy">`;
+                imageHTML = `<img crossorigin="anonymous" referrerpolicy="no-referrer" src="/images/default-cover.svg" alt="${playlist.name}" class="card-image" loading="lazy">`;
             }
         }
 
@@ -5966,7 +5966,7 @@ export class UIRenderer {
                             collageEl.appendChild(img);
                         });
                     } else {
-                        imageEl.src = '/assets/appicon.png';
+                        imageEl.src = '/images/default-cover.svg';
                         imageEl.style.display = 'block';
                         if (collageEl) collageEl.style.display = 'none';
                     }
@@ -6116,7 +6116,7 @@ export class UIRenderer {
 
                     await this.extractAndApplyColor(this.api.getCoverUrl(imageId, '160'));
                 } else {
-                    imageEl.src = '/assets/appicon.png';
+                    imageEl.src = '/images/default-cover.svg';
                     this.setPageBackground(null);
                     this.resetVibrantColor();
                 }
@@ -6316,7 +6316,7 @@ export class UIRenderer {
                     this.setPageBackground(coverUrl);
                     await this.extractAndApplyColor(this.api.getCoverUrl(tracks[0].album.cover, '160'));
                 } else {
-                    imageEl.src = '/assets/appicon.png';
+                    imageEl.src = '/images/default-cover.svg';
                     this.setPageBackground(null);
                     this.resetVibrantColor();
                 }

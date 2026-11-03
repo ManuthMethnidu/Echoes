@@ -38,7 +38,7 @@ export function NowPlayingBar() {
                     crossOrigin="anonymous"
                     fetchPriority="high"
                     referrerPolicy="no-referrer"
-                    src="/assets/appicon.png"
+                    src="/images/default-cover.svg"
                 />
                 <div className="details">
                     <div className="title">Select a song</div>

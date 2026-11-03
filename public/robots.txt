@@ -1,4 +1,4 @@
-# robots.txt for https://monochrome.tf/
+# robots.txt for https://echoes.mteck.tech/
 
 User-agent: *
 Allow: /
@@ -8,4 +8,4 @@ Disallow: /functions/
 Disallow: /api/
 Disallow: /auth/
 
-Sitemap: https://monochrome.tf/sitemap.xml
+Sitemap: https://echoes.mteck.tech/sitemap.xml

@@ -1,5 +1,5 @@
 // js/podcasts-api.js
-// PodcastIndex.org API integration for Monochrome Music
+// PodcastIndex.org API integration for Echoes
 
 const PODCASTINDEX_API_BASE = 'https://api.podcastindex.org/api/1.0';
 
@@ -17,7 +17,7 @@ export class PodcastsAPI {
         const combined = PODCAST_API_KEY + PODCAST_API_SECRET + apiHeaderTime;
         const authHeader = await this.sha1(combined);
         return {
-            'User-Agent': 'MonochromeMusic/1.0',
+            'User-Agent': 'Echoes/1.0',
             'X-Auth-Key': PODCAST_API_KEY,
             'X-Auth-Date': apiHeaderTime,
             Authorization: authHeader,

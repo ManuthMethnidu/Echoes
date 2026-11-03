@@ -83,6 +83,28 @@ export class ConnectManager {
     }
 
     /**
+     * Normalize device objects across Cloudflare Edge Worker payloads and local BroadcastChannel
+     */
+    normalizeDevices(devices) {
+        if (!Array.isArray(devices)) return [];
+        return devices.map((d) => {
+            const id = d.id || d.deviceId || '';
+            const name = d.name || d.deviceName || 'Unknown Device';
+            const type = d.type || d.deviceType || 'desktop';
+            return {
+                id,
+                deviceId: id,
+                name,
+                deviceName: name,
+                type,
+                deviceType: type,
+                isActive: Boolean(d.isActive || (id && id === this.activeDeviceId)),
+                connectedAt: d.connectedAt || Date.now(),
+            };
+        });
+    }
+
+    /**
      * Initializes local BroadcastChannel to enable instant multi-tab sync
      * and local testing (e.g. Tab 1 as "Phone", Tab 2 as "Smart TV").
      */
@@ -243,7 +265,7 @@ export class ConnectManager {
 
         switch (msg.type) {
             case 'SESSION_STATE':
-                this.devices = msg.devices || [];
+                this.devices = this.normalizeDevices(msg.devices);
                 if (msg.activeDeviceId) {
                     this.setActiveDevice(msg.activeDeviceId, msg.activeDeviceName);
                 }
@@ -256,7 +278,7 @@ export class ConnectManager {
                 break;
 
             case 'DEVICES_CHANGED':
-                this.devices = msg.devices || [];
+                this.devices = this.normalizeDevices(msg.devices);
                 if (msg.activeDeviceId) {
                     this.setActiveDevice(msg.activeDeviceId);
                 }
@@ -265,7 +287,7 @@ export class ConnectManager {
 
             case 'ACTIVE_DEVICE_CHANGED':
                 this.setActiveDevice(msg.activeDeviceId, msg.activeDeviceName);
-                if (msg.devices) this.devices = msg.devices;
+                if (msg.devices) this.devices = this.normalizeDevices(msg.devices);
                 if (msg.playback && !this.isLocalActive) {
                     this.remotePlayback = msg.playback;
                     this.renderRemoteState(msg.playback);
@@ -310,10 +332,11 @@ export class ConnectManager {
 
     setActiveDevice(deviceId, deviceName) {
         this.activeDeviceId = deviceId;
-        if (deviceName) this.activeDeviceName = deviceName;
-        else {
-            const found = this.devices.find((d) => d.id === deviceId);
-            if (found) this.activeDeviceName = found.name;
+        if (deviceName) {
+            this.activeDeviceName = deviceName;
+        } else {
+            const found = this.devices.find((d) => (d.id || d.deviceId) === deviceId);
+            if (found) this.activeDeviceName = found.name || found.deviceName || 'Connected Device';
         }
         this.isLocalActive = this.activeDeviceId === this.deviceId;
     }
@@ -406,6 +429,7 @@ export class ConnectManager {
      * Request to transfer playback to another device
      */
     transferPlayback(targetDeviceId) {
+        if (!targetDeviceId || targetDeviceId === 'undefined') return;
         this.send({
             type: 'TRANSFER_PLAYBACK',
             targetDeviceId,
@@ -419,8 +443,8 @@ export class ConnectManager {
         } else {
             this.isLocalActive = false;
             this.activeDeviceId = targetDeviceId;
-            const target = this.devices.find((d) => d.id === targetDeviceId);
-            if (target) this.activeDeviceName = target.name;
+            const target = this.devices.find((d) => (d.id || d.deviceId) === targetDeviceId);
+            if (target) this.activeDeviceName = target.name || target.deviceName || 'Connected Device';
         }
         this.updateRemoteBanner();
         this.renderModalDeviceList();
@@ -562,7 +586,7 @@ export class ConnectManager {
         if (!this.isLocalActive && this.activeDeviceId) {
             banner.style.display = 'flex';
             const label = banner.querySelector('#remote-device-label');
-            if (label) label.textContent = this.activeDeviceName;
+            if (label) label.textContent = this.activeDeviceName || 'Connected Device';
             devicesBtn?.classList.add('has-remote-active');
         } else {
             banner.style.display = 'none';
@@ -705,7 +729,10 @@ export class ConnectManager {
         const listEl = modal.querySelector('#remote-devices-list');
         if (!listEl) return;
 
-        const otherDevices = this.devices.filter((d) => d.id !== this.deviceId);
+        const otherDevices = this.devices.filter((d) => {
+            const devId = d.id || d.deviceId;
+            return devId && devId !== this.deviceId;
+        });
 
         if (otherDevices.length === 0) {
             listEl.innerHTML = `
@@ -719,14 +746,17 @@ export class ConnectManager {
 
         listEl.innerHTML = otherDevices
             .map((dev) => {
-                const isThisActive = dev.id === this.activeDeviceId;
+                const devId = dev.id || dev.deviceId;
+                const devName = dev.name || dev.deviceName || 'Unknown Device';
+                const devType = dev.type || dev.deviceType || 'desktop';
+                const isThisActive = devId === this.activeDeviceId;
                 return `
-                    <div class="device-item ${isThisActive ? 'active' : ''}" data-device-id="${dev.id}">
+                    <div class="device-item ${isThisActive ? 'active' : ''}" data-device-id="${devId}">
                         <div class="device-item-icon">
-                            ${this.getDeviceSvg(dev.type)}
+                            ${this.getDeviceSvg(devType)}
                         </div>
                         <div class="device-item-info">
-                            <div class="device-item-name" style="${isThisActive ? 'color: #1ed760;' : ''}">${dev.name}</div>
+                            <div class="device-item-name" style="${isThisActive ? 'color: #1ed760;' : ''}">${devName}</div>
                             <div class="device-item-status" style="${isThisActive ? 'color: #1ed760;' : ''}">
                                 <span class="device-online-dot ${isThisActive ? 'pulse' : ''}"></span>
                                 ${isThisActive ? 'Playing right now' : 'Online'}
@@ -735,7 +765,7 @@ export class ConnectManager {
                         ${
                             isThisActive
                                 ? `<span style="font-size: 0.8rem; color: #1ed760; font-weight: 600;">Active</span>`
-                                : `<button class="btn-secondary device-switch-btn" data-target="${dev.id}" style="padding: 6px 14px; font-size: 0.8rem;">Transfer</button>`
+                                : `<button class="btn-secondary device-switch-btn" data-target="${devId}" style="padding: 6px 14px; font-size: 0.8rem;">Transfer</button>`
                         }
                     </div>
                 `;

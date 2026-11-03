@@ -14,11 +14,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             status: 'healthy',
             database: 'Neon Serverless Postgres',
             connected: rows.length > 0 && rows[0].connected === 1,
-            auth: {
-                hasGoogleClientId: !!process.env.GOOGLE_CLIENT_ID,
-                hasGoogleClientSecret: !!process.env.GOOGLE_CLIENT_SECRET,
-                clientIdPrefix: process.env.GOOGLE_CLIENT_ID ? process.env.GOOGLE_CLIENT_ID.slice(0, 12) + '...' : null,
-            },
             serverTime: rows[0]?.server_time,
             latencyMs,
             timestamp: new Date().toISOString(),

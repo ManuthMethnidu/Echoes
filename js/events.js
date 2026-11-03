@@ -511,6 +511,7 @@ export async function initializePlayerEvents(player, audioPlayer, scrobbler, ui)
                     listeningTracker.onTrackStart(player.currentTrack);
                     _trackPlayStartTime = Date.now();
                     countPlayForDonationPrompt();
+                    window.dispatchEvent(new CustomEvent('player:track-change', { detail: { track: player.currentTrack } }));
                 }
 
                 if (scrobbler.isAuthenticated()) {
@@ -524,6 +525,7 @@ export async function initializePlayerEvents(player, audioPlayer, scrobbler, ui)
             player.updateMediaSessionPlaybackState();
             player.updateMediaSessionPositionState();
             updateTabTitle(player);
+            window.dispatchEvent(new CustomEvent('player:play'));
         });
 
         element.addEventListener('playing', () => {
@@ -539,6 +541,7 @@ export async function initializePlayerEvents(player, audioPlayer, scrobbler, ui)
             }
             player.updateMediaSessionPlaybackState();
             player.updateMediaSessionPositionState();
+            window.dispatchEvent(new CustomEvent('player:pause'));
         });
 
         element.addEventListener('ended', () => {

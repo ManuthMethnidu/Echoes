@@ -349,25 +349,23 @@ export class ConnectManager {
             const player = Player.instance;
             if (!player) return;
 
-            if (typeof volume === 'number') {
+            if (typeof volume === 'number' && Number.isFinite(volume)) {
                 player.setVolume(volume);
             }
 
             if (track) {
                 // If the track is already loaded, just seek and play
                 if (player.currentTrack && player.currentTrack.id === track.id) {
-                    if (typeof position === 'number') {
+                    if (typeof position === 'number' && Number.isFinite(position)) {
                         player.activeElement.currentTime = position;
                     }
                     if (player.activeElement.paused) {
-                        player.handlePlayPause();
+                        await player.handlePlayPause();
                     }
                 } else {
-                    // Play the track from start position
-                    await player.playTrack(track);
-                    if (typeof position === 'number') {
-                        player.activeElement.currentTime = position;
-                    }
+                    // Set queue and play track from specified position
+                    await player.setQueue([track], 0);
+                    await player.playTrackFromQueue(position || 0);
                 }
             }
         } catch (err) {
@@ -402,12 +400,16 @@ export class ConnectManager {
                 player.playPrev();
                 break;
             case 'SEEK':
-                if (typeof payload?.position === 'number') {
-                    player.seek(payload.position);
+                if (typeof payload?.position === 'number' && Number.isFinite(payload.position)) {
+                    if (typeof player.seekTo === 'function') {
+                        player.seekTo(payload.position);
+                    } else if (player.activeElement) {
+                        player.activeElement.currentTime = payload.position;
+                    }
                 }
                 break;
             case 'VOLUME':
-                if (typeof payload?.volume === 'number') {
+                if (typeof payload?.volume === 'number' && Number.isFinite(payload.volume)) {
                     player.setVolume(payload.volume);
                 }
                 break;
@@ -430,10 +432,41 @@ export class ConnectManager {
      */
     transferPlayback(targetDeviceId) {
         if (!targetDeviceId || targetDeviceId === 'undefined') return;
+        if (targetDeviceId === this.activeDeviceId && !this.isLocalActive) return;
+
+        const player = Player.instance;
+        const currentTrack = player?.currentTrack
+            ? {
+                  id: player.currentTrack.id,
+                  title: player.currentTrack.title,
+                  artist: player.currentTrack.artist,
+                  album: player.currentTrack.album,
+                  cover: player.currentTrack.cover,
+                  duration: player.currentTrack.duration,
+              }
+            : null;
+        const position = player?.activeElement?.currentTime || 0;
+        const volume = player?.userVolume ?? 1;
+
+        // Proactively emit state so room has current playback state
+        if (currentTrack) {
+            this.send({
+                type: 'PLAYBACK_STATE',
+                deviceId: this.deviceId,
+                track: currentTrack,
+                position,
+                isPlaying: !player.activeElement?.paused,
+                volume,
+            });
+        }
+
         this.send({
             type: 'TRANSFER_PLAYBACK',
             targetDeviceId,
             fromDeviceId: this.deviceId,
+            track: currentTrack,
+            position,
+            volume,
         });
 
         if (targetDeviceId === this.deviceId) {
@@ -479,19 +512,33 @@ export class ConnectManager {
             });
         };
 
+        const attachElement = (el) => {
+            if (!el) return;
+            el.addEventListener('play', emitState);
+            el.addEventListener('pause', emitState);
+            el.addEventListener('seeked', emitState);
+            el.addEventListener('timeupdate', () => {
+                if (!this.isLocalActive) return;
+                if (this.syncThrottleTimer) return;
+                this.syncThrottleTimer = setTimeout(() => {
+                    this.syncThrottleTimer = null;
+                    emitState();
+                }, 2500);
+            });
+        };
+
+        const player = Player.instance;
+        if (player) {
+            if (player.audio) attachElement(player.audio);
+            if (player.audioElements) {
+                player.audioElements.forEach(attachElement);
+            }
+            if (player.video) attachElement(player.video);
+        }
+
         window.addEventListener('player:play', emitState);
         window.addEventListener('player:pause', emitState);
         window.addEventListener('player:track-change', emitState);
-
-        // Throttle timeupdate to avoid network spam (every 3 seconds)
-        window.addEventListener('timeupdate', () => {
-            if (!this.isLocalActive) return;
-            if (this.syncThrottleTimer) return;
-            this.syncThrottleTimer = setTimeout(() => {
-                this.syncThrottleTimer = null;
-                emitState();
-            }, 3000);
-        });
     }
 
     /**
@@ -502,7 +549,9 @@ export class ConnectManager {
 
         const trackTitle = document.querySelector('.now-playing-bar .title');
         const trackArtist = document.querySelector('.now-playing-bar .artist');
-        const trackCover = document.querySelector('.now-playing-bar .cover-art img');
+        const trackCover =
+            document.querySelector('.now-playing-bar img.cover') ||
+            document.querySelector('.now-playing-bar .cover-art img');
         const playPauseBtn = document.querySelector('.now-playing-bar .play-pause-btn');
         const currentTimeEl = document.getElementById('current-time');
         const progressFill = document.getElementById('progress-fill');

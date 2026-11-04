@@ -34,6 +34,33 @@ function clearAuthToken() {
     localStorage.removeItem(LEGACY_AUTH_TOKEN_KEY);
 }
 
+export function resetSessionData() {
+    clearAuthToken();
+    try {
+        localStorage.removeItem('cached_user_profile');
+        localStorage.removeItem('party_guest_profile');
+        localStorage.removeItem('party_member_guest');
+        localStorage.removeItem('echos_yt_token');
+
+        // Clear user-specific party tokens and cached profiles
+        const keysToRemove = [];
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (
+                key &&
+                (key.startsWith('party_user_profile_') ||
+                    key.startsWith('party_member_user_') ||
+                    key.startsWith('party_host_token_') ||
+                    key.startsWith('party_guest_member_') ||
+                    key.startsWith('echos_party_host_'))
+            ) {
+                keysToRemove.push(key);
+            }
+        }
+        keysToRemove.forEach((k) => localStorage.removeItem(k));
+    } catch (_e) {}
+}
+
 function isCapacitorNative() {
     return !!(window.Capacitor && window.Capacitor.getPlatform && window.Capacitor.getPlatform() !== 'web');
 }
@@ -456,7 +483,7 @@ export class AuthManager {
         } catch (error) {
             console.error('Remote logout failed:', error);
         } finally {
-            clearAuthToken();
+            resetSessionData();
             this.user = null;
             this.updateUI(null);
             this.authListeners.forEach((listener) => listener(null));

@@ -173,25 +173,26 @@ export class ConnectManager {
 
         // Listen for auth state changes to connect to the user's specific room
         authManager.onAuthStateChanged((user) => {
-            const uid = user?.$id || user?.id || 'guest';
+            const uid = user?.$id || user?.id || null;
             this.connect(uid);
         });
 
         const currentUser = authManager.user;
-        this.connect(currentUser?.$id || currentUser?.id || 'guest');
+        this.connect(currentUser?.$id || currentUser?.id || null);
     }
 
     /**
      * Resolve Cloudflare Worker WebSocket URL
      */
     getWsUrl(userId) {
+        if (!userId || userId === 'guest') return null;
         const override =
             localStorage.getItem('echos-connect-ws-url') ||
             (typeof window !== 'undefined' && window.__ECHOS_CONNECT_WS_URL__) ||
             'wss://echoes-connect-worker.methnidumanuth.workers.dev/ws';
         if (override) {
             const u = new URL(override);
-            u.searchParams.set('userId', userId || 'guest');
+            u.searchParams.set('userId', userId);
             u.searchParams.set('deviceId', this.deviceId);
             u.searchParams.set('deviceName', this.deviceName);
             u.searchParams.set('deviceType', this.deviceType);
@@ -202,7 +203,7 @@ export class ConnectManager {
         const host = window.location.host;
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         return `${protocol}//${host}/api/connect/ws?userId=${encodeURIComponent(
-            userId || 'guest'
+            userId
         )}&deviceId=${encodeURIComponent(this.deviceId)}&deviceName=${encodeURIComponent(
             this.deviceName
         )}&deviceType=${encodeURIComponent(this.deviceType)}`;
@@ -211,15 +212,40 @@ export class ConnectManager {
     /**
      * Connect to Cloudflare Worker WebSocket
      */
-    connect(userId = 'guest') {
-        const targetUserId = userId || 'guest';
+    connect(userId = null) {
+        // Connected devices is strictly an authenticated cross-device feature for the same user.
+        // If unauthenticated or guest, cleanly disconnect and reset to local playback.
+        if (!userId || userId === 'guest') {
+            if (this.ws) {
+                try {
+                    this.ws.close();
+                } catch (_) {}
+                this.ws = null;
+            }
+            this.currentUserId = null;
+            this.stopHeartbeat();
+            if (this.reconnectTimer) {
+                clearTimeout(this.reconnectTimer);
+                this.reconnectTimer = null;
+            }
+            this.isLocalActive = true;
+            this.activeDeviceId = this.deviceId;
+            this.activeDeviceName = this.deviceName;
+            this.devices = [];
+            this.remotePlayback = null;
+            this.updateRemoteBanner();
+            this.renderModalDeviceList();
+            return;
+        }
+
+        const targetUserId = userId;
 
         // If already connected to this exact user room, no-op
         if (this.ws && this.currentUserId === targetUserId && (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING)) {
             return;
         }
 
-        // If user changed (e.g., from guest to logged in), close existing socket
+        // If user changed, close existing socket
         if (this.ws) {
             try {
                 this.ws.close();
@@ -229,6 +255,7 @@ export class ConnectManager {
 
         this.currentUserId = targetUserId;
         const wsUrl = this.getWsUrl(targetUserId);
+        if (!wsUrl) return;
 
         try {
             this.ws = new WebSocket(wsUrl);
@@ -255,18 +282,19 @@ export class ConnectManager {
 
             this.ws.onclose = () => {
                 this.stopHeartbeat();
-                this.scheduleReconnect(userId);
+                this.scheduleReconnect(targetUserId);
             };
 
             this.ws.onerror = () => {
                 // Keep local broadcast fallback active
             };
         } catch (_e) {
-            this.scheduleReconnect(userId);
+            this.scheduleReconnect(targetUserId);
         }
     }
 
     scheduleReconnect(userId) {
+        if (!userId || userId === 'guest') return;
         if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
         this.reconnectTimer = setTimeout(() => {
             this.connect(userId);

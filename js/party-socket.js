@@ -77,7 +77,19 @@ export class PartySocketClient {
         } catch (_e) {}
     }
 
+    _debouncedSaveHostState(partyId) {
+        if (this._saveHostTimer) return;
+        this._saveHostTimer = setTimeout(() => {
+            this._saveHostTimer = null;
+            this._saveHostState(partyId);
+        }, 2000);
+    }
+
     _clearHostState(partyId) {
+        if (this._saveHostTimer) {
+            clearTimeout(this._saveHostTimer);
+            this._saveHostTimer = null;
+        }
         try {
             localStorage.removeItem(`echos_party_host_${partyId}`);
         } catch (_e) {}
@@ -385,6 +397,20 @@ export class PartySocketClient {
             return;
         }
 
+        // 3b. Instant micro-control from Host (<20ms latency for play/pause/seek)
+        if (message.type === 'control') {
+            if (!this.isHost) {
+                if (this.party) {
+                    if (message.action === 'pause') this.party.is_playing = false;
+                    if (message.action === 'play') this.party.is_playing = true;
+                    if (typeof message.time === 'number') this.party.playback_time = message.time;
+                    this.party.playback_timestamp = message.timestamp || Date.now();
+                }
+                this._emit(message);
+            }
+            return;
+        }
+
         // 4. Playback state update
         if (message.type === 'party' && message.party) {
             this.party = { ...this.party, ...message.party, host_peer_id: peerId };
@@ -456,6 +482,26 @@ export class PartySocketClient {
     async send(type, payload = {}) {
         if (!this.room || !this.actionMsg) return;
 
+        // Instant micro-control from Host (play, pause, seek - ~40 bytes payload)
+        if (type === 'control') {
+            if (!this.isHost) return;
+            if (this.party) {
+                if (payload.action === 'pause') this.party.is_playing = false;
+                if (payload.action === 'play') this.party.is_playing = true;
+                if (typeof payload.time === 'number') this.party.playback_time = payload.time;
+                this.party.playback_timestamp = payload.timestamp || Date.now();
+            }
+            this.actionMsg
+                .send({
+                    type: 'control',
+                    action: payload.action,
+                    time: payload.time,
+                    timestamp: payload.timestamp || Date.now(),
+                })
+                .catch(() => {});
+            return;
+        }
+
         // Playback sync from Host
         if (type === 'playback') {
             if (!this.isHost) return;
@@ -468,7 +514,7 @@ export class PartySocketClient {
                 queue: payload.queue || [],
                 host_peer_id: selfId,
             };
-            this._saveHostState(this.partyId);
+            this._debouncedSaveHostState(this.partyId);
             await this.actionMsg.send({ type: 'party', party: this.party }).catch(() => {});
             this._emit({ type: 'party', party: this.party });
             return;

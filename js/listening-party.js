@@ -462,6 +462,14 @@ export class ListeningPartyManager {
     async _handleSocketMessage(message) {
         if (!message || this.isLeaving) return;
 
+        // Instant micro-control from Host (<20ms latency for play/pause/seek)
+        if (message.type === 'control') {
+            if (!this.isHost && this.currentParty) {
+                await this.handleDirectControl(message);
+            }
+            return;
+        }
+
         if (message.type === 'snapshot') {
             this._applyPartySnapshot(message);
             this.renderPartyUI();
@@ -836,6 +844,58 @@ export class ListeningPartyManager {
         }
     }
 
+    async handleDirectControl(msg) {
+        if (this.isInternalSync) return;
+        this.isInternalSync = true;
+        try {
+            const player = Player.instance;
+            const el = player.activeElement;
+            if (!el) return;
+
+            if (msg.action === 'pause') {
+                if (!el.paused) el.pause();
+                if (typeof msg.time === 'number' && Math.abs(el.currentTime - msg.time) > 1.5) {
+                    el.currentTime = msg.time;
+                }
+                if (this.currentParty) {
+                    this.currentParty.is_playing = false;
+                    if (typeof msg.time === 'number') this.currentParty.playback_time = msg.time;
+                }
+                this.updatePartyHeader();
+                return;
+            }
+
+            if (msg.action === 'play') {
+                const latency = msg.timestamp ? Math.max(0, (Date.now() - msg.timestamp) / 1000) : 0;
+                const targetTime = typeof msg.time === 'number' ? msg.time + latency : el.currentTime;
+                if (Math.abs(el.currentTime - targetTime) > 1.2) {
+                    el.currentTime = targetTime;
+                }
+                if (el.paused) {
+                    await player.safePlay(el);
+                }
+                if (this.currentParty) {
+                    this.currentParty.is_playing = true;
+                    this.currentParty.playback_time = targetTime;
+                    this.currentParty.playback_timestamp = Date.now();
+                }
+                this.updatePartyHeader();
+                return;
+            }
+
+            if (msg.action === 'seek') {
+                if (typeof msg.time === 'number') {
+                    el.currentTime = msg.time;
+                }
+                return;
+            }
+        } catch (e) {
+            console.error('[P2P Direct Control Error]', e);
+        } finally {
+            this.isInternalSync = false;
+        }
+    }
+
     async syncWithHost(party) {
         if (this.isInternalSync) return;
         this.isInternalSync = true;
@@ -872,7 +932,7 @@ export class ListeningPartyManager {
                 if (Math.abs(el.currentTime - targetTime) > 1.2) el.currentTime = targetTime;
             } else {
                 if (!el.paused) el.pause();
-                if (Math.abs(el.currentTime - party.playback_time) > 0.5) el.currentTime = party.playback_time;
+                if (Math.abs(el.currentTime - party.playback_time) > 1.5) el.currentTime = party.playback_time;
             }
         } catch (e) {
             console.error('Sync error:', e);
@@ -929,6 +989,19 @@ export class ListeningPartyManager {
 
     setupHostPlayerSync() {
         const player = Player.instance;
+
+        // Instant micro-control for <20ms play/pause/seek synchronization
+        const sendMicroControl = (action) => {
+            if (!this.currentParty || !this.isHost || this.isInternalSync) return;
+            const el = player.activeElement;
+            if (!el) return;
+            this.socket?.send('control', {
+                action,
+                time: el.currentTime || 0,
+                timestamp: Date.now(),
+            }).catch(() => {});
+        };
+
         const updateParty = async () => {
             if (!this.currentParty || !this.isHost || this.isInternalSync) return;
             const el = player.activeElement;
@@ -943,10 +1016,31 @@ export class ListeningPartyManager {
                 });
             } catch (_e) {}
         };
-        ['play', 'pause', 'seeked'].forEach((ev) => {
-            player.audio.addEventListener(ev, updateParty);
-            if (player.video) player.video.addEventListener(ev, updateParty);
-        });
+
+        const onPlay = () => {
+            sendMicroControl('play');
+            updateParty();
+        };
+        const onPause = () => {
+            sendMicroControl('pause');
+            updateParty();
+        };
+        const onSeeked = () => {
+            sendMicroControl('seek');
+            updateParty();
+        };
+
+        this._hostAudioListeners = { onPlay, onPause, onSeeked };
+
+        player.audio.addEventListener('play', onPlay);
+        player.audio.addEventListener('pause', onPause);
+        player.audio.addEventListener('seeked', onSeeked);
+        if (player.video) {
+            player.video.addEventListener('play', onPlay);
+            player.video.addEventListener('pause', onPause);
+            player.video.addEventListener('seeked', onSeeked);
+        }
+
         if (!this.originalPlayTrackFromQueue) this.originalPlayTrackFromQueue = player.playTrackFromQueue.bind(player);
         const originalPlayTrackFromQueue = this.originalPlayTrackFromQueue;
         player.playTrackFromQueue = async (...args) => {
@@ -954,7 +1048,7 @@ export class ListeningPartyManager {
             if (!this.isInternalSync) await updateParty();
             return result;
         };
-        this.syncInterval = setInterval(updateParty, 2000);
+        this.syncInterval = setInterval(updateParty, 3000);
     }
 
     setupGuestPlayerInterferenceCheck() {
@@ -1035,6 +1129,18 @@ export class ListeningPartyManager {
 
     restorePlayerMethods() {
         const player = Player.instance;
+        if (this._hostAudioListeners) {
+            const { onPlay, onPause, onSeeked } = this._hostAudioListeners;
+            player.audio?.removeEventListener('play', onPlay);
+            player.audio?.removeEventListener('pause', onPause);
+            player.audio?.removeEventListener('seeked', onSeeked);
+            if (player.video) {
+                player.video.removeEventListener('play', onPlay);
+                player.video.removeEventListener('pause', onPause);
+                player.video.removeEventListener('seeked', onSeeked);
+            }
+            this._hostAudioListeners = null;
+        }
         if (this.originalSafePlay) {
             player.safePlay = this.originalSafePlay;
             this.originalSafePlay = null;

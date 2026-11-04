@@ -1,6 +1,8 @@
 // js/accounts/config.js
 import { createAuthClient } from 'better-auth/client';
 
+export const NEON_AUTH_URL = 'https://ep-small-mouse-a11jp1gr.neonauth.ap-southeast-1.aws.neon.tech/neondb/auth';
+
 const getBaseURL = () => {
     const local = localStorage.getItem('echos-auth-url') || localStorage.getItem('monochrome-auth-url');
     if (local) return local;
@@ -14,7 +16,7 @@ const getBaseURL = () => {
 export const AUTH_BASE_URL = getBaseURL();
 
 export const authClient = createAuthClient({
-    baseURL: AUTH_BASE_URL,
+    baseURL: NEON_AUTH_URL,
 });
 
 export { authClient as auth };

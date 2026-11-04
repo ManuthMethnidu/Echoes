@@ -219,17 +219,22 @@ async function getSessionFromBearerToken() {
 }
 
 async function getCurrentSession() {
+    try {
+        const { data: session } = await authClient.getSession();
+        if (session?.user) {
+            if (session.session?.token) {
+                storeAuthToken(session.session.token);
+            }
+            return session;
+        }
+    } catch (_e) {}
+
     if (getAuthToken()) {
         const bearerSession = await getSessionFromBearerToken().catch(() => null);
         if (bearerSession?.user) return bearerSession;
     }
 
-    try {
-        const { data: session } = await authClient.getSession();
-        if (session?.user) return session;
-    } catch (_e) {}
-
-    return getSessionFromBearerToken();
+    return null;
 }
 
 export class AuthManager {
@@ -378,7 +383,17 @@ export class AuthManager {
     }
 
     async signInWithGoogle() {
-        return this._signInSocial('google');
+        try {
+            const isNative = isCapacitorNative();
+            const callbackURL = isNative ? getNativeOAuthCallbackURL() : window.location.origin + '/index.html';
+            await authClient.signIn.social({
+                provider: 'google',
+                callbackURL: callbackURL,
+            });
+        } catch (err) {
+            console.warn('[Neon Auth direct social sign-in failed, trying API]:', err);
+            await this._signInSocial('google');
+        }
     }
 
     async signInWithEmail(email, password) {

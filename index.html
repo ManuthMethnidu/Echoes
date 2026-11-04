@@ -455,7 +455,7 @@
                         <button
                             type="button"
                             class="import-tab active"
-                            data-import-type="csv"
+                            data-import-type="ytm"
                             style="
                                 background: transparent;
                                 border: none;
@@ -464,7 +464,37 @@
                                 padding: 0.25rem 0.5rem;
                             "
                         >
+                            YouTube & TuneMyMusic
+                        </button>
+                        <button
+                            type="button"
+                            class="import-tab"
+                            data-import-type="csv"
+                            style="
+                                background: transparent;
+                                border: none;
+                                color: var(--foreground);
+                                cursor: pointer;
+                                padding: 0.25rem 0.5rem;
+                                opacity: 0.7;
+                            "
+                        >
                             CSV
+                        </button>
+                        <button
+                            type="button"
+                            class="import-tab"
+                            data-import-type="m3u"
+                            style="
+                                background: transparent;
+                                border: none;
+                                color: var(--foreground);
+                                cursor: pointer;
+                                padding: 0.25rem 0.5rem;
+                                opacity: 0.7;
+                            "
+                        >
+                            M3U
                         </button>
                         <button
                             type="button"
@@ -511,90 +541,53 @@
                         >
                             XML
                         </button>
-                        <button
-                            type="button"
-                            class="import-tab"
-                            data-import-type="m3u"
-                            style="
-                                background: transparent;
-                                border: none;
-                                color: var(--foreground);
-                                cursor: pointer;
-                                padding: 0.25rem 0.5rem;
-                                opacity: 0.7;
-                            "
-                        >
-                            M3U
-                        </button>
                     </div>
 
-                    <div id="csv-import-panel" class="import-panel active">
-                        <p style="margin-bottom: 0.5rem; font-size: 0.9rem">Import from CSV</p>
-
-                        <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem">
-                            <button
-                                type="button"
-                                id="csv-spotify-btn"
-                                class="btn-secondary"
-                                style="flex: 1; opacity: 0.7"
-                            >
-                                Spotify
-                            </button>
-                            <button
-                                type="button"
-                                id="csv-apple-btn"
-                                class="btn-secondary"
-                                style="flex: 1; opacity: 0.7"
-                            >
-                                Apple Music
-                            </button>
-                            <button type="button" id="csv-ytm-btn" class="btn-secondary" style="flex: 1; opacity: 0.7">
-                                YouTube Music
-                            </button>
-                        </div>
-
-                        <div id="csv-spotify-guide" style="display: none; margin-bottom: 1rem">
-                            <p style="font-size: 0.85rem; margin: 0 0 0.5rem 0; font-weight: 500">Paste a Spotify Playlist or Album URL:</p>
-                            <input
-                                type="text"
-                                id="spotify-url-input"
-                                class="template-input"
-                                placeholder="https://open.spotify.com/playlist/... or /album/..."
-                                style="width: 100%; margin-bottom: 0.5rem"
-                            />
-                            <p id="spotify-status" style="font-size: 0.8rem; margin: 0; opacity: 0.8"></p>
-                        </div>
-
-                        <div id="csv-apple-guide" style="display: none; margin-bottom: 1rem">
-                            <p style="font-size: 0.85rem; margin: 0 0 0.5rem 0; font-weight: 500">Upload a CSV Playlist File:</p>
-                        </div>
-
-                        <div id="csv-ytm-guide" style="display: none; margin-bottom: 1rem">
-                            <p style="font-size: 0.85rem; margin: 0 0 0.5rem 0; font-weight: 500">Paste a YouTube Music Playlist URL:</p>
-                            <input
-                                type="text"
-                                id="ytm-url-input"
-                                class="template-input"
-                                placeholder="https://music.youtube.com/playlist?list=..."
-                                style="width: 100%; margin-bottom: 0.5rem"
-                            />
-                            <p id="ytm-status" style="font-size: 0.8rem; margin: 0; opacity: 0.8"></p>
-
-                            <div id="yt-account-section" style="margin-top: 1rem; padding: 0.85rem; background: rgba(255, 255, 255, 0.04); border-radius: var(--radius-md); border: 1px solid var(--border);">
-                                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.35rem;">
-                                    <span style="font-weight: 600; font-size: 0.85rem;">Personal YouTube Account</span>
-                                    <button type="button" id="yt-connect-btn" class="btn-primary" style="padding: 0.25rem 0.75rem; font-size: 0.8rem;">
-                                        Connect YouTube
-                                    </button>
+                    <div id="ytm-import-panel" class="import-panel active">
+                        <div class="tunemymusic-card" style="margin-bottom: 1rem; padding: 0.85rem 1rem; background: rgba(56, 189, 248, 0.06); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: var(--radius-md);">
+                            <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 0.35rem;">
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <strong style="font-size: 0.88rem; color: var(--foreground);">TuneMyMusic Playlist Transfer</strong>
                                 </div>
-                                <p style="font-size: 0.75rem; color: #aaa; margin: 0 0 0.5rem 0;">
-                                    Sign in with your Google / YouTube account to directly browse and import your personal playlists and Liked Music.
-                                </p>
-                                <div id="yt-user-playlists-list" style="display: none; max-height: 180px; overflow-y: auto; margin-top: 0.5rem; flex-direction: column; gap: 0.4rem;"></div>
+                                <a href="https://www.tunemymusic.com/transfer" target="_blank" rel="noopener noreferrer" class="btn-primary" style="padding: 0.3rem 0.75rem; font-size: 0.78rem; text-decoration: none; display: inline-flex; align-items: center; gap: 5px; border-radius: 999px; white-space: nowrap;">
+                                    <span>Open TuneMyMusic</span>
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3"/></svg>
+                                </a>
+                            </div>
+                            <p style="font-size: 0.78rem; color: #94a3b8; margin: 0 0 0.4rem 0; line-height: 1.4;">
+                                Transfer your playlists from Spotify, Apple Music, TIDAL, Deezer, or Amazon Music into a YouTube playlist for free.
+                            </p>
+                            <div style="font-size: 0.74rem; color: #64748b; display: flex; flex-wrap: wrap; gap: 6px;">
+                                <span style="background: rgba(255,255,255,0.05); padding: 2px 6px; border-radius: 4px;">1. Open TuneMyMusic</span>
+                                <span style="background: rgba(255,255,255,0.05); padding: 2px 6px; border-radius: 4px;">2. Convert to YouTube</span>
+                                <span style="background: rgba(255,255,255,0.05); padding: 2px 6px; border-radius: 4px;">3. Paste YouTube link below</span>
                             </div>
                         </div>
 
-                        <div id="csv-input-container" style="display: none">
+                        <div style="margin-bottom: 0.75rem;">
+                            <label for="ytm-url-input" style="display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.4rem;">
+                                Paste YouTube / YouTube Music Playlist Link:
+                            </label>
+                            <div style="display: flex; gap: 0.5rem;">
+                                <input
+                                    type="text"
+                                    id="ytm-url-input"
+                                    class="template-input"
+                                    placeholder="https://www.youtube.com/playlist?list=... or https://music.youtube.com/playlist?list=..."
+                                    style="flex: 1;"
+                                />
+                                <button type="button" id="ytm-fetch-btn" class="btn-primary" style="padding: 0 0.85rem; font-size: 0.8rem; white-space: nowrap;">
+                                    Fetch & Preview
+                                </button>
+                            </div>
+                            <p id="ytm-status" style="font-size: 0.8rem; margin: 0.4rem 0 0 0; color: #38bdf8; min-height: 1.2rem;"></p>
+                        </div>
+                    </div>
+
+                    <div id="csv-import-panel" class="import-panel" style="display: none">
+                        <p style="margin-bottom: 0.5rem; font-size: 0.9rem">Upload a CSV Playlist File:</p>
+
+                        <div id="csv-input-container">
                             <input
                                 type="file"
                                 id="csv-file-input"

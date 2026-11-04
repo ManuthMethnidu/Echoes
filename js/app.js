@@ -49,6 +49,7 @@ import {
     importSpotifyTracks,
     fetchYouTubePlaylist,
     initYouTubeAccountUI,
+    initTuneMyMusicAndYouTubeUI,
 } from './playlist-service-importer.js';
 import { generateFullCSV, generateFullJSON } from './playlist-generator.js';
 import { modernSettings } from './ModernSettings.js';
@@ -672,6 +673,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             tab.style.opacity = '1';
 
             // Show/hide panels
+            const ytmPanel = document.getElementById('ytm-import-panel');
+            if (ytmPanel) ytmPanel.style.display = importType === 'ytm' ? 'block' : 'none';
             document.getElementById('csv-import-panel').style.display = importType === 'csv' ? 'block' : 'none';
             document.getElementById('jspf-import-panel').style.display = importType === 'jspf' ? 'block' : 'none';
             document.getElementById('xspf-import-panel').style.display = importType === 'xspf' ? 'block' : 'none';
@@ -687,74 +690,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (importType !== 'm3u') document.getElementById('m3u-file-input').value = '';
         });
     });
-    const spotifyBtn = document.getElementById('csv-spotify-btn');
-    const appleBtn = document.getElementById('csv-apple-btn');
-    const ytmBtn = document.getElementById('csv-ytm-btn');
-    const spotifyGuide = document.getElementById('csv-spotify-guide');
-    const appleGuide = document.getElementById('csv-apple-guide');
-    const ytmGuide = document.getElementById('csv-ytm-guide');
-    const inputContainer = document.getElementById('csv-input-container');
 
-    if (spotifyBtn && appleBtn && ytmBtn) {
-        spotifyBtn.addEventListener('click', () => {
-            spotifyBtn.classList.remove('btn-secondary');
-            spotifyBtn.classList.add('btn-primary');
-            spotifyBtn.style.opacity = '1';
-
-            appleBtn.classList.remove('btn-primary');
-            appleBtn.classList.add('btn-secondary');
-            appleBtn.style.opacity = '0.7';
-
-            ytmBtn.classList.remove('btn-primary');
-            ytmBtn.classList.add('btn-secondary');
-            ytmBtn.style.opacity = '0.7';
-
-            spotifyGuide.style.display = 'block';
-            appleGuide.style.display = 'none';
-            ytmGuide.style.display = 'none';
-            inputContainer.style.display = 'none';
-        });
-
-        appleBtn.addEventListener('click', () => {
-            appleBtn.classList.remove('btn-secondary');
-            appleBtn.classList.add('btn-primary');
-            appleBtn.style.opacity = '1';
-
-            spotifyBtn.classList.remove('btn-primary');
-            spotifyBtn.classList.add('btn-secondary');
-            spotifyBtn.style.opacity = '0.7';
-
-            ytmBtn.classList.remove('btn-primary');
-            ytmBtn.classList.add('btn-secondary');
-            ytmBtn.style.opacity = '0.7';
-
-            appleGuide.style.display = 'block';
-            spotifyGuide.style.display = 'none';
-            ytmGuide.style.display = 'none';
-            inputContainer.style.display = 'block';
-        });
-
-        ytmBtn.addEventListener('click', () => {
-            ytmBtn.classList.remove('btn-secondary');
-            ytmBtn.classList.add('btn-primary');
-            ytmBtn.style.opacity = '1';
-
-            spotifyBtn.classList.remove('btn-primary');
-            spotifyBtn.classList.add('btn-secondary');
-            spotifyBtn.style.opacity = '0.7';
-
-            appleBtn.classList.remove('btn-primary');
-            appleBtn.classList.add('btn-secondary');
-            appleBtn.style.opacity = '0.7';
-
-            ytmGuide.style.display = 'block';
-            spotifyGuide.style.display = 'none';
-            appleGuide.style.display = 'none';
-            inputContainer.style.display = 'none';
-        });
-
-        initYouTubeAccountUI();
-    }
+    initTuneMyMusicAndYouTubeUI();
 
     document.getElementById('nav-back')?.addEventListener('click', () => {
         window.history.back();
@@ -1058,11 +995,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             document.getElementById('xml-file-input').value = '';
             document.getElementById('m3u-file-input').value = '';
 
-            // Reset import tabs to CSV
+            // Reset import tabs to YouTube & TuneMyMusic
             document.querySelectorAll('.import-tab').forEach((tab) => {
-                tab.classList.toggle('active', tab.dataset.importType === 'csv');
+                tab.classList.toggle('active', tab.dataset.importType === 'ytm');
             });
-            document.getElementById('csv-import-panel').style.display = 'block';
+            const ytmPanel = document.getElementById('ytm-import-panel');
+            if (ytmPanel) ytmPanel.style.display = 'block';
+            document.getElementById('csv-import-panel').style.display = 'none';
             document.getElementById('jspf-import-panel').style.display = 'none';
             document.getElementById('xspf-import-panel').style.display = 'none';
             document.getElementById('xml-import-panel').style.display = 'none';
@@ -1212,12 +1151,51 @@ document.addEventListener('DOMContentLoaded', async () => {
                         };
                     };
 
-                    const isSpotifyActive = document.getElementById('csv-spotify-btn')?.classList.contains('btn-primary');
-                    const spotifyUrlInput = document.getElementById('spotify-url-input');
-                    const isYTMActive = document.getElementById('csv-ytm-btn')?.classList.contains('btn-primary');
+                    const activeTab = document.querySelector('.import-tab.active')?.dataset.importType;
                     const ytmUrlInput = document.getElementById('ytm-url-input');
+                    const spotifyUrlInput = document.getElementById('spotify-url-input');
 
-                    if (isSpotifyActive && spotifyUrlInput?.value.trim()) {
+                    if (ytmUrlInput?.value.trim() && (activeTab === 'ytm' || !activeTab || !spotifyUrlInput?.value.trim())) {
+                        importSource = 'ytm_import';
+                        const url = ytmUrlInput.value.trim();
+                        const {
+                            progressElement,
+                            progressFill,
+                            progressCurrent,
+                            progressTotal,
+                            currentTrackElement,
+                            currentArtistElement,
+                        } = setupProgressElements();
+
+                        try {
+                            progressElement.style.display = 'block';
+                            progressFill.style.width = '0%';
+                            progressCurrent.textContent = '0';
+                            currentTrackElement.textContent = 'Fetching YouTube playlist...';
+                            if (currentArtistElement) currentArtistElement.textContent = '';
+
+                            const ytData = await fetchYouTubePlaylist(url);
+                            if (!name) name = ytData.name;
+                            if (!cover && ytData.cover) cover = ytData.cover;
+                            if (!description && ytData.description) description = ytData.description;
+
+                            tracks = ytData.tracks || [];
+                            if (tracks.length === 0) {
+                                alert('No valid tracks found in the YouTube playlist!');
+                                progressElement.style.display = 'none';
+                                return;
+                            }
+                        } catch (err) {
+                            console.error('YTM Import Error:', err);
+                            alert(`Error importing from YouTube: ${err.message}`);
+                            progressElement.style.display = 'none';
+                            return;
+                        } finally {
+                            setTimeout(() => {
+                                progressElement.style.display = 'none';
+                            }, 1000);
+                        }
+                    } else if (spotifyUrlInput?.value.trim()) {
                         importSource = 'spotify_import';
                         const url = spotifyUrlInput.value.trim();
                         const {
@@ -1269,46 +1247,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                         } catch (err) {
                             console.error('Spotify Import Error:', err);
                             alert(`Error importing from Spotify: ${err.message}`);
-                            progressElement.style.display = 'none';
-                            return;
-                        } finally {
-                            setTimeout(() => {
-                                progressElement.style.display = 'none';
-                            }, 1000);
-                        }
-                    } else if (isYTMActive && ytmUrlInput?.value.trim()) {
-                        importSource = 'ytm_import';
-                        const url = ytmUrlInput.value.trim();
-                        const {
-                            progressElement,
-                            progressFill,
-                            progressCurrent,
-                            progressTotal,
-                            currentTrackElement,
-                            currentArtistElement,
-                        } = setupProgressElements();
-
-                        try {
-                            progressElement.style.display = 'block';
-                            progressFill.style.width = '0%';
-                            progressCurrent.textContent = '0';
-                            currentTrackElement.textContent = 'Fetching YouTube playlist...';
-                            if (currentArtistElement) currentArtistElement.textContent = '';
-
-                            const ytData = await fetchYouTubePlaylist(url);
-                            if (!name) name = ytData.name;
-                            if (!cover && ytData.cover) cover = ytData.cover;
-                            if (!description && ytData.description) description = ytData.description;
-
-                            tracks = ytData.tracks || [];
-                            if (tracks.length === 0) {
-                                alert('No valid tracks found in the YouTube playlist!');
-                                progressElement.style.display = 'none';
-                                return;
-                            }
-                        } catch (err) {
-                            console.error('YTM Import Error:', err);
-                            alert(`Error importing from YouTube: ${err.message}`);
                             progressElement.style.display = 'none';
                             return;
                         } finally {

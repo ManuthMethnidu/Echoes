@@ -10,42 +10,34 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const forwardedHost = (req.headers['x-forwarded-host'] || req.headers.host || '') as string;
         const host = forwardedHost.split(',')[0].trim();
         const origin = (req.headers.origin as string) || (host ? `https://${host}` : 'https://echoes.mteck.tech');
-        const redirectUri = `${origin}/api/auth/callback`;
+
+        const neonAuthUrl = process.env.NEON_AUTH_BASE_URL || 'https://ep-small-mouse-a11jp1gr.neonauth.ap-southeast-1.aws.neon.tech/neondb/auth';
 
         if (provider === 'google' || provider === 'youtube') {
-            const clientId = process.env.GOOGLE_CLIENT_ID;
-            if (!clientId) {
-                // If custom GOOGLE_CLIENT_ID is not configured, fall back to Neon Better Auth
-                const neonAuthUrl = process.env.NEON_AUTH_BASE_URL || 'https://ep-small-mouse-a11jp1gr.neonauth.ap-southeast-1.aws.neon.tech/neondb/auth';
-                try {
-                    const neonRes = await fetch(`${neonAuthUrl}/sign-in/social`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ provider: 'google', callbackURL: callbackURL || `${origin}/index.html` }),
-                    });
-                    const neonData = await neonRes.json();
-                    if (neonData?.url) {
-                        return res.status(200).json({ url: neonData.url, redirectUrl: neonData.url, redirect: true });
-                    }
-                } catch (e) {
-                    console.warn('[Social Auth] Neon fallback error:', e);
+            // Use Neon Shared OAuth for Google Sign-In
+            try {
+                const neonRes = await fetch(`${neonAuthUrl}/sign-in/social`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        provider: 'google',
+                        callbackURL: callbackURL || `${origin}/index.html`,
+                    }),
+                });
+                const neonData = await neonRes.json();
+                if (neonData?.url) {
+                    return res.status(200).json({ url: neonData.url, redirectUrl: neonData.url, redirect: true });
                 }
-                return res.status(400).json({
-                    error: { message: 'Google OAuth is not configured. Please set GOOGLE_CLIENT_ID in Vercel environment variables.' }
+                console.error('[Neon Auth Social Sign-In Response]', neonData);
+                return res.status(neonRes.status || 400).json({
+                    error: { message: neonData?.message || neonData?.error || 'Failed to initiate Google sign-in with Neon Auth' }
+                });
+            } catch (neonErr: any) {
+                console.error('[Neon Auth Error]', neonErr);
+                return res.status(502).json({
+                    error: { message: 'Failed to contact Neon Auth service: ' + (neonErr.message || String(neonErr)) }
                 });
             }
-            const state = Buffer.from(JSON.stringify({
-                provider,
-                callbackURL: callbackURL || `${origin}/index.html`,
-                redirectUri,
-            })).toString('base64');
-            // For standard login/signup, use non-sensitive basic identity scopes (does not trigger app verification requirement)
-            // For YouTube playlist import, request youtube.readonly
-            const scope = provider === 'youtube'
-                ? 'openid%20email%20profile%20https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fyoutube.readonly'
-                : 'openid%20email%20profile';
-            const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${scope}&state=${state}&prompt=select_account&access_type=offline`;
-            return res.status(200).json({ url: authUrl, redirectUrl: authUrl, redirect: true });
         }
 
         return res.status(400).json({ error: { message: `Unsupported provider: ${provider}` } });

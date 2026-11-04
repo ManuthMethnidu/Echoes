@@ -1,5 +1,6 @@
 import { SignJWT, jwtVerify, createRemoteJWKSet } from 'jose';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { getDb } from './db.js';
 
 const JWT_SECRET_STRING = process.env.AUTH_SECRET || process.env.JWT_SECRET || 'echos-vercel-jwt-fallback-secret-key-32b';
 const JWT_SECRET = new TextEncoder().encode(JWT_SECRET_STRING);
@@ -103,7 +104,7 @@ export async function verifyToken(token: string): Promise<AuthUser | null> {
             name: payload.name as string | undefined,
         };
     } catch {
-        // Fallback: Verify with Neon Better Auth JWKS
+        // Fallback 1: Verify with Neon Better Auth JWKS
         if (remoteJWKS) {
             try {
                 const { payload } = await jwtVerify(token, remoteJWKS);
@@ -114,6 +115,48 @@ export async function verifyToken(token: string): Promise<AuthUser | null> {
                 };
             } catch {}
         }
+
+        // Fallback 2: Check neon_auth.session table (for Better Auth session tokens)
+        try {
+            const sql = getDb();
+            const sessions = await sql`
+                SELECT s."userId", u.email, u.name, u.image
+                FROM neon_auth.session s
+                JOIN neon_auth."user" u ON s."userId" = u.id
+                WHERE s.token = ${token} AND s."expiresAt" > NOW()
+                LIMIT 1
+            `;
+            if (sessions.length > 0) {
+                const sess = sessions[0];
+                const uid = String(sess.userId);
+                const email = sess.email || '';
+                const name = sess.name || email.split('@')[0];
+                const avatar = sess.image || '';
+
+                await sql`
+                    INSERT INTO users (id, email, name, avatar_url)
+                    VALUES (${uid}, ${email}, ${name}, ${avatar})
+                    ON CONFLICT (id) DO UPDATE SET avatar_url = COALESCE(EXCLUDED.avatar_url, users.avatar_url)
+                `;
+                await sql`
+                    INSERT INTO profiles (id, user_id, name, username, display_name, avatar_url)
+                    VALUES (${uid}, ${uid}, ${name}, ${email.split('@')[0]}, ${name}, ${avatar})
+                    ON CONFLICT (id) DO UPDATE SET avatar_url = COALESCE(EXCLUDED.avatar_url, profiles.avatar_url)
+                `;
+                await sql`
+                    INSERT INTO user_sync_data (user_id, library, history, user_playlists, user_folders)
+                    VALUES (${uid}, '{"tracks":{},"albums":{},"artists":{},"playlists":{},"mixes":{}}'::jsonb, '[]'::jsonb, '{}'::jsonb, '{}'::jsonb)
+                    ON CONFLICT (user_id) DO NOTHING
+                `;
+
+                return {
+                    id: uid,
+                    email,
+                    name,
+                };
+            }
+        } catch (_dbErr) {}
+
         return null;
     }
 }

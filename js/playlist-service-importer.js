@@ -139,104 +139,71 @@ export async function importUserYouTubePlaylist(playlistId, playlistName) {
     return playlist;
 }
 
-export function initYouTubeAccountUI() {
-    const connectBtn = document.getElementById('yt-connect-btn');
-    const playlistsContainer = document.getElementById('yt-user-playlists-list');
+export function initTuneMyMusicAndYouTubeUI() {
+    const ytmInput = document.getElementById('ytm-url-input');
+    const fetchBtn = document.getElementById('ytm-fetch-btn');
+    const statusEl = document.getElementById('ytm-status');
+    const nameInput = document.getElementById('playlist-name-input');
+    const coverInput = document.getElementById('playlist-cover-input');
+    const descInput = document.getElementById('playlist-description-input');
 
-    if (!connectBtn || !playlistsContainer) return;
+    if (!fetchBtn || !ytmInput) return;
 
-    const renderList = async () => {
-        const token = localStorage.getItem('echos_yt_token');
-        const userToken = localStorage.getItem('echos-auth-token') || localStorage.getItem('monochrome-auth-token');
-        if (!token && !userToken) {
-            connectBtn.textContent = 'Connect Google / YouTube';
-            connectBtn.classList.remove('btn-secondary');
-            connectBtn.classList.add('btn-primary');
-            playlistsContainer.style.display = 'none';
+    fetchBtn.addEventListener('click', async (e) => {
+        e.preventDefault();
+        const url = ytmInput.value.trim();
+        if (!url) {
+            if (statusEl) {
+                statusEl.textContent = 'Please paste a YouTube or YouTube Music playlist link.';
+                statusEl.style.color = '#ef4444';
+            }
             return;
         }
 
-        connectBtn.textContent = 'Google Connected ✓';
-        connectBtn.classList.remove('btn-primary');
-        connectBtn.classList.add('btn-secondary');
-        playlistsContainer.style.display = 'flex';
-        playlistsContainer.innerHTML = '<p style="font-size:0.8rem; color:#aaa; margin:0;">Loading your YouTube playlists...</p>';
+        fetchBtn.disabled = true;
+        fetchBtn.textContent = 'Fetching...';
+        if (statusEl) {
+            statusEl.textContent = 'Fetching playlist metadata from YouTube...';
+            statusEl.style.color = '#38bdf8';
+        }
 
         try {
-            const playlists = await getUserYouTubePlaylists();
-            if (playlists.length === 0) {
-                playlistsContainer.innerHTML = '<p style="font-size:0.8rem; color:#aaa; margin:0;">No playlists found.</p>';
+            const data = await fetchYouTubePlaylist(url);
+            const count = data.tracks?.length || 0;
+            if (count === 0) {
+                if (statusEl) {
+                    statusEl.textContent = 'No tracks found in this playlist. Please ensure it is public or unlisted.';
+                    statusEl.style.color = '#ef4444';
+                }
                 return;
             }
 
-            playlistsContainer.innerHTML = playlists
-                .map(
-                    (p) => `
-                <div style="display: flex; align-items: center; justify-content: space-between; padding: 6px 10px; background: rgba(255,255,255,0.05); border-radius: 6px; gap: 10px;">
-                    <img src="${p.thumbnail || '/images/echos_logo.svg'}" style="width: 34px; height: 34px; object-fit: cover; border-radius: 4px;" onerror="this.src='/images/echos_logo.svg'" />
-                    <div style="flex: 1; min-width: 0;">
-                        <div style="font-size: 0.85rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(
-                            p.title
-                        )}</div>
-                        <div style="font-size: 0.75rem; color: #888;">${
-                            p.isLikedList ? 'Auto-synced' : p.itemCount ? `${p.itemCount} tracks` : 'YouTube Playlist'
-                        }</div>
-                    </div>
-                    <button type="button" class="btn-primary yt-quick-import-btn" data-id="${p.id}" data-name="${escapeHtml(
-                        p.title
-                    )}" style="padding: 4px 10px; font-size: 0.75rem; white-space: nowrap;">
-                        Import
-                    </button>
-                </div>
-            `
-                )
-                .join('');
+            if (nameInput && (!nameInput.value.trim() || nameInput.value === 'Create Playlist')) {
+                nameInput.value = data.name;
+            }
+            if (coverInput && !coverInput.value.trim() && data.cover) {
+                coverInput.value = data.cover;
+            }
+            if (descInput && !descInput.value.trim() && data.description) {
+                descInput.value = data.description;
+            }
 
-            playlistsContainer.querySelectorAll('.yt-quick-import-btn').forEach((btn) => {
-                btn.addEventListener('click', async (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    const id = btn.getAttribute('data-id');
-                    const name = btn.getAttribute('data-name');
-                    btn.disabled = true;
-                    btn.textContent = 'Importing...';
-                    try {
-                        await importUserYouTubePlaylist(id, name);
-                        btn.textContent = 'Imported ✓';
-                    } catch (err) {
-                        alert(err.message || 'Import failed');
-                        btn.disabled = false;
-                        btn.textContent = 'Retry';
-                    }
-                });
-            });
-        } catch (err) {
-            console.warn('Could not load user playlists:', err);
-            playlistsContainer.innerHTML = `<p style="font-size:0.8rem; color:#ff4d4f; margin:0;">${err.message}</p>`;
-        }
-    };
-
-    connectBtn.addEventListener('click', async () => {
-        try {
-            connectBtn.disabled = true;
-            connectBtn.textContent = 'Connecting...';
-            const res = await fetch('/api/auth/sign-in/social', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ provider: 'youtube', callbackURL: window.location.href }),
-            });
-            const data = await res.json();
-            if (data.url) {
-                window.location.href = data.url;
-            } else {
-                throw new Error(data.error?.message || 'Google OAuth is not configured on server.');
+            if (statusEl) {
+                statusEl.innerHTML = `<span style="color:#10b981;">Found ${count} tracks: "${escapeHtml(data.name)}". Click Save to finish!</span>`;
             }
         } catch (err) {
-            connectBtn.disabled = false;
-            connectBtn.textContent = 'Connect YouTube';
-            alert('Failed to connect YouTube: ' + err.message);
+            console.error('[YouTube Fetch Error]:', err);
+            if (statusEl) {
+                statusEl.textContent = `Error: ${err.message || 'Failed to load playlist'}`;
+                statusEl.style.color = '#ef4444';
+            }
+        } finally {
+            fetchBtn.disabled = false;
+            fetchBtn.textContent = 'Fetch & Preview';
         }
     });
+}
 
-    renderList();
+export function initYouTubeAccountUI() {
+    initTuneMyMusicAndYouTubeUI();
 }

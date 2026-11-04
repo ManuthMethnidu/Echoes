@@ -1,0 +1,11 @@
+blank_issues_enabled: true
+contact_links:
+  - name: GitHub Repository
+    url: https://github.com/ManuthMethnidu/Echoes
+    about: Star the project and browse the open-source codebase
+  - name: Donations & Sponsorship
+    url: mailto:contact.Echoes@proton.me
+    about: Contact developer Manuth Methnidu directly for donations and sponsorship
+  - name: Live Web App
+    url: https://echoes.mteck.tech
+    about: Experience Echoes on the web

@@ -21,23 +21,38 @@
         <priority>0.7</priority>
     </url>
     <url>
-        <loc>https://echoes.mteck.tech/podcasts</loc>
-        <changefreq>daily</changefreq>
-        <priority>0.7</priority>
-    </url>
-    <url>
-        <loc>https://echoes.mteck.tech/unreleased</loc>
-        <changefreq>daily</changefreq>
-        <priority>0.7</priority>
-    </url>
-    <url>
         <loc>https://echoes.mteck.tech/parties</loc>
         <changefreq>weekly</changefreq>
-        <priority>0.6</priority>
+        <priority>0.7</priority>
+    </url>
+    <url>
+        <loc>https://echoes.mteck.tech/about</loc>
+        <changefreq>monthly</changefreq>
+        <priority>0.7</priority>
+    </url>
+    <url>
+        <loc>https://echoes.mteck.tech/issues</loc>
+        <changefreq>monthly</changefreq>
+        <priority>0.7</priority>
     </url>
     <url>
         <loc>https://echoes.mteck.tech/donate</loc>
         <changefreq>monthly</changefreq>
+        <priority>0.6</priority>
+    </url>
+    <url>
+        <loc>https://echoes.mteck.tech/contact</loc>
+        <changefreq>monthly</changefreq>
         <priority>0.5</priority>
+    </url>
+    <url>
+        <loc>https://echoes.mteck.tech/tos</loc>
+        <changefreq>monthly</changefreq>
+        <priority>0.4</priority>
+    </url>
+    <url>
+        <loc>https://echoes.mteck.tech/policy</loc>
+        <changefreq>monthly</changefreq>
+        <priority>0.4</priority>
     </url>
 </urlset>

@@ -291,29 +291,6 @@ async function clearDevPwaRuntimeCaches() {
     }
 }
 
-async function uploadCoverImage(file) {
-    try {
-        const response = await fetch(`https://worker.uploads.monochrome.qzz.io/${file.name}`, {
-            method: 'PUT',
-            headers: {
-                'x-api-key': 'if_youre_reading_this_fuck_off',
-                'Content-Type': file.type || 'application/octet-stream',
-            },
-            body: file,
-        });
-
-        if (!response.ok) {
-            if (response.status === 413) throw new Error('File exceeds 10MB');
-            throw new Error(`Upload failed: ${response.status}`);
-        }
-
-        return `https://images.monochrome.qzz.io/${await response.text()}`;
-    } catch (error) {
-        console.error('Cover upload error:', error);
-        throw error;
-    }
-}
-
 document.addEventListener('DOMContentLoaded', async () => {
     await modernSettings.waitPending();
 
@@ -779,71 +756,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         initYouTubeAccountUI();
     }
 
-    // Cover image upload functionality
-    const coverUploadBtn = document.getElementById('playlist-cover-upload-btn');
-    const coverFileInput = document.getElementById('playlist-cover-file-input');
-    const coverToggleUrlBtn = document.getElementById('playlist-cover-toggle-url-btn');
-    const coverUrlInput = document.getElementById('playlist-cover-input');
-    const coverUploadStatus = document.getElementById('playlist-cover-upload-status');
-    const coverUploadText = document.getElementById('playlist-cover-upload-text');
-
-    let useUrlInput = false;
-
-    coverUploadBtn?.addEventListener('click', () => {
-        if (useUrlInput) return;
-        coverFileInput?.click();
-    });
-
-    coverFileInput?.addEventListener('change', async (e) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-
-        // Validate file type
-        if (!file.type.startsWith('image/')) {
-            alert('Please select an image file');
-            return;
-        }
-
-        // Show uploading status
-        coverUploadStatus.style.display = 'block';
-        coverUploadText.textContent = 'Uploading...';
-        coverUploadBtn.disabled = true;
-
-        try {
-            const publicUrl = await uploadCoverImage(file);
-            coverUrlInput.value = publicUrl;
-            coverUploadText.textContent = 'Done!';
-            coverUploadText.style.color = 'var(--success)';
-
-            setTimeout(() => {
-                coverUploadStatus.style.display = 'none';
-            }, 2000);
-        } catch (error) {
-            coverUploadText.textContent = 'Failed - try URL';
-            coverUploadText.style.color = 'var(--error)';
-            console.error('Upload failed:', error);
-        } finally {
-            coverUploadBtn.disabled = false;
-        }
-    });
-
-    coverToggleUrlBtn?.addEventListener('click', () => {
-        useUrlInput = !useUrlInput;
-        if (useUrlInput) {
-            coverUploadBtn.style.flex = '0 0 auto';
-            coverUploadBtn.style.display = 'none';
-            coverUrlInput.style.display = 'block';
-            coverToggleUrlBtn.textContent = 'Upload';
-            coverToggleUrlBtn.title = 'Switch to file upload';
-        } else {
-            coverUploadBtn.style.flex = '1';
-            coverUploadBtn.style.display = 'flex';
-            coverUrlInput.style.display = 'none';
-            coverToggleUrlBtn.textContent = 'or URL';
-            coverToggleUrlBtn.title = 'Switch to URL input';
-        }
-    });
-
     document.getElementById('nav-back')?.addEventListener('click', () => {
         window.history.back();
     });
@@ -1135,7 +1047,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             document.getElementById('playlist-modal-title').textContent = 'Create Playlist';
             document.getElementById('playlist-name-input').value = '';
             document.getElementById('playlist-cover-input').value = '';
-            document.getElementById('playlist-cover-file-input').value = '';
             document.getElementById('playlist-description-input').value = '';
             modal.dataset.editingId = '';
             document.getElementById('import-section').style.display = 'block';
@@ -1163,21 +1074,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (publicToggle) publicToggle.checked = false;
             if (shareBtn) shareBtn.style.display = 'none';
 
-            // Reset cover upload state
-            const coverUploadBtn = document.getElementById('playlist-cover-upload-btn');
+            // Reset cover URL input
             const coverUrlInput = document.getElementById('playlist-cover-input');
-            const coverUploadStatus = document.getElementById('playlist-cover-upload-status');
-            const coverToggleUrlBtn = document.getElementById('playlist-cover-toggle-url-btn');
-            if (coverUploadBtn) {
-                coverUploadBtn.style.flex = '1';
-                coverUploadBtn.style.display = 'flex';
-            }
-            if (coverUrlInput) coverUrlInput.style.display = 'none';
-            if (coverUploadStatus) coverUploadStatus.style.display = 'none';
-            if (coverToggleUrlBtn) {
-                coverToggleUrlBtn.textContent = 'or URL';
-                coverToggleUrlBtn.title = 'Switch to URL input';
-            }
+            if (coverUrlInput) coverUrlInput.value = '';
 
             modal.classList.add('active');
             document.getElementById('playlist-name-input').focus();
@@ -1838,29 +1737,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                         };
                     }
 
-                    // Set cover upload state - show URL input if there's an existing cover
-                    const coverUploadBtn = document.getElementById('playlist-cover-upload-btn');
-                    const coverUrlInput = document.getElementById('playlist-cover-input');
-                    const coverToggleUrlBtn = document.getElementById('playlist-cover-toggle-url-btn');
-                    if (playlist.cover) {
-                        if (coverUploadBtn) coverUploadBtn.style.display = 'none';
-                        if (coverUrlInput) coverUrlInput.style.display = 'block';
-                        if (coverToggleUrlBtn) {
-                            coverToggleUrlBtn.textContent = 'Upload';
-                            coverToggleUrlBtn.title = 'Switch to file upload';
-                        }
-                    } else {
-                        if (coverUploadBtn) {
-                            coverUploadBtn.style.flex = '1';
-                            coverUploadBtn.style.display = 'flex';
-                        }
-                        if (coverUrlInput) coverUrlInput.style.display = 'none';
-                        if (coverToggleUrlBtn) {
-                            coverToggleUrlBtn.textContent = 'or URL';
-                            coverToggleUrlBtn.title = 'Switch to URL input';
-                        }
-                    }
-
                     modal.dataset.editingId = playlistId;
                     document.getElementById('import-section').style.display = 'none';
                     modal.classList.add('active');
@@ -1915,29 +1791,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                                     .then(() => alert('Link copied to clipboard!'))
                                     .catch(console.error);
                             };
-                        }
-
-                        // Set cover upload state - show URL input if there's an existing cover
-                        const coverUploadBtn = document.getElementById('playlist-cover-upload-btn');
-                        const coverUrlInput = document.getElementById('playlist-cover-input');
-                        const coverToggleUrlBtn = document.getElementById('playlist-cover-toggle-url-btn');
-                        if (playlist.cover) {
-                            if (coverUploadBtn) coverUploadBtn.style.display = 'none';
-                            if (coverUrlInput) coverUrlInput.style.display = 'block';
-                            if (coverToggleUrlBtn) {
-                                coverToggleUrlBtn.textContent = 'Upload';
-                                coverToggleUrlBtn.title = 'Switch to file upload';
-                            }
-                        } else {
-                            if (coverUploadBtn) {
-                                coverUploadBtn.style.flex = '1';
-                                coverUploadBtn.style.display = 'flex';
-                            }
-                            if (coverUrlInput) coverUrlInput.style.display = 'none';
-                            if (coverToggleUrlBtn) {
-                                coverToggleUrlBtn.textContent = 'or URL';
-                                coverToggleUrlBtn.title = 'Switch to URL input';
-                            }
                         }
 
                         modal.dataset.editingId = playlistId;

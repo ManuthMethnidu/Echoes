@@ -20,6 +20,12 @@
         <meta name="robots" content="index, follow" />
         <meta name="google-site-verification" content="googlecc07749c8a73346d" />
 
+        <!-- Open Source & Project Metadata -->
+        <meta name="author" content="Manuth Methnidu" />
+        <link rel="source" href="https://github.com/ManuthMethnidu/Echoes" />
+        <link rel="help" href="https://github.com/ManuthMethnidu/Echoes/issues" />
+        <meta name="github:repo" content="https://github.com/ManuthMethnidu/Echoes" />
+
         <!-- Open Graph / Facebook -->
         <meta property="og:type" content="website" />
         <meta property="og:url" content="https://echoes.mteck.tech/" />
@@ -411,51 +417,13 @@
                     placeholder="Playlist name"
                     style="margin: 1rem 0"
                 />
-                <div
-                    id="playlist-cover-wrapper"
-                    style="margin: 0.5rem 0; display: flex; gap: 0.5rem; align-items: stretch"
-                >
-                    <input
-                        type="url"
-                        id="playlist-cover-input"
-                        class="template-input"
-                        placeholder="Cover image URL"
-                        style="flex: 1; margin: 0; display: none"
-                    />
-                    <input type="file" id="playlist-cover-file-input" accept="image/*" style="display: none" />
-                    <button
-                        type="button"
-                        id="playlist-cover-upload-btn"
-                        class="template-btn"
-                        style="
-                            flex: 1;
-                            padding: 0.5rem;
-                            font-size: 0.85rem;
-                            display: flex;
-                            align-items: center;
-                            justify-content: center;
-                            gap: 0.5rem;
-                        "
-                    >
-                        <use svg="!lucide/upload.svg" size="16" />
-                        <span id="playlist-cover-btn-text">Upload</span>
-                    </button>
-                    <button
-                        type="button"
-                        id="playlist-cover-toggle-url-btn"
-                        class="template-btn"
-                        style="padding: 0.5rem; font-size: 0.85rem; white-space: nowrap"
-                        title="Switch to URL input"
-                    >
-                        or URL
-                    </button>
-                </div>
-                <div
-                    id="playlist-cover-upload-status"
-                    style="display: none; margin: -0.25rem 0 0.5rem 0; font-size: 0.75rem; opacity: 0.8"
-                >
-                    <span id="playlist-cover-upload-text"></span>
-                </div>
+                <input
+                    type="url"
+                    id="playlist-cover-input"
+                    class="template-input"
+                    placeholder="Cover image URL (optional)"
+                    style="margin: 0.5rem 0"
+                />
                 <textarea
                     id="playlist-description-input"
                     class="template-input"
@@ -1475,6 +1443,18 @@
                                         <a href="/about">
                                             <use svg="!lucide/info.svg" size="24" />
                                             <span>About</span>
+                                        </a>
+                                    </li>
+                                    <li class="nav-item" id="sidebar-nav-issues">
+                                        <a href="/issues">
+                                            <use svg="!lucide/bug.svg" size="24" />
+                                            <span>Issues &amp; Ideas</span>
+                                        </a>
+                                    </li>
+                                    <li class="nav-item" id="sidebar-nav-donate">
+                                        <a href="/donate">
+                                            <use svg="!lucide/heart.svg" size="24" />
+                                            <span>Support &amp; Star</span>
                                         </a>
                                     </li>
                                     <li class="nav-item" id="sidebar-nav-tos">
@@ -5840,7 +5820,7 @@
                         <div class="legal-section">
                             <h2>1. Agreement to Terms</h2>
                             <p>
-                                By accessing or using Echoes (<a href="https://echos.vercel.app" style="color: inherit; text-decoration: underline;">https://echos.vercel.app</a>) or related services (collectively, the "Service"), you agree to be bound by these Terms of Service ("Terms"). If you do not agree with any part of these Terms, you may not access or use the Service.
+                                By accessing or using Echoes (<a href="https://echoes.mteck.tech" style="color: inherit; text-decoration: underline;">https://echoes.mteck.tech</a>) or related services (collectively, the "Service"), you agree to be bound by these Terms of Service ("Terms"). If you do not agree with any part of these Terms, you may not access or use the Service.
                             </p>
                         </div>
 
@@ -5920,7 +5900,7 @@
                         <div class="legal-section">
                             <h2>1. Overview &amp; Privacy Commitment</h2>
                             <p>
-                                At Echoes (<a href="https://echos.vercel.app" style="color: inherit; text-decoration: underline;">https://echos.vercel.app</a>), your privacy is our core priority. We believe in minimal data collection: we collect only what is strictly necessary to authenticate your account and synchronize your personal music preferences across your devices. We never sell, rent, or trade your personal data.
+                                At Echoes (<a href="https://echoes.mteck.tech" style="color: inherit; text-decoration: underline;">https://echoes.mteck.tech</a>), your privacy is our core priority. We believe in minimal data collection: we collect only what is strictly necessary to authenticate your account and synchronize your personal music preferences across your devices. We never sell, rent, or trade your personal data.
                             </p>
                         </div>
 
@@ -5989,28 +5969,58 @@
                             <div style="display: flex; justify-content: center; align-items: center; margin-bottom: 1.25rem;">
                                 <img src="/images/echos_logo.svg" alt="Echoes Logo" width="64" height="64" style="filter: drop-shadow(0 4px 12px rgba(0,0,0,0.3));" />
                             </div>
+                            <div style="display: inline-block; padding: 0.35rem 0.85rem; background: var(--secondary); border: 1px solid var(--border); border-radius: 9999px; font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.75rem;">
+                                Free &amp; Open Source Music Player
+                            </div>
                             <h2>About Echoes</h2>
-                            <p>Clean, ad-free music streaming client, Web Audio DSP engine, and progressive web app.</p>
-                            <div class="about-links" style="margin-top: 1.25rem;">
-                                <a href="https://github.com/ManuthMethnidu/echos" target="_blank" rel="noopener noreferrer" class="github-link">
-                                    <use svg="!lucide/github.svg" size="20" />
-                                    <span>GitHub Repository</span>
+                            <p>Clean, ad-free, open-source music streaming client, Web Audio DSP engine, and progressive web app.</p>
+                            <div class="about-links" style="margin-top: 1.25rem; display: flex; flex-wrap: wrap; gap: 0.75rem; justify-content: center;">
+                                <a href="https://github.com/ManuthMethnidu/Echoes" target="_blank" rel="noopener noreferrer" class="github-link" style="background: var(--foreground); color: var(--background); font-weight: 600;">
+                                    <use svg="!lucide/star.svg" size="18" />
+                                    <span>Star on GitHub</span>
                                 </a>
-                                <a href="https://github.com/ManuthMethnidu/echos/blob/main/LICENSE" target="_blank" rel="noopener noreferrer" class="github-link">
-                                    <use svg="!lucide/scale.svg" size="20" />
+                                <a href="https://github.com/ManuthMethnidu/Echoes" target="_blank" rel="noopener noreferrer" class="github-link">
+                                    <use svg="!lucide/github.svg" size="18" />
+                                    <span>Source Code</span>
+                                </a>
+                                <a href="/issues" class="github-link">
+                                    <use svg="!lucide/bug.svg" size="18" />
+                                    <span>Report Issue / Request Feature</span>
+                                </a>
+                                <a href="/donate" class="github-link">
+                                    <use svg="!lucide/heart.svg" size="18" />
+                                    <span>Support &amp; Donate</span>
+                                </a>
+                                <a href="https://github.com/ManuthMethnidu/Echoes/blob/main/LICENSE" target="_blank" rel="noopener noreferrer" class="github-link">
+                                    <use svg="!lucide/scale.svg" size="18" />
                                     <span>Apache-2.0 License</span>
-                                </a>
-                                <a href="https://github.com/ManuthMethnidu/echos/issues" target="_blank" rel="noopener noreferrer" class="github-link">
-                                    <use svg="!lucide/bug.svg" size="20" />
-                                    <span>Report an Issue</span>
                                 </a>
                             </div>
                         </header>
 
+                        <!-- Support by Starring Banner -->
+                        <div class="legal-contact-card" style="margin: 1.5rem 0; border: 1px solid var(--border); background: linear-gradient(135deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));">
+                            <h3 style="margin-bottom: 0.5rem; font-size: 1.15rem;">Support Echoes: Star Our Repository</h3>
+                            <p style="color: var(--muted-foreground); font-size: 0.92rem; line-height: 1.5; margin-bottom: 1rem;">
+                                Echoes is built with pride as 100% free, open-source software with zero ads and zero paywalls.
+                                If you enjoy listening with Echoes, the single greatest way to support our independent development is to give our repository a <strong>Star on GitHub</strong>. It takes two seconds and helps more listeners discover ad-free high-fidelity audio.
+                            </p>
+                            <div class="contact-action-row">
+                                <a href="https://github.com/ManuthMethnidu/Echoes" target="_blank" rel="noopener noreferrer" class="btn-primary" style="display: inline-flex; align-items: center; gap: 8px; text-decoration: none; padding: 0.65rem 1.4rem;">
+                                    <use svg="!lucide/star.svg" size="16" />
+                                    <span>Star https://github.com/ManuthMethnidu/Echoes</span>
+                                </a>
+                                <a href="https://github.com/ManuthMethnidu/Echoes/issues/new/choose" target="_blank" rel="noopener noreferrer" class="btn-secondary" style="display: inline-flex; align-items: center; gap: 8px; text-decoration: none; padding: 0.65rem 1.4rem;">
+                                    <use svg="!lucide/sparkles.svg" size="16" />
+                                    <span>Suggest a Feature</span>
+                                </a>
+                            </div>
+                        </div>
+
                         <div class="legal-section">
                             <h2>1. What is Echoes?</h2>
                             <p>
-                                <strong>Echoes</strong> is an ad-free, privacy-focused modern web music player designed for uncompromising fidelity and aesthetic simplicity. It blends a distraction-free user interface with audiophile-grade digital signal processing (DSP), synchronised multi-provider lyrics, real-time cross-device session synchronization, and collaborative listening parties.
+                                <strong>Echoes</strong> is an ad-free, open-source, privacy-focused modern web music player designed for uncompromising fidelity and aesthetic simplicity. It blends a distraction-free user interface with audiophile-grade digital signal processing (DSP), synchronised multi-provider lyrics, real-time cross-device session synchronization, and collaborative listening parties.
                             </p>
                             <p>
                                 Key capabilities include:
@@ -6060,7 +6070,7 @@
                                     <strong>Decentralized &amp; Federated Streaming:</strong> Audio media streams and thumbnails are retrieved directly from public Invidious instances and YouTube CDNs, eliminating multi-terabyte egress bandwidth bills.
                                 </li>
                                 <li>
-                                    <strong>Lightweight Real-time Data Sync:</strong> User library bookmarks, cloud sync, and listening party rooms are powered by efficient real-time free-tier databases (PocketBase / Supabase).
+                                    <strong>Lightweight Real-time Data Sync:</strong> User library bookmarks, cloud sync, and listening party rooms are powered by efficient real-time free-tier databases (Neon Serverless Postgres).
                                 </li>
                                 <li>
                                     <strong>Non-Profit Passion:</strong> Echoes is maintained purely as an educational, non-profit community project for people who love clean music players.
@@ -6069,16 +6079,101 @@
                         </div>
 
                         <div class="legal-section">
-                            <h2>4. Open Source License</h2>
+                            <h2>4. Donations &amp; Project Sponsorship</h2>
                             <p>
-                                Echoes is licensed under the <strong>Apache License, Version 2.0</strong>. You may inspect, modify, and distribute the software in compliance with the license terms.
+                                Echoes has zero corporate backing or venture capital. All hosting, edge routing, domain registration (<code>echoes.mteck.tech</code>), and maintenance are funded out of pocket.
                             </p>
                             <p>
-                                Source code is publicly available on GitHub at <a href="https://github.com/ManuthMethnidu/echos" target="_blank" rel="noopener noreferrer" style="color: inherit; text-decoration: underline;">github.com/ManuthMethnidu/echos</a>.
+                                If you would like to help cover domain or infrastructure costs, or sponsor upcoming features, please contact creator <strong>Manuth Methnidu</strong> directly at <a href="mailto:contact.Echoes@proton.me?subject=Echoes%20Donation%20%2F%20Sponsorship" style="color: inherit; text-decoration: underline;">contact.Echoes@proton.me</a>.
+                            </p>
+                        </div>
+
+                        <div class="legal-section">
+                            <h2>5. Open Source License</h2>
+                            <p>
+                                Echoes is open-sourced software licensed under the <strong>Apache License, Version 2.0</strong>. You may inspect, modify, fork, and distribute the software in compliance with the license terms.
+                            </p>
+                            <p>
+                                Source code is publicly available on GitHub at <a href="https://github.com/ManuthMethnidu/Echoes" target="_blank" rel="noopener noreferrer" style="color: inherit; text-decoration: underline;">github.com/ManuthMethnidu/Echoes</a>.
                             </p>
                         </div>
                     </div>
                 </div>
+
+                <div id="page-issues" class="page">
+                    <div class="legal-page-container">
+                        <header class="legal-page-header">
+                            <div style="display: flex; justify-content: center; align-items: center; margin-bottom: 1.25rem;">
+                                <use svg="!lucide/sparkles.svg" size="48" style="color: var(--primary);" />
+                            </div>
+                            <h2>Report an Issue &amp; Request Features</h2>
+                            <p>Help us improve Echoes! Encountered a bug, audio playback glitch, or have an idea for a great new feature?</p>
+                        </header>
+
+                        <div class="legal-contact-card" style="margin-bottom: 1.5rem; text-align: center;">
+                            <h3 style="margin-bottom: 0.5rem; font-size: 1.2rem;">Our GitHub Issues Tracker</h3>
+                            <p style="color: var(--muted-foreground); font-size: 0.95rem; max-width: 600px; margin: 0 auto 1.25rem auto; line-height: 1.6;">
+                                We actively develop Echoes based on community feedback. Please submit all bug reports, feature requests, and suggestions through GitHub Issues where you can track progress and participate in discussions.
+                            </p>
+                            <div class="contact-action-row" style="justify-content: center;">
+                                <a href="https://github.com/ManuthMethnidu/Echoes/issues/new/choose" target="_blank" rel="noopener noreferrer" class="btn-primary" style="display: inline-flex; align-items: center; gap: 8px; text-decoration: none; padding: 0.75rem 1.6rem; font-weight: 600;">
+                                    <use svg="!lucide/external-link.svg" size="18" />
+                                    <span>Open GitHub Issue Tracker</span>
+                                </a>
+                                <a href="https://github.com/ManuthMethnidu/Echoes" target="_blank" rel="noopener noreferrer" class="btn-secondary" style="display: inline-flex; align-items: center; gap: 8px; text-decoration: none; padding: 0.75rem 1.6rem;">
+                                    <use svg="!lucide/star.svg" size="18" />
+                                    <span>Star our Repository</span>
+                                </a>
+                            </div>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.25rem; margin-top: 1.5rem;">
+                            <div class="legal-section" style="margin-bottom: 0; padding: 1.5rem; border: 1px solid var(--border); border-radius: var(--radius); background: var(--card);">
+                                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 0.75rem;">
+                                    <use svg="!lucide/bug.svg" size="22" style="color: #ef4444;" />
+                                    <h3 style="margin: 0; font-size: 1.1rem;">Found a Bug?</h3>
+                                </div>
+                                <p style="color: var(--muted-foreground); font-size: 0.9rem; line-height: 1.5; margin-bottom: 1.25rem;">
+                                    Audio not playing, equalizer preset glitching, or UI misaligned? Submit a structured bug report with reproduction steps so we can resolve it immediately.
+                                </p>
+                                <a href="https://github.com/ManuthMethnidu/Echoes/issues/new?template=bug_report.yml" target="_blank" rel="noopener noreferrer" class="btn-secondary" style="display: inline-flex; align-items: center; gap: 8px; text-decoration: none; font-size: 0.85rem; padding: 0.5rem 1rem;">
+                                    <span>Submit Bug Report</span>
+                                    <use svg="!lucide/arrow-right.svg" size="14" />
+                                </a>
+                            </div>
+
+                            <div class="legal-section" style="margin-bottom: 0; padding: 1.5rem; border: 1px solid var(--border); border-radius: var(--radius); background: var(--card);">
+                                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 0.75rem;">
+                                    <use svg="!lucide/sparkles.svg" size="22" style="color: #eab308;" />
+                                    <h3 style="margin: 0; font-size: 1.1rem;">Request a Feature</h3>
+                                </div>
+                                <p style="color: var(--muted-foreground); font-size: 0.9rem; line-height: 1.5; margin-bottom: 1.25rem;">
+                                    Have an idea for a new visualizer shader, lyrics provider, playback feature, or UI skin? Tell us what you would love to see added to Echoes.
+                                </p>
+                                <a href="https://github.com/ManuthMethnidu/Echoes/issues/new?template=feature_request.yml" target="_blank" rel="noopener noreferrer" class="btn-secondary" style="display: inline-flex; align-items: center; gap: 8px; text-decoration: none; font-size: 0.85rem; padding: 0.5rem 1rem;">
+                                    <span>Request New Feature</span>
+                                    <use svg="!lucide/arrow-right.svg" size="14" />
+                                </a>
+                            </div>
+
+                            <div class="legal-section" style="margin-bottom: 0; padding: 1.5rem; border: 1px solid var(--border); border-radius: var(--radius); background: var(--card);">
+                                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 0.75rem;">
+                                    <use svg="!lucide/mail.svg" size="22" style="color: #3b82f6;" />
+                                    <h3 style="margin: 0; font-size: 1.1rem;">Direct Inquiries &amp; Donations</h3>
+                                </div>
+                                <p style="color: var(--muted-foreground); font-size: 0.9rem; line-height: 1.5; margin-bottom: 1.25rem;">
+                                    Need private assistance or want to contact developer Manuth Methnidu directly for donations or sponsorships? Reach out via email anytime.
+                                </p>
+                                <a href="mailto:contact.Echoes@proton.me" class="btn-secondary" style="display: inline-flex; align-items: center; gap: 8px; text-decoration: none; font-size: 0.85rem; padding: 0.5rem 1rem;">
+                                    <span>Email Manuth Methnidu</span>
+                                    <use svg="!lucide/arrow-right.svg" size="14" />
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="page-report" class="page" style="display: none;"></div>
 
                 <div id="page-contact" class="page">
                     <div class="legal-page-container">
@@ -6179,7 +6274,73 @@
                         </div>
                     </div>
                 </div>
-                <div id="page-donate" class="page"></div>
+                <div id="page-donate" class="page">
+                    <div class="legal-page-container">
+                        <header class="legal-page-header">
+                            <div style="display: flex; justify-content: center; align-items: center; margin-bottom: 1.25rem;">
+                                <use svg="!lucide/heart.svg" size="48" style="color: #ec4899;" />
+                            </div>
+                            <h2>Support Echoes</h2>
+                            <p>Echoes is 100% free, open-source, and ad-free. Here is how you can support our journey.</p>
+                        </header>
+
+                        <!-- Method 1: Star on GitHub -->
+                        <div class="legal-contact-card" style="margin-bottom: 1.5rem;">
+                            <h3 style="margin-bottom: 0.5rem; font-size: 1.2rem;">1. Star Our Repository (Free &amp; Invaluable)</h3>
+                            <p style="color: var(--muted-foreground); font-size: 0.95rem; line-height: 1.6; margin-bottom: 1.25rem;">
+                                The easiest and most impactful way to help Echoes grow is to give us a star on GitHub. Higher star counts increase project visibility, help community contributors find us, and motivate continuous development!
+                            </p>
+                            <div class="contact-action-row">
+                                <a href="https://github.com/ManuthMethnidu/Echoes" target="_blank" rel="noopener noreferrer" class="btn-primary" style="display: inline-flex; align-items: center; gap: 8px; text-decoration: none; padding: 0.75rem 1.6rem; font-weight: 600;">
+                                    <use svg="!lucide/star.svg" size="18" />
+                                    <span>Star on GitHub (https://github.com/ManuthMethnidu/Echoes)</span>
+                                </a>
+                            </div>
+                        </div>
+
+                        <!-- Method 2: Contact for Donations -->
+                        <div class="legal-contact-card" style="margin-bottom: 1.5rem;">
+                            <h3 style="margin-bottom: 0.5rem; font-size: 1.2rem;">2. Donations &amp; Server Sponsorship</h3>
+                            <p style="color: var(--muted-foreground); font-size: 0.95rem; line-height: 1.6; margin-bottom: 1rem;">
+                                Echoes operates without subscription walls, paywalls, or corporate sponsors. All serverless edge execution, domain registrations (<code>echoes.mteck.tech</code>), and database hosting are maintained out of pocket.
+                            </p>
+                            <p style="color: var(--muted-foreground); font-size: 0.95rem; line-height: 1.6; margin-bottom: 1.25rem;">
+                                If you would like to make a financial contribution, donate, or sponsor server infrastructure, please contact developer <strong>Manuth Methnidu</strong> directly:
+                            </p>
+                            <div class="email-display" style="margin-bottom: 1rem;">
+                                <use svg="!lucide/mail.svg" size="18" />
+                                <span>contact.Echoes@proton.me</span>
+                            </div>
+                            <div class="contact-action-row">
+                                <a href="mailto:contact.Echoes@proton.me?subject=Echoes%20Donation%20%2F%20Sponsorship" class="btn-primary" style="display: inline-flex; align-items: center; gap: 8px; text-decoration: none; padding: 0.65rem 1.4rem;">
+                                    <use svg="!lucide/mail.svg" size="16" />
+                                    <span>Contact Manuth Methnidu for Donations</span>
+                                </a>
+                                <button class="btn-secondary" onclick="navigator.clipboard.writeText('contact.Echoes@proton.me'); alert('Email copied: contact.Echoes@proton.me');">
+                                    Copy Email Address
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Method 3: Feature Ideas & Feedback -->
+                        <div class="legal-contact-card">
+                            <h3 style="margin-bottom: 0.5rem; font-size: 1.2rem;">3. Contribute Code &amp; Feature Ideas</h3>
+                            <p style="color: var(--muted-foreground); font-size: 0.95rem; line-height: 1.6; margin-bottom: 1.25rem;">
+                                Have coding skills or ideas for new features? We welcome pull requests, theme creations, bug fixes, and feature discussions on GitHub.
+                            </p>
+                            <div class="contact-action-row">
+                                <a href="https://github.com/ManuthMethnidu/Echoes/issues/new/choose" target="_blank" rel="noopener noreferrer" class="btn-secondary" style="display: inline-flex; align-items: center; gap: 8px; text-decoration: none; padding: 0.65rem 1.4rem;">
+                                    <use svg="!lucide/sparkles.svg" size="16" />
+                                    <span>Suggest a Feature</span>
+                                </a>
+                                <a href="https://github.com/ManuthMethnidu/Echoes" target="_blank" rel="noopener noreferrer" class="btn-secondary" style="display: inline-flex; align-items: center; gap: 8px; text-decoration: none; padding: 0.65rem 1.4rem;">
+                                    <use svg="!lucide/git-pull-request.svg" size="16" />
+                                    <span>Browse Code on GitHub</span>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
                 <div id="page-reset-password" class="page">
                     <div
                         class="reset-password-container"

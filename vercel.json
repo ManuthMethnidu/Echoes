@@ -13,6 +13,14 @@
       "destination": "/googlecc07749c8a73346d.html"
     },
     {
+      "source": "/robots.txt",
+      "destination": "/robots.txt"
+    },
+    {
+      "source": "/sitemap.xml",
+      "destination": "/sitemap.xml"
+    },
+    {
       "source": "/api",
       "destination": "/api/index?__route="
     },

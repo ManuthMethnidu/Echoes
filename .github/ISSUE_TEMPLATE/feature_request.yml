@@ -1,0 +1,56 @@
+name: Feature Request
+description: Suggest an idea or new capability for Echoes
+title: '[FEATURE] '
+labels: ['enhancement']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        We actively build features requested by our community! Please describe your proposed feature or idea below.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Is your feature request related to a problem?
+      description: A clear and concise description of what problem or missing workflow you have encountered.
+      placeholder: I always find it difficult to... / There is currently no way to...
+    validations:
+      required: false
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Solution / Feature
+      description: Describe what you would like Echoes to do.
+      placeholder: Add support for... / Implement an option in Settings to...
+    validations:
+      required: true
+  - type: dropdown
+    id: category
+    attributes:
+      label: Feature Category
+      description: Which area does this feature relate to?
+      options:
+        - Audio Engine & DSP (Equalizer, AutoEQ, Spatial Audio)
+        - Visualizers & Artwork
+        - Lyrics & Subtitles
+        - Library & Playlists
+        - Cross-Device Sync & Echoes Connect
+        - UI / Theme / Aesthetics
+        - Offline Caching & Downloads
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternative Solutions Considered
+      description: Any alternative ideas or workarounds you have considered.
+      placeholder: Another music player handles this by...
+    validations:
+      required: false
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional Context or Mockups
+      description: Add any mockups, screenshots, or reference links here.
+    validations:
+      required: false

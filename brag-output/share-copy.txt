@@ -1,5 +1,0 @@
-Tired of paying monthly subscription fees for cluttered, ad-ridden streaming apps?
-
-Meet Echoes: a minimalist, high-fidelity music streaming client with 24-bit lossless audio, 16-band AutoEQ headphone calibration, and real-time Spotify Connect-style device handoff powered by Cloudflare Durable Objects.
-
-100% ad-free, open-source, and free forever: https://github.com/ManuthMethnidu/echos

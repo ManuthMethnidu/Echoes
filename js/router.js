@@ -155,6 +155,11 @@ export function createRouter(ui) {
             case 'donate':
                 ui.showPage('donate');
                 break;
+            case 'issues':
+            case 'report':
+            case 'feedback':
+                ui.showPage('issues');
+                break;
             case 'user':
                 if (param && param.startsWith('@') && !param.includes('/')) {
                     await loadProfile(decodeURIComponent(param.slice(1)));
@@ -192,6 +197,14 @@ export function updateTabTitle(player) {
         }
         if (path === '/contact') {
             document.title = 'Contact Us • Echoes';
+            return;
+        }
+        if (path === '/donate') {
+            document.title = 'Support & Donate • Echoes';
+            return;
+        }
+        if (path === '/issues' || path === '/report') {
+            document.title = 'Issues & Feature Requests • Echoes';
             return;
         }
         document.title = 'Echoes';

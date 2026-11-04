@@ -17,6 +17,7 @@ import pairApproveHandler from './_handlers/pair/approve.js';
 import pairVerifyHandler from './_handlers/pair/verify.js';
 import themesHandler from './_handlers/themes/index.js';
 import ytSearchHandler from './_handlers/yt/search.js';
+import ytArtistHandler from './_handlers/yt/artist.js';
 import ytStreamHandler from './_handlers/yt/stream.js';
 import ytRadioHandler from './_handlers/yt/radio.js';
 import ytPlaylistHandler from './_handlers/yt/playlist.js';
@@ -49,6 +50,7 @@ const STATIC_ROUTES: Record<string, ApiHandler> = {
     'pair/verify': pairVerifyHandler,
     'themes': themesHandler,
     'yt/search': ytSearchHandler,
+    'yt/artist': ytArtistHandler,
     'yt/stream': ytStreamHandler,
     'yt/radio': ytRadioHandler,
     'yt/playlist': ytPlaylistHandler,

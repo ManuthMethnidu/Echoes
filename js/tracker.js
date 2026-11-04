@@ -359,6 +359,20 @@ export function createProjectCardHTML(era, _artist, sheetId, trackCount) {
 
 // Render tracker artist page (grid of projects)
 export async function renderTrackerArtistPage(sheetId, container) {
+    if (container) {
+        container.innerHTML = `<div class="card-grid">${Array.from({ length: 6 })
+            .map(
+                () => `
+            <div class="skeleton-card">
+                <div class="skeleton skeleton-card-image"></div>
+                <div class="skeleton skeleton-card-title"></div>
+                <div class="skeleton skeleton-card-subtitle"></div>
+            </div>
+        `
+            )
+            .join('')}</div>`;
+    }
+
     if (!artistsData.length) {
         await loadArtistsData();
     }
@@ -752,7 +766,18 @@ export async function renderUnreleasedPage(container) {
                 style="width: 100%; max-width: 400px; padding: 0.75rem 1rem; border-radius: 8px; border: 1px solid var(--border); background: var(--background); color: var(--foreground); font-size: 0.95rem;"
             />
         </div>
-        <div id="unreleased-artists-grid" class="card-grid"></div>
+        <div id="unreleased-artists-grid" class="card-grid">
+            ${Array.from({ length: 12 })
+                .map(
+                    () => `
+                <div class="skeleton-card artist">
+                    <div class="skeleton skeleton-card-image"></div>
+                    <div class="skeleton skeleton-card-title"></div>
+                </div>
+            `
+                )
+                .join('')}
+        </div>
         <div id="unreleased-no-results" style="display: none; text-align: center; padding: 2rem; color: var(--muted-foreground);">
             No artists found matching your search.
         </div>

@@ -2789,6 +2789,10 @@ export class UIRenderer {
 
     async renderPartyDetailPage(id) {
         await this.showPage('party-detail');
+        const titleEl = document.getElementById('party-title');
+        const metaEl = document.getElementById('party-meta');
+        if (titleEl) titleEl.innerHTML = '<div class="skeleton" style="height: 36px; width: 220px;"></div>';
+        if (metaEl) metaEl.innerHTML = '<div class="skeleton" style="height: 16px; width: 140px;"></div>';
         await partyManager.joinParty(id);
     }
 
@@ -2802,6 +2806,22 @@ export class UIRenderer {
         const localContainer = document.getElementById('library-local-container');
         const foldersContainer = document.getElementById('my-folders-container');
         const myPlaylistsContainer = document.getElementById('my-playlists-container');
+
+        if (tracksContainer && (!tracksContainer.children.length || tracksContainer.querySelector('.placeholder-text'))) {
+            tracksContainer.innerHTML = this.createSkeletonTracks(8, true);
+        }
+        if (albumsContainer && (!albumsContainer.children.length || albumsContainer.querySelector('.placeholder-text'))) {
+            albumsContainer.innerHTML = this.createSkeletonCards(6, false);
+        }
+        if (artistsContainer && (!artistsContainer.children.length || artistsContainer.querySelector('.placeholder-text'))) {
+            artistsContainer.innerHTML = this.createSkeletonCards(6, true);
+        }
+        if (playlistsContainer && (!playlistsContainer.children.length || playlistsContainer.querySelector('.placeholder-text'))) {
+            playlistsContainer.innerHTML = this.createSkeletonCards(6, false);
+        }
+        if (myPlaylistsContainer && (!myPlaylistsContainer.children.length || myPlaylistsContainer.querySelector('.placeholder-text'))) {
+            myPlaylistsContainer.innerHTML = this.createSkeletonCards(6, false);
+        }
 
         const likedTracks = await db.getFavorites('track');
         const shuffleBtn = document.getElementById('shuffle-liked-tracks-btn');
@@ -4364,18 +4384,37 @@ export class UIRenderer {
                                 await this.updateLikeState(el, 'album', a.id);
                             }
                         }
-                    } else if (retryCount < 2) {
-                        await new Promise((resolve) => setTimeout(resolve, 1500));
-                        return this.renderHomeAlbums(forceRefresh, null, retryCount + 1);
-                    } else {
-                        albumsContainer.innerHTML = `<div style="grid-column: 1/-1; padding: 2rem 0;">${createPlaceholder('Tell us more about what you like so we can recommend albums!')}</div>`;
+                        return;
                     }
-                } else if (retryCount < 2) {
-                    await new Promise((resolve) => setTimeout(resolve, 1500));
-                    return this.renderHomeAlbums(forceRefresh, null, retryCount + 1);
-                } else {
-                    albumsContainer.innerHTML = `<div style="grid-column: 1/-1; padding: 2rem 0;">${createPlaceholder('Tell us more about what you like so we can recommend albums!')}</div>`;
                 }
+
+                // Fallback to trending albums
+                try {
+                    const { default: ytEngine } = await import('./yt-music.js');
+                    const trendingSearch = await ytEngine.search('top albums');
+                    const albumMap = new Map();
+                    for (const t of trendingSearch) {
+                        if (t.album && !albumMap.has(t.album.id)) {
+                            albumMap.set(t.album.id, t.album);
+                        }
+                    }
+                    const topAlbums = Array.from(albumMap.values()).slice(0, 12);
+                    if (topAlbums.length > 0) {
+                        albumsContainer.innerHTML = topAlbums
+                            .map((a) => this.createAlbumCardHTML(a))
+                            .join('');
+                        for (const a of topAlbums) {
+                            const el = albumsContainer.querySelector(`[data-album-id="${a.id}"]`);
+                            if (el) {
+                                trackDataStore.set(el, a);
+                                await this.updateLikeState(el, 'album', a.id);
+                            }
+                        }
+                        return;
+                    }
+                } catch {}
+
+                albumsContainer.innerHTML = `<div style="grid-column: 1/-1; padding: 2rem 0;">${createPlaceholder('Tell us more about what you like so we can recommend albums!')}</div>`;
             } catch (e) {
                 console.error(e);
                 if (retryCount < 2) {
@@ -4652,14 +4691,33 @@ export class UIRenderer {
                                 await this.updateLikeState(el, 'artist', a.id);
                             }
                         }
-                    } else {
-                        artistsContainer.innerHTML = createPlaceholder('No artist recommendations found.');
+                        return;
                     }
-                } else {
-                    artistsContainer.innerHTML = createPlaceholder(
-                        'Listen to more music to get artist recommendations.'
-                    );
                 }
+
+                // Fallback to popular artists
+                try {
+                    const { default: ytEngine } = await import('./yt-music.js');
+                    const popularChannels = await ytEngine.searchChannels('popular music');
+                    if (popularChannels && popularChannels.length > 0) {
+                        artistsContainer.innerHTML = popularChannels
+                            .slice(0, 12)
+                            .map((a) => this.createArtistCardHTML(a))
+                            .join('');
+                        for (const a of popularChannels.slice(0, 12)) {
+                            const el = artistsContainer.querySelector(`[data-artist-id="${a.id}"]`);
+                            if (el) {
+                                trackDataStore.set(el, a);
+                                await this.updateLikeState(el, 'artist', a.id);
+                            }
+                        }
+                        return;
+                    }
+                } catch {}
+
+                artistsContainer.innerHTML = createPlaceholder(
+                    'Listen to more music to get artist recommendations.'
+                );
             } catch (e) {
                 console.error(e);
                 artistsContainer.innerHTML = createPlaceholder('Failed to load artist recommendations.');
@@ -5155,7 +5213,12 @@ export class UIRenderer {
             !state.artists.some((artist) => artist.provider === 'apple')
         ) {
             try {
-                state.artists = await this.api.tidalAPI.enrichArtistsWithPicture(state.artists);
+                const tidalCandidates = state.artists.filter(
+                    (a) => a.provider !== 'youtube' && !String(a.id).startsWith('yt_')
+                );
+                if (tidalCandidates.length > 0) {
+                    await this.api.tidalAPI.enrichArtistsWithPicture(tidalCandidates);
+                }
             } catch (e) {
                 console.warn('Artist enrichment failed:', e);
             }
@@ -5617,8 +5680,9 @@ export class UIRenderer {
             const albumLikeBtn = document.getElementById('like-album-btn');
             if (albumLikeBtn) {
                 const isLiked = await db.isFavorite('album', album.id);
-                albumLikeBtn.innerHTML = this.createHeartIcon(isLiked);
+                albumLikeBtn.innerHTML = `${this.createHeartIcon(isLiked)}<span>${isLiked ? 'Saved' : 'Save'}</span>`;
                 albumLikeBtn.classList.toggle('active', isLiked);
+                albumLikeBtn.title = isLiked ? 'Remove from Favorites' : 'Save to Favorites';
                 trackDataStore.set(albumLikeBtn, album);
             }
 
@@ -5629,7 +5693,7 @@ export class UIRenderer {
                 trackDataStore.set(albumMenuBtn, album);
             }
 
-            document.title = `${album.title} - ${album.artist.name}`;
+            document.title = `${album.title} - ${album.artist?.name || 'Echoes'}`;
 
             // "More from Artist" and Related Sections
             const moreAlbumsSection = document.getElementById('album-section-more-albums');
@@ -5652,11 +5716,14 @@ export class UIRenderer {
             });
 
             try {
-                const artistData = await this.api.getArtist(album.artist.id);
+                let artistData = null;
+                if (album.artist?.id) {
+                    artistData = await this.api.getArtist(album.artist.id);
+                }
 
                 // Add Mix/Radio Button to header
                 const mixBtn = document.getElementById('album-mix-btn');
-                if (mixBtn && artistData.mixes && artistData.mixes.ARTIST_MIX) {
+                if (mixBtn && artistData?.mixes && artistData.mixes.ARTIST_MIX) {
                     mixBtn.style.display = 'flex';
                     mixBtn.onclick = () => navigate(`/mix/${artistData.mixes.ARTIST_MIX}`);
                 }
@@ -6678,9 +6745,9 @@ export class UIRenderer {
                 }
             });
 
-            artist.tracks = artist.tracks.filter((t) => !_isBlockedCopyright(t.copyright));
-            artist.albums = artist.albums.filter((t) => !_isBlockedCopyright(t.copyright));
-            if (artist.eps) artist.eps = artist.eps.filter((t) => !_isBlockedCopyright(t.copyright));
+            artist.tracks = (artist.tracks || []).filter((t) => !_isBlockedCopyright(t?.copyright));
+            artist.albums = (artist.albums || []).filter((t) => !_isBlockedCopyright(t?.copyright));
+            if (artist.eps) artist.eps = (artist.eps || []).filter((t) => !_isBlockedCopyright(t?.copyright));
 
             await this.renderListWithTracks(tracksContainer, artist.tracks, true);
 

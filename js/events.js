@@ -1658,6 +1658,10 @@ export async function handleTrackAction(
             }
             btn.classList.toggle('active', added);
             btn.title = added ? 'Remove from Favorites' : 'Add to Favorites';
+            const textSpan = btn.querySelector('span');
+            if (textSpan && (btn.id === 'like-album-btn' || btn.dataset.type === 'album')) {
+                textSpan.textContent = added ? 'Saved' : 'Save';
+            }
         });
 
         // Handle Library Page Update
@@ -1684,7 +1688,7 @@ export async function handleTrackAction(
                               : `No liked ${type}s yet.`;
                     container.innerHTML = `<div class="placeholder-text">${msg}</div>`;
                 }
-            } else if (added && !itemEl && ui && (type === 'track' || type === 'video')) {
+            } else if (added && !itemEl && ui) {
                 // Add item
                 if (type === 'track') {
                     const tracksContainer = document.getElementById('library-tracks-container');
@@ -1717,6 +1721,34 @@ export async function handleTrackAction(
                             if (shuffleBtn) shuffleBtn.style.display = 'flex';
                             if (downloadBtn) downloadBtn.style.display = 'flex';
                             ui.setupLibraryLikedTracksSearch(tracksContainer);
+                        }
+                    }
+                } else if (type === 'album') {
+                    const albumsContainer = document.getElementById('library-albums-container');
+                    if (albumsContainer) {
+                        const placeholder = albumsContainer.querySelector('.placeholder-text');
+                        if (placeholder) albumsContainer.innerHTML = '';
+                        const tempDiv = document.createElement('div');
+                        tempDiv.innerHTML = ui.createAlbumCardHTML(item);
+                        const newEl = tempDiv.firstElementChild;
+                        if (newEl) {
+                            albumsContainer.prepend(newEl);
+                            trackDataStore.set(newEl, item);
+                            ui.updateLikeState(newEl, 'album', item.id);
+                        }
+                    }
+                } else if (type === 'artist') {
+                    const artistsContainer = document.getElementById('library-artists-container');
+                    if (artistsContainer) {
+                        const placeholder = artistsContainer.querySelector('.placeholder-text');
+                        if (placeholder) artistsContainer.innerHTML = '';
+                        const tempDiv = document.createElement('div');
+                        tempDiv.innerHTML = ui.createArtistCardHTML(item);
+                        const newEl = tempDiv.firstElementChild;
+                        if (newEl) {
+                            artistsContainer.prepend(newEl);
+                            trackDataStore.set(newEl, item);
+                            ui.updateLikeState(newEl, 'artist', item.id);
                         }
                     }
                 } else if (type === 'video') {

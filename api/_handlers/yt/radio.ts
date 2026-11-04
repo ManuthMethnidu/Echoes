@@ -14,7 +14,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             (base) => `${base}/api/v1/videos/${videoId}`
         );
 
-        const recs = data.recommendedVideos || [];
+        let recs = data.recommendedVideos || [];
+
+        // If recommendedVideos is empty, fall back to searching related music by title/author
+        if (recs.length === 0) {
+            const query = data.author ? `${data.author} mix` : data.title || 'top music hits';
+            try {
+                const { data: searchData } = await fetchWithFailover(
+                    (base) => `${base}/api/v1/search?q=${encodeURIComponent(query)}&type=video`
+                );
+                if (Array.isArray(searchData) && searchData.length > 0) {
+                    recs = searchData.filter((item: any) => (item.videoId || item.id) !== videoId);
+                }
+            } catch {
+                // Ignore fallback search failure
+            }
+        }
+
         const results = recs.map((item: any) => {
             const vid = item.videoId;
             const title = item.title || 'Unknown Title';

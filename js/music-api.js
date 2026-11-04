@@ -265,10 +265,30 @@ export class MusicAPI {
 
     async searchArtists(query, options = {}) {
         try {
-            const ytResults = await ytEngine.search(query);
-            if (ytResults && ytResults.length > 0) {
-                const artistMap = new Map();
-                for (const t of ytResults) {
+            const [channels, ytResults] = await Promise.allSettled([
+                ytEngine.searchChannels(query),
+                ytEngine.search(query),
+            ]);
+
+            const artistMap = new Map();
+
+            if (channels.status === 'fulfilled' && Array.isArray(channels.value)) {
+                for (const c of channels.value) {
+                    if (c && c.id && !artistMap.has(c.id)) {
+                        artistMap.set(c.id, {
+                            id: c.id,
+                            name: c.name,
+                            picture: c.picture || 'images/echos_logo.svg',
+                            avatar: c.picture || 'images/echos_logo.svg',
+                            provider: 'youtube',
+                            _href: `/artist/${c.id}`,
+                        });
+                    }
+                }
+            }
+
+            if (ytResults.status === 'fulfilled' && Array.isArray(ytResults.value)) {
+                for (const t of ytResults.value) {
                     if (t.artist && !artistMap.has(t.artist.id)) {
                         artistMap.set(t.artist.id, {
                             id: t.artist.id,
@@ -280,6 +300,9 @@ export class MusicAPI {
                         });
                     }
                 }
+            }
+
+            if (artistMap.size > 0) {
                 const items = Array.from(artistMap.values());
                 return { items, limit: items.length, offset: 0, totalNumberOfItems: items.length };
             }
@@ -487,19 +510,31 @@ export class MusicAPI {
     }
 
     async getAlbum(id, provider = null) {
-        if (this.isYouTubeId(id) || String(id).startsWith('yt_alb_') || String(id).startsWith('yt:playlist:')) {
+        if (this.isYouTubeId(id) || String(id).startsWith('yt_alb_') || String(id).startsWith('yt:playlist:') || provider === 'youtube') {
             const playlist = await ytEngine.getPlaylist(id);
             if (playlist) {
                 if (playlist.tracks) this.cacheTracks(playlist.tracks);
-                return {
-                    id: playlist.id,
+                const albumObj = {
+                    id: playlist.id || id,
                     title: playlist.title,
                     cover: playlist.cover || playlist.thumbnail,
-                    artist: { name: playlist.author || 'YouTube Music' },
-                    artists: [{ name: playlist.author || 'YouTube Music' }],
+                    artist: {
+                        name: playlist.author || 'YouTube Music',
+                        id: `yt_art_${(playlist.author || '').toLowerCase().replace(/[^a-z0-9]/g, '')}`,
+                    },
+                    artists: [
+                        {
+                            name: playlist.author || 'YouTube Music',
+                            id: `yt_art_${(playlist.author || '').toLowerCase().replace(/[^a-z0-9]/g, '')}`,
+                        },
+                    ],
                     numberOfTracks: playlist.trackCount || playlist.tracks?.length || 0,
-                    tracks: playlist.tracks || [],
+                    releaseDate: playlist.releaseDate || null,
                     provider: 'youtube',
+                };
+                return {
+                    album: albumObj,
+                    tracks: playlist.tracks || [],
                 };
             }
         }
@@ -537,12 +572,55 @@ export class MusicAPI {
             this.appleEntityRequests.set(requestKey, request);
             return request;
         }
-        const api = this.getAPI();
-        const cleanId = this.stripProviderPrefix(id);
-        return api.getAlbum(cleanId);
+        try {
+            const api = this.getAPI();
+            const cleanId = this.stripProviderPrefix(id);
+            return await api.getAlbum(cleanId);
+        } catch (error) {
+            // Fall back to YouTube playlist/album if primary provider fails
+            const playlist = await ytEngine.getPlaylist(id);
+            if (playlist) {
+                if (playlist.tracks) this.cacheTracks(playlist.tracks);
+                const albumObj = {
+                    id: playlist.id || id,
+                    title: playlist.title,
+                    cover: playlist.cover || playlist.thumbnail,
+                    artist: {
+                        name: playlist.author || 'YouTube Music',
+                        id: `yt_art_${(playlist.author || '').toLowerCase().replace(/[^a-z0-9]/g, '')}`,
+                    },
+                    artists: [
+                        {
+                            name: playlist.author || 'YouTube Music',
+                            id: `yt_art_${(playlist.author || '').toLowerCase().replace(/[^a-z0-9]/g, '')}`,
+                        },
+                    ],
+                    numberOfTracks: playlist.trackCount || playlist.tracks?.length || 0,
+                    releaseDate: playlist.releaseDate || null,
+                    provider: 'youtube',
+                };
+                return {
+                    album: albumObj,
+                    tracks: playlist.tracks || [],
+                };
+            }
+            throw error;
+        }
     }
 
     async getArtist(id, provider = null) {
+        if (
+            provider === 'youtube' ||
+            String(id).startsWith('yt_art_') ||
+            String(id).startsWith('yt:') ||
+            this.isYouTubeId(id)
+        ) {
+            const ytArtist = await ytEngine.getArtist(id);
+            if (ytArtist) {
+                if (ytArtist.tracks) this.cacheTracks(ytArtist.tracks);
+                return ytArtist;
+            }
+        }
         if (this.isTracksId(id, 'artist', provider) || this.tracksArtistIds.has(String(id))) {
             const tracksId = this.getTracksId(id, 'artist');
             const cached = this.tracksArtistCache.get(String(tracksId));
@@ -585,12 +663,26 @@ export class MusicAPI {
             this.appleEntityRequests.set(requestKey, request);
             return request;
         }
-        const api = this.getAPI();
-        const cleanId = this.stripProviderPrefix(id);
-        return api.getArtist(cleanId);
+        try {
+            const api = this.getAPI();
+            const cleanId = this.stripProviderPrefix(id);
+            return await api.getArtist(cleanId);
+        } catch (error) {
+            // Resilient fallback to YouTube artist
+            const ytArtist = await ytEngine.getArtist(id);
+            if (ytArtist) {
+                if (ytArtist.tracks) this.cacheTracks(ytArtist.tracks);
+                return ytArtist;
+            }
+            throw error;
+        }
     }
 
     async getArtistBiography(id) {
+        if (String(id).startsWith('yt_art_') || this.isYouTubeId(id)) {
+            const ytArtist = await ytEngine.getArtist(id);
+            return ytArtist?.biography || null;
+        }
         if (this.isTracksId(id, 'artist') || this.tracksArtistIds.has(String(id))) {
             const artist = this.tracksArtistCache.get(String(this.getTracksId(id, 'artist')));
             return artist?.biography || null;
@@ -1075,12 +1167,46 @@ export class MusicAPI {
             if (cached) return cached.similar || [];
             return (await this.appleMusicSearchAPI.artistView(appleId, 'similar-artists')).map(normalizeAppleArtist);
         }
-        const api = this.getAPI();
-        const cleanId = this.stripProviderPrefix(artistId);
-        return api.getSimilarArtists(cleanId);
+        if (String(artistId).startsWith('yt_art_') || this.isYouTubeId(artistId)) {
+            try {
+                const query = String(artistId).replace(/^yt_art_/, '').replace(/^yt:/, '');
+                const channels = await ytEngine.searchChannels(query);
+                if (channels && channels.length > 0) {
+                    return channels.map((c) => ({
+                        id: c.id,
+                        name: c.name,
+                        picture: c.picture || 'images/echos_logo.svg',
+                        provider: 'youtube',
+                        _href: `/artist/${c.id}`,
+                    }));
+                }
+            } catch {
+                return [];
+            }
+            return [];
+        }
+        try {
+            const api = this.getAPI();
+            const cleanId = this.stripProviderPrefix(artistId);
+            return await api.getSimilarArtists(cleanId);
+        } catch {
+            return [];
+        }
     }
 
     async getArtistTopTracks(artistId, options = {}) {
+        if (String(artistId).startsWith('yt_art_') || this.isYouTubeId(artistId)) {
+            const artist = await this.getArtist(artistId, 'youtube');
+            const offset = options.offset || 0;
+            const limit = options.limit || 15;
+            const tracks = artist?.tracks || [];
+            return {
+                tracks: tracks.slice(offset, offset + limit),
+                offset,
+                limit,
+                hasMore: offset + limit < tracks.length,
+            };
+        }
         if (this.isTracksId(artistId, 'artist') || this.tracksArtistIds.has(String(artistId))) {
             const artist = await this.getArtist(this.getTracksId(artistId, 'artist'), 'tracks');
             const offset = options.offset || 0;
@@ -1108,16 +1234,24 @@ export class MusicAPI {
     }
 
     async getSimilarAlbums(albumId) {
+        if (String(albumId).startsWith('yt_alb_') || this.isYouTubeId(albumId)) {
+            return [];
+        }
         if (this.isAppleId(albumId, 'album') || this.appleAlbumIds.has(String(albumId))) {
             return this.appleMusicSearchAPI.relatedAlbums(this.getAppleId(albumId, 'album'));
         }
-        const api = this.getAPI();
-        const cleanId = this.stripProviderPrefix(albumId);
-        return api.getSimilarAlbums(cleanId);
+        try {
+            const api = this.getAPI();
+            const cleanId = this.stripProviderPrefix(albumId);
+            return await api.getSimilarAlbums(cleanId);
+        } catch {
+            return [];
+        }
     }
 
     async getRecommendedTracksForPlaylist(tracks, limit = 20, options = {}) {
-        const ytSeeds = tracks.filter((track) => track?.provider === 'youtube' || this.isYouTubeId(track?.id));
+        const safeTracks = Array.isArray(tracks) ? tracks : [];
+        const ytSeeds = safeTracks.filter((track) => track?.provider === 'youtube' || this.isYouTubeId(track?.id));
         if (ytSeeds.length > 0) {
             try {
                 const radio = await ytEngine.getRadio(ytSeeds[0].id);
@@ -1131,28 +1265,34 @@ export class MusicAPI {
             }
         }
 
-        const appleSeeds = tracks.filter(
+        const appleSeeds = safeTracks.filter(
             (track) => track?.provider === 'apple' || this.isAppleId(track?.id) || this.getCachedAppleTrack(track?.id)
         );
-        const tidalSeeds = tracks.filter((track) => !appleSeeds.includes(track) && !ytSeeds.includes(track));
+        const tidalSeeds = safeTracks.filter((track) => !appleSeeds.includes(track) && !ytSeeds.includes(track));
         const canFallbackToTidal = tidalSeeds.length > 0;
-        const [appleTracks, tidalTracks] = await Promise.all([
-            appleSeeds.length
-                ? this.appleMusicSearchAPI
-                      .recommendedTracks(appleSeeds, limit, {
-                          skipCache: options.skipCache || options.refresh,
-                          retryOnRateLimit: !canFallbackToTidal,
-                      })
-                      .catch((error) => {
-                          if (error.status === 429 && canFallbackToTidal) return [];
-                          throw error;
-                      })
-                : [],
-            tidalSeeds.length ? this.tidalAPI.getRecommendedTracksForPlaylist(tidalSeeds, limit, options) : [],
-        ]);
+        let appleTracks = [];
+        let tidalTracks = [];
+
+        try {
+            const [aRes, tRes] = await Promise.allSettled([
+                appleSeeds.length
+                    ? this.appleMusicSearchAPI
+                          .recommendedTracks(appleSeeds, limit, {
+                              skipCache: options.skipCache || options.refresh,
+                              retryOnRateLimit: !canFallbackToTidal,
+                          })
+                    : Promise.resolve([]),
+                tidalSeeds.length ? this.tidalAPI.getRecommendedTracksForPlaylist(tidalSeeds, limit, options) : Promise.resolve([]),
+            ]);
+            if (aRes.status === 'fulfilled' && Array.isArray(aRes.value)) appleTracks = aRes.value;
+            if (tRes.status === 'fulfilled' && Array.isArray(tRes.value)) tidalTracks = tRes.value;
+        } catch {
+            // Handled below with fallback
+        }
+
         this.cacheAppleTracks(appleTracks);
         const excluded = new Set([
-            ...tracks.map((track) => String(track.id)),
+            ...safeTracks.map((track) => String(track.id)),
             ...Array.from(options.knownTrackIds || [], (id) => String(id)),
         ]);
         const combined = [];
@@ -1161,7 +1301,7 @@ export class MusicAPI {
             if (tidalTracks[index]) combined.push(tidalTracks[index]);
         }
         const seen = new Set();
-        const filtered = combined
+        let filtered = combined
             .filter((track) => {
                 const id = String(track?.id || '');
                 if (!id || excluded.has(id) || seen.has(id)) return false;
@@ -1170,11 +1310,15 @@ export class MusicAPI {
             })
             .slice(0, limit);
 
-        if (filtered.length === 0 && tracks.length > 0) {
+        // Resilient fallback for empty tracks or failed seed lookups
+        if (filtered.length === 0) {
             try {
-                const radio = await ytEngine.getRadio(tracks[0].id || tracks[0]);
-                if (radio && radio.length > 0) {
-                    const formatted = radio.map((t) => this._formatYtTrack(t));
+                const query = safeTracks.length > 0 && safeTracks[0].artist?.name
+                    ? `${safeTracks[0].artist.name} hits`
+                    : 'top hits music';
+                const trending = await ytEngine.search(query);
+                if (trending && trending.length > 0) {
+                    const formatted = trending.map((t) => this._formatYtTrack(t));
                     this.cacheTracks(formatted);
                     return formatted.slice(0, limit);
                 }

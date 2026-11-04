@@ -47,6 +47,31 @@ export class YouTubeMusicEngine {
         return data;
     }
 
+    async getArtist(idOrName) {
+        if (!idOrName) return null;
+        const clean = String(idOrName).replace(/^yt_art_/, '').replace(/^yt:/, '').trim();
+        try {
+            const res = await fetch(`/api/yt/artist?id=${encodeURIComponent(clean)}`);
+            if (!res.ok) return null;
+            return await res.json();
+        } catch (err) {
+            console.error('[echos YT Artist Error]', err);
+            return null;
+        }
+    }
+
+    async searchChannels(query) {
+        if (!query) return [];
+        try {
+            const res = await fetch(`/api/yt/search?q=${encodeURIComponent(query)}&type=channel`);
+            if (!res.ok) return [];
+            const data = await res.json();
+            return data.results || [];
+        } catch {
+            return [];
+        }
+    }
+
     async getRadio(trackOrId) {
         const id = typeof trackOrId === 'string' ? trackOrId : trackOrId?.id || trackOrId?.videoId;
         if (!id) return [];

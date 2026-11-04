@@ -133,19 +133,35 @@ function setupImageUploadControl(idPrefix) {
 const resetAvatarControl = setupImageUploadControl('edit-profile-avatar');
 const resetBannerControl = setupImageUploadControl('edit-profile-banner');
 
+function createProfileSkeletonCards(count = 4) {
+    return Array.from({ length: count })
+        .map(
+            () => `
+            <div class="skeleton-card">
+                <div class="skeleton skeleton-card-image"></div>
+                <div class="skeleton skeleton-card-title"></div>
+                <div class="skeleton skeleton-card-subtitle"></div>
+            </div>
+        `
+        )
+        .join('');
+}
+
 export async function loadProfile(username) {
     document.querySelectorAll('.page').forEach((p) => p.classList.remove('active'));
     profilePage.classList.add('active');
 
     document.getElementById('profile-banner').style.backgroundImage = '';
-    document.getElementById('profile-avatar').src = '/images/default-avatar.svg';
-    document.getElementById('profile-display-name').textContent = 'Loading...';
+    document.getElementById('profile-avatar').src = 'images/echos_logo.svg';
+    document.getElementById('profile-display-name').innerHTML =
+        '<div class="skeleton" style="height: 28px; width: 180px; display: inline-block;"></div>';
     document.getElementById('profile-username').textContent = '@' + username;
     document.getElementById('profile-status').style.display = 'none';
-    document.getElementById('profile-about').textContent = '';
+    document.getElementById('profile-about').innerHTML =
+        '<div class="skeleton" style="height: 16px; width: 250px; margin-top: 8px;"></div>';
     document.getElementById('profile-website').style.display = 'none';
     document.getElementById('profile-lastfm').style.display = 'none';
-    document.getElementById('profile-playlists-container').innerHTML = '';
+    document.getElementById('profile-playlists-container').innerHTML = createProfileSkeletonCards(4);
 
     const favAlbumsSection = document.getElementById('profile-favorite-albums-section');
     const favAlbumsContainer = document.getElementById('profile-favorite-albums-container');

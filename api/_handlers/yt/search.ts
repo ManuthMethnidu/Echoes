@@ -18,6 +18,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
 
         const results = data.map((item: any) => {
+            // Handle channel results
+            if (item.type === 'channel' || queryType === 'channel') {
+                const authorId = item.authorId || item.id || '';
+                const author = item.author || 'Unknown Artist';
+                let picture = 'images/echos_logo.svg';
+                if (Array.isArray(item.authorThumbnails) && item.authorThumbnails.length > 0) {
+                    const sorted = [...item.authorThumbnails].sort((a, b) => (b.width || 0) - (a.width || 0));
+                    picture = sorted[0].url;
+                }
+                const targetArtistId = `yt_art_${authorId || author.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
+                return {
+                    id: targetArtistId,
+                    name: author,
+                    picture,
+                    avatar: picture,
+                    subCount: item.subCount || 0,
+                    provider: 'youtube',
+                    _href: `/artist/${targetArtistId}`,
+                };
+            }
+
             const videoId = item.videoId || item.id;
             const title = item.title || 'Unknown Title';
             const author = item.author || 'Unknown Artist';

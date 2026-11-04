@@ -111,9 +111,74 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     try {
-        const { data } = await fetchWithFailover(
+        let data: any = null;
+
+        // If playlistId looks like a single video ID (11 chars), fetch video info directly
+        if (/^[a-zA-Z0-9_-]{11}$/.test(playlistId)) {
+            try {
+                const { data: vData } = await fetchWithFailover(
+                    (base) => `${base}/api/v1/videos/${playlistId}`
+                );
+                if (vData) {
+                    const vid = vData.videoId || playlistId;
+                    const title = vData.title || 'Unknown Title';
+                    const author = vData.author || 'Unknown Artist';
+                    const duration = Number(vData.lengthSeconds) || 0;
+                    const thumb = `https://i.ytimg.com/vi/${vid}/hqdefault.jpg`;
+                    const singleTrack = {
+                        id: `yt:${vid}`,
+                        videoId: vid,
+                        title,
+                        duration,
+                        trackNumber: 1,
+                        volumeNumber: 1,
+                        artist: {
+                            id: `yt_art_${(vData.authorId || author).toLowerCase().replace(/[^a-z0-9]/g, '')}`,
+                            name: author,
+                            picture: thumb,
+                        },
+                        artists: [
+                            {
+                                id: `yt_art_${(vData.authorId || author).toLowerCase().replace(/[^a-z0-9]/g, '')}`,
+                                name: author,
+                            },
+                        ],
+                        album: {
+                            id: `yt_alb_${vid}`,
+                            title,
+                            cover: thumb,
+                            artist: { name: author },
+                        },
+                        cover: thumb,
+                        audioQuality: 'LOSSLESS',
+                        audioModes: ['STEREO'],
+                        allowStreaming: true,
+                        streamReady: true,
+                        isUnavailable: false,
+                        provider: 'youtube',
+                    };
+
+                    return res.status(200).json({
+                        id: `yt_alb_${vid}`,
+                        title,
+                        description: vData.description || '',
+                        author,
+                        thumbnail: thumb,
+                        cover: thumb,
+                        trackCount: 1,
+                        tracks: [singleTrack],
+                        provider: 'youtube',
+                    });
+                }
+            } catch {
+                // Continue to playlist lookup
+            }
+        }
+
+        const { data: pData } = await fetchWithFailover(
             (base) => `${base}/api/v1/playlists/${playlistId}`
         );
+        data = pData;
 
         const videos = data.videos || [];
         const tracks = videos.map((v: any, index: number) => {

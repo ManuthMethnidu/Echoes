@@ -1561,7 +1561,14 @@ export class UIRenderer {
         if (cdRing) cdRing.style.display = 'none';
 
         // Start beat pulse animation for 1:1 rectangle artwork
-        beatPulseManager.start(coverCard, overlay, this.player?.audio);
+        const pulseAudio = activeElement || this.player?.activeElement || this.player?.audio;
+        if (pulseAudio) {
+            if (!audioContextManager.isReady()) {
+                audioContextManager.init(pulseAudio);
+            }
+            void audioContextManager.resume();
+        }
+        beatPulseManager.start(coverCard, overlay, pulseAudio);
 
         const needsVideoCover = track.type !== 'video' && !track.videoCoverResult;
         const videoCoverRequest = needsVideoCover
@@ -5564,7 +5571,44 @@ export class UIRenderer {
                 `By <a href="/artist/${album.artist.id}">${album.artist.name}</a>` +
                 (firstCopyright ? ` • ${firstCopyright}` : '');
 
-            fetchAOTY(`/album?artist=${encodeURIComponent(album.artist.name)}&name=${encodeURIComponent(album.title)}`)
+            const rawTitle = album.title || '';
+            const rawArtist = album.artist?.name || '';
+            const cleanTitle =
+                rawTitle
+                    .replace(
+                        /\s*[\(\[](deluxe|remaster(ed)?|anniversary|expanded|special|edition|explicit|version|bonus|re-issue|reissue|mono|stereo).*?[\)\]]/gi,
+                        ''
+                    )
+                    .replace(/\s*[\(\[](feat|featuring)\.?\s+.*?[\)\]]/gi, '')
+                    .trim() || rawTitle;
+            const cleanArtist =
+                rawArtist.replace(/\s*[\(\[](feat|featuring)\.?\s+.*?[\)\]]/gi, '').trim() ||
+                rawArtist;
+
+            const fetchAOTYData = async () => {
+                // Try lightweight summary endpoint first (https://aoty.edideaur.works/#GET/album/summary)
+                try {
+                    return await fetchAOTY(
+                        `/album/summary?artist=${encodeURIComponent(cleanArtist)}&name=${encodeURIComponent(cleanTitle)}&minimal=true`
+                    );
+                } catch {
+                    // Fall back to full album endpoint
+                    try {
+                        return await fetchAOTY(
+                            `/album?artist=${encodeURIComponent(cleanArtist)}&name=${encodeURIComponent(cleanTitle)}&minimal=true`
+                        );
+                    } catch {
+                        if (cleanTitle !== rawTitle || cleanArtist !== rawArtist) {
+                            return await fetchAOTY(
+                                `/album?artist=${encodeURIComponent(rawArtist)}&name=${encodeURIComponent(rawTitle)}`
+                            );
+                        }
+                        throw new Error('AOTY album not found');
+                    }
+                }
+            };
+
+            fetchAOTYData()
                 .then((data) => {
                     const aotyUrl = data.url
                         ? data.url.startsWith('http')
@@ -5573,7 +5617,10 @@ export class UIRenderer {
                         : null;
 
                     // Must Hear badge (from cached index built by the AOTY tab)
-                    if (checkAOTYMustHear(album.artist.name, album.title)) {
+                    if (
+                        checkAOTYMustHear(album.artist.name, album.title) ||
+                        checkAOTYMustHear(cleanArtist, cleanTitle)
+                    ) {
                         const badge = document.createElement('span');
                         badge.textContent = 'MUST HEAR';
                         badge.style.cssText =
@@ -5585,7 +5632,9 @@ export class UIRenderer {
                             setTimeout(() => {
                                 document.querySelector('.home-tab[data-tab="aoty"]')?.click();
                                 setTimeout(() => {
-                                    document.querySelector('.aoty-subnav-btn[data-aoty-tab="musthear"]')?.click();
+                                    document
+                                        .querySelector('.aoty-subnav-btn[data-aoty-tab="musthear"]')
+                                        ?.click();
                                 }, 80);
                             }, 80);
                         });
@@ -5610,7 +5659,10 @@ export class UIRenderer {
                     const critCount = aotyCount(data.criticCount);
                     const reviews = data.reviews || [];
                     if (critScore == null) {
-                        rateCriticsEl.innerHTML = `<span style="color:var(--muted-foreground);">Critic Score: NR</span>`;
+                        const searchUrl =
+                            aotyUrl ||
+                            `https://www.albumoftheyear.org/search/albums/?q=${encodeURIComponent(`${cleanArtist} ${cleanTitle}`.trim())}`;
+                        rateCriticsEl.innerHTML = `<a href="${searchUrl}" target="_blank" rel="noopener" style="color:var(--muted-foreground);text-decoration:none;" title="Search Critic Score on Album of the Year">Critic Score: <span style="text-decoration:underline;">NR</span></a>`;
                     } else {
                         rateCriticsEl.innerHTML = `<a href="javascript:void(0)" style="color:var(--muted-foreground);cursor:pointer;">Critic Score: ${critScore}${critCount != null ? ` · <span style="text-decoration:underline;">${critCount} reviews</span>` : ''}</a>`;
                         rateCriticsEl.querySelector('a').onclick = () => {
@@ -5624,7 +5676,9 @@ export class UIRenderer {
                                 const reviewdiv = document.createElement('div');
                                 reviewdiv.style.cssText =
                                     'display:flex;gap:1rem;padding-bottom:1rem;border-bottom:1px solid var(--border);';
-                                const publication = decodeHtml(review.publication || 'Unknown Publication');
+                                const publication = decodeHtml(
+                                    review.publication || 'Unknown Publication'
+                                );
                                 const author = decodeHtml(review.author || '');
                                 const quote = decodeHtml(review.text || 'No review text available.');
                                 reviewdiv.innerHTML = `
@@ -5639,7 +5693,9 @@ export class UIRenderer {
                                     <div class="quote-text" style="font-size:0.95rem;line-height:1.5;color:var(--muted-foreground);font-style:italic;"></div>
                                 </div>`;
                                 reviewdiv.querySelector('.pub-name').textContent = publication;
-                                if (author) reviewdiv.querySelector('.author-name').textContent = `By ${author}`;
+                                if (author)
+                                    reviewdiv.querySelector('.author-name').textContent =
+                                        `By ${author}`;
                                 else reviewdiv.querySelector('.author-name').remove();
                                 reviewdiv.querySelector('.quote-text').textContent = `"${quote}"`;
                                 con.appendChild(reviewdiv);
@@ -5656,15 +5712,22 @@ export class UIRenderer {
                     const userScore = aotyScore(data.userScore);
                     const userCount = aotyCount(data.userCount);
                     if (userScore == null) {
-                        rateUsersEl.innerHTML = `<span style="color:var(--muted-foreground);">User Score: NR</span>`;
+                        const searchUrl =
+                            aotyUrl ||
+                            `https://www.albumoftheyear.org/search/albums/?q=${encodeURIComponent(`${cleanArtist} ${cleanTitle}`.trim())}`;
+                        rateUsersEl.innerHTML = `<a href="${searchUrl}" target="_blank" rel="noopener" style="color:var(--muted-foreground);text-decoration:none;" title="Search User Score on Album of the Year">User Score: <span style="text-decoration:underline;">NR</span></a>`;
                     } else {
-                        const userLink = aotyUrl ? `href="${aotyUrl}" target="_blank" rel="noopener"` : '';
+                        const userLink = aotyUrl
+                            ? `href="${aotyUrl}" target="_blank" rel="noopener"`
+                            : '';
                         rateUsersEl.innerHTML = `<a ${userLink} style="color:var(--muted-foreground);">User Score: <span style="text-decoration:underline;">${userScore}</span>${userCount != null ? ` · ${userCount} ratings` : ''}</a>`;
                     }
                 })
                 .catch(() => {
-                    rateCriticsEl.innerHTML = `<span style="color:var(--muted-foreground);">Unable to fetch critic score</span>`;
-                    rateUsersEl.innerHTML = `<span style="color:var(--muted-foreground);">Unable to fetch user score</span>`;
+                    const searchQ = encodeURIComponent(`${cleanArtist} ${cleanTitle}`.trim());
+                    const searchUrl = `https://www.albumoftheyear.org/search/albums/?q=${searchQ}`;
+                    rateCriticsEl.innerHTML = `<a href="${searchUrl}" target="_blank" rel="noopener" style="color:var(--muted-foreground);text-decoration:none;" title="Search Critic Score on Album of the Year">Critic Score: <span style="text-decoration:underline;">NR</span></a>`;
+                    rateUsersEl.innerHTML = `<a href="${searchUrl}" target="_blank" rel="noopener" style="color:var(--muted-foreground);text-decoration:none;" title="Search User Score on Album of the Year">User Score: <span style="text-decoration:underline;">NR</span></a>`;
                 });
 
             tracklistContainer.innerHTML = `

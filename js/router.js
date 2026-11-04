@@ -136,6 +136,9 @@ export function createRouter(ui) {
             case 'reset-password':
                 await ui.renderResetPasswordPage();
                 break;
+            case 'about':
+                ui.showPage('about');
+                break;
             case 'tos':
                 ui.showPage('tos');
                 break;
@@ -170,6 +173,10 @@ export function updateTabTitle(player) {
     } else {
         const path = window.location.pathname;
         if (path.startsWith('/album/') || path.startsWith('/playlist/') || path.startsWith('/track/')) {
+            return;
+        }
+        if (path === '/about') {
+            document.title = 'About • Echoes';
             return;
         }
         if (path === '/tos') {

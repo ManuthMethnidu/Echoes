@@ -168,6 +168,16 @@ class CommandPalette {
                 },
             },
             {
+                id: 'nav-about',
+                group: 'Navigation',
+                icon: 'info',
+                label: 'About Echoes',
+                keywords: ['about', 'info', 'github', 'credits', 'license', 'opensource'],
+                action: () => {
+                    navigate('/about');
+                },
+            },
+            {
                 id: 'nav-tos',
                 group: 'Navigation',
                 icon: 'file-text',

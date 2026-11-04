@@ -20,6 +20,7 @@ const primaryItems: NavigationItem[] = [
 ];
 
 const secondaryItems: NavigationItem[] = [
+    { id: 'sidebar-nav-about', href: '/about', label: 'About', icon: icons.info },
     { id: 'sidebar-nav-tos', href: '/tos', label: 'Terms of Service', icon: icons.fileText },
     { id: 'sidebar-nav-policy', href: '/policy', label: 'Privacy Policy', icon: icons.shieldCheck },
     { id: 'sidebar-nav-contact', href: '/contact', label: 'Contact', icon: icons.mail },

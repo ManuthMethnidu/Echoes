@@ -1820,6 +1820,12 @@
                         <div class="sidebar-nav-bottom">
                             <nav class="sidebar-nav bottom">
                                 <ul>
+                                    <li class="nav-item" id="sidebar-nav-about">
+                                        <a href="/about">
+                                            <use svg="!lucide/info.svg" size="24" />
+                                            <span>About</span>
+                                        </a>
+                                    </li>
                                     <li class="nav-item" id="sidebar-nav-tos">
                                         <a href="/tos">
                                             <use svg="!lucide/file-text.svg" size="24" />
@@ -6257,6 +6263,103 @@
                             </p>
                             <p>
                                 <strong>Email:</strong> <a href="mailto:contact.Echoes@proton.me" style="color: inherit; text-decoration: underline;">contact.Echoes@proton.me</a>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="page-about" class="page">
+                    <div class="legal-page-container">
+                        <header class="legal-page-header">
+                            <div style="display: flex; justify-content: center; align-items: center; margin-bottom: 1.25rem;">
+                                <img src="/images/echos_logo.svg" alt="Echoes Logo" width="64" height="64" style="filter: drop-shadow(0 4px 12px rgba(0,0,0,0.3));" />
+                            </div>
+                            <h2>About Echoes</h2>
+                            <p>Clean, ad-free music streaming client, Web Audio DSP engine, and progressive web app.</p>
+                            <div class="about-links" style="margin-top: 1.25rem;">
+                                <a href="https://github.com/ManuthMethnidu/echos" target="_blank" rel="noopener noreferrer" class="github-link">
+                                    <use svg="!lucide/github.svg" size="20" />
+                                    <span>GitHub Repository</span>
+                                </a>
+                                <a href="https://github.com/ManuthMethnidu/echos/blob/main/LICENSE" target="_blank" rel="noopener noreferrer" class="github-link">
+                                    <use svg="!lucide/scale.svg" size="20" />
+                                    <span>Apache-2.0 License</span>
+                                </a>
+                                <a href="https://github.com/ManuthMethnidu/echos/issues" target="_blank" rel="noopener noreferrer" class="github-link">
+                                    <use svg="!lucide/bug.svg" size="20" />
+                                    <span>Report an Issue</span>
+                                </a>
+                            </div>
+                        </header>
+
+                        <div class="legal-section">
+                            <h2>1. What is Echoes?</h2>
+                            <p>
+                                <strong>Echoes</strong> is an ad-free, privacy-focused modern web music player designed for uncompromising fidelity and aesthetic simplicity. It blends a distraction-free user interface with audiophile-grade digital signal processing (DSP), synchronised multi-provider lyrics, real-time cross-device session synchronization, and collaborative listening parties.
+                            </p>
+                            <p>
+                                Key capabilities include:
+                            </p>
+                            <ul>
+                                <li><strong>High-Fidelity Web Audio DSP:</strong> Parametric and Graphic equalizers (up to 32 bands), AutoEQ headphone correction profiles, spatial stereo widening, crossfeed, and mono downmix.</li>
+                                <li><strong>Interactive Visualizers:</strong> Fullscreen beat-pulse reactive artwork, hardware-accelerated Milkdrop/Butterchurn shaders, and audio spectrum analysers.</li>
+                                <li><strong>Synchronized Social Listening:</strong> Real-time listening parties with room host controls, live chat, and seamless cross-device synchronization.</li>
+                                <li><strong>Cross-Platform PWA:</strong> Fully installable on desktop (Windows, macOS, Linux) and mobile (iOS, Android) with offline audio caching support.</li>
+                            </ul>
+                        </div>
+
+                        <div class="legal-section">
+                            <h2>2. Open Source &amp; Architecture Credits</h2>
+                            <p>
+                                Echoes stands on the shoulders of brilliant open-source projects and community-driven music initiatives:
+                            </p>
+                            <ul>
+                                <li>
+                                    <strong><a href="https://github.com/valerass/monochrome" target="_blank" rel="noopener noreferrer" style="color: inherit; text-decoration: underline;">Monochrome</a>:</strong> The foundational web player architecture, sleek aesthetic direction, audio context management, and Butterchurn visualizer framework.
+                                </li>
+                                <li>
+                                    <strong><a href="https://github.com/raza-reza/ArchiveTune" target="_blank" rel="noopener noreferrer" style="color: inherit; text-decoration: underline;">ArchiveTune</a>:</strong> YouTube Music scraping pipeline, robust search normalization, audio format selection, and streaming proxy architecture.
+                                </li>
+                                <li>
+                                    <strong><a href="https://invidious.io/" target="_blank" rel="noopener noreferrer" style="color: inherit; text-decoration: underline;">Invidious</a>:</strong> The decentralized, federated network of privacy-respecting YouTube API and audio stream instances powering resilient playback worldwide.
+                                </li>
+                                <li>
+                                    <strong><a href="https://www.albumoftheyear.org/" target="_blank" rel="noopener noreferrer" style="color: inherit; text-decoration: underline;">Album of the Year (AOTY)</a>:</strong> Critical consensus, user ratings, reviews, and album metadata integrated via <a href="https://aoty.edideaur.works/" target="_blank" rel="noopener noreferrer" style="color: inherit; text-decoration: underline;">aoty-api</a>.
+                                </li>
+                            </ul>
+                        </div>
+
+                        <div class="legal-section">
+                            <h2>3. How Does Echoes Run For Free?</h2>
+                            <p>
+                                Echoes is 100% free with no monthly subscription fees, paywalls, or third-party advertising tracking. We achieve zero ongoing operating costs through deliberate architectural decisions:
+                            </p>
+                            <ul>
+                                <li>
+                                    <strong>Client-Side Hardware Execution:</strong> 99% of computation—including audio decoding, equalizer filtering, spatial audio calculations, beat detection, and visual animations—runs directly inside your browser on your device using native Web Audio and WebGL hardware acceleration.
+                                </li>
+                                <li>
+                                    <strong>Serverless Edge Infrastructure:</strong> Instead of running expensive, always-on backend application servers, Echoes leverages lightweight edge serverless functions (Vercel Edge Network) within standard free-tier quotas.
+                                </li>
+                                <li>
+                                    <strong>Decentralized &amp; Federated Streaming:</strong> Audio media streams and thumbnails are retrieved directly from public Invidious instances and YouTube CDNs, eliminating multi-terabyte egress bandwidth bills.
+                                </li>
+                                <li>
+                                    <strong>Lightweight Real-time Data Sync:</strong> User library bookmarks, cloud sync, and listening party rooms are powered by efficient real-time free-tier databases (PocketBase / Supabase).
+                                </li>
+                                <li>
+                                    <strong>Non-Profit Passion:</strong> Echoes is maintained purely as an educational, non-profit community project for people who love clean music players.
+                                </li>
+                            </ul>
+                        </div>
+
+                        <div class="legal-section">
+                            <h2>4. Open Source License</h2>
+                            <p>
+                                Echoes is licensed under the <strong>Apache License, Version 2.0</strong>. You may inspect, modify, and distribute the software in compliance with the license terms.
+                            </p>
+                            <p>
+                                Source code is publicly available on GitHub at <a href="https://github.com/ManuthMethnidu/echos" target="_blank" rel="noopener noreferrer" style="color: inherit; text-decoration: underline;">github.com/ManuthMethnidu/echos</a>.
                             </p>
                         </div>
                     </div>

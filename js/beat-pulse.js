@@ -20,7 +20,23 @@ export class BeatPulseManager {
     start(cardElement, overlayElement, audioElement) {
         this.card = cardElement || document.getElementById('fullscreen-artwork-card');
         this.overlay = overlayElement || document.getElementById('fullscreen-cover-overlay');
-        this.audio = audioElement || document.querySelector('audio');
+        const effectiveAudio =
+            audioElement ||
+            window.player?.activeElement ||
+            this.audio ||
+            document.querySelector('audio');
+        this.audio = effectiveAudio;
+
+        if (effectiveAudio) {
+            if (!audioContextManager.isReady()) {
+                audioContextManager.init(effectiveAudio);
+            } else {
+                audioContextManager.changeSource(effectiveAudio);
+            }
+            if (audioContextManager.getAudioContext()?.state === 'suspended') {
+                void audioContextManager.resume();
+            }
+        }
 
         if (!this.card) return;
 
@@ -55,6 +71,14 @@ export class BeatPulseManager {
             return;
         }
 
+        const currentAudio = window.player?.activeElement || this.audio;
+        if (currentAudio && currentAudio !== this.audio) {
+            this.audio = currentAudio;
+            if (audioContextManager.isReady()) {
+                audioContextManager.changeSource(currentAudio);
+            }
+        }
+
         // Check if overlay is closed or paused
         if (
             !this.overlay ||
@@ -71,8 +95,21 @@ export class BeatPulseManager {
             return;
         }
 
-        const analyser = audioContextManager.getAnalyser();
-        const audioCtx = audioContextManager.getAudioContext();
+        let analyser = audioContextManager.getAnalyser();
+        let audioCtx = audioContextManager.getAudioContext();
+
+        if (
+            (!audioCtx || !analyser || audioCtx.state === 'suspended') &&
+            this.audio &&
+            !this.audio.paused
+        ) {
+            if (!audioContextManager.isReady()) {
+                audioContextManager.init(this.audio);
+            }
+            void audioContextManager.resume();
+            analyser = audioContextManager.getAnalyser();
+            audioCtx = audioContextManager.getAudioContext();
+        }
 
         if (analyser && audioCtx && audioCtx.state === 'running') {
             if (!this.dataArray || this.dataArray.length !== analyser.frequencyBinCount) {

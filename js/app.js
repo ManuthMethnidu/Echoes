@@ -32,6 +32,7 @@ import { connectManager } from './connect-manager.js';
 import { registerSW } from 'virtual:pwa-register';
 import { openEditProfile } from './profile.js';
 import { ThemeStore } from './themeStore.js';
+import { discordRPC } from './discord-rpc.js';
 import './commandPalette.js';
 import { initTracker } from './tracker.js';
 import { initAnalytics } from './analytics.js';
@@ -543,6 +544,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     initializeUIInteractions(Player.instance, MusicAPI.instance, UIRenderer.instance);
     initializeKeyboardShortcuts(Player.instance, audioPlayer);
     await connectManager.init();
+
+    try {
+        discordRPC.init(Player.instance);
+    } catch (err) {
+        console.warn('Failed to initialize Discord RPC:', err);
+    }
 
     // Restore UI state for the current track (like button, theme)
     if (Player.instance.currentTrack) {

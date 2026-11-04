@@ -2574,6 +2574,7 @@ export const sidebarSectionSettings = {
     SHOW_HOME_KEY: 'sidebar-show-home',
     SHOW_LIBRARY_KEY: 'sidebar-show-library',
     SHOW_RECENT_KEY: 'sidebar-show-recent',
+    SHOW_RECAP_KEY: 'sidebar-show-recap',
     SHOW_UNRELEASED_KEY: 'sidebar-show-unreleased',
     SHOW_DONATE_KEY: 'sidebar-show-donate',
     SHOW_SETTINGS_KEY: 'sidebar-show-settings',
@@ -2586,6 +2587,7 @@ export const sidebarSectionSettings = {
         'sidebar-nav-home',
         'sidebar-nav-library',
         'sidebar-nav-recent',
+        'sidebar-nav-recap',
         'sidebar-nav-unreleased',
         'sidebar-nav-settings',
         'sidebar-nav-about',
@@ -2637,6 +2639,19 @@ export const sidebarSectionSettings = {
 
     setShowRecent(enabled) {
         localStorage.setItem(this.SHOW_RECENT_KEY, enabled ? 'true' : 'false');
+    },
+
+    shouldShowRecap() {
+        try {
+            const val = localStorage.getItem(this.SHOW_RECAP_KEY);
+            return val === null ? true : val === 'true';
+        } catch {
+            return true;
+        }
+    },
+
+    setShowRecap(enabled) {
+        localStorage.setItem(this.SHOW_RECAP_KEY, enabled ? 'true' : 'false');
     },
 
     shouldShowUnreleased() {
@@ -2775,6 +2790,7 @@ export const sidebarSectionSettings = {
             { id: 'sidebar-nav-home', check: this.shouldShowHome() },
             { id: 'sidebar-nav-library', check: this.shouldShowLibrary() },
             { id: 'sidebar-nav-recent', check: this.shouldShowRecent() },
+            { id: 'sidebar-nav-recap', check: this.shouldShowRecap() },
             { id: 'sidebar-nav-donate', check: this.shouldShowDonate() },
             { id: 'sidebar-nav-settings', check: this.shouldShowSettings() },
             { id: 'sidebar-nav-about', check: this.shouldShowAbout() },

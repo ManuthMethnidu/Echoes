@@ -157,6 +157,16 @@ class CommandPalette {
                 },
             },
             {
+                id: 'nav-recap',
+                group: 'Navigation',
+                icon: 'sparkles',
+                label: 'Go to Recap',
+                keywords: ['recap', 'wrapped', 'archive', 'stats', 'top tracks', 'listening stats', 'story'],
+                action: () => {
+                    navigate('/recap');
+                },
+            },
+            {
                 id: 'nav-settings',
                 group: 'Navigation',
                 icon: 'settings',

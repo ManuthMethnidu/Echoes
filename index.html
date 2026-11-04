@@ -1801,6 +1801,12 @@
                                     <span>Recent</span>
                                 </a>
                             </li>
+                            <li class="nav-item" id="sidebar-nav-recap">
+                                <a href="/recap">
+                                    <use svg="!lucide/sparkles.svg" size="24" />
+                                    <span>Recap</span>
+                                </a>
+                            </li>
                             <li class="nav-item" id="sidebar-nav-settings">
                                 <a href="/settings">
                                     <use svg="!lucide/settings.svg" size="24" />
@@ -2513,6 +2519,8 @@
                     </div>
                     <div class="track-list" id="recent-tracks-container"></div>
                 </div>
+
+                <div id="page-recap" class="page"></div>
 
                 <div id="page-podcasts" class="page">
                     <header class="detail-header">
@@ -4249,6 +4257,64 @@
                                         class="template-input"
                                         style="width: 250px"
                                     />
+                                </div>
+                            </div>
+
+                            <div class="settings-group">
+                                <div class="setting-item">
+                                    <div class="info">
+                                        <span class="label">Discord Rich Presence (RPC)</span>
+                                        <span class="description" id="discord-rpc-status-desc">Show what you're listening to on Discord (via arRPC, Webhook, or Native IPC)</span>
+                                    </div>
+                                    <div style="display: flex; align-items: center; gap: 10px">
+                                        <span id="discord-rpc-status" class="badge" style="font-size: 0.75rem; padding: 2px 8px; border-radius: 9999px; background: rgba(255,255,255,0.08); color: var(--muted, #888); border: 1px solid var(--border-color, rgba(255,255,255,0.1));">Disconnected</span>
+                                        <label class="toggle-switch">
+                                            <input type="checkbox" id="discord-rpc-toggle" />
+                                            <span class="slider"></span>
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="setting-item" id="discord-rpc-type-setting">
+                                    <div class="info">
+                                        <span class="label">Connection Type</span>
+                                        <span class="description">Select the protocol or bridge used to connect to Discord</span>
+                                    </div>
+                                    <select id="discord-rpc-type" style="padding: 6px 12px; border-radius: 6px; border: 1px solid var(--border-color, rgba(255,255,255,0.1)); background: var(--input-bg, rgba(255,255,255,0.05)); color: var(--text-color, #fff);">
+                                        <option value="arrpc">arRPC Bridge (Local ws://127.0.0.1:1337 - Vencord / Vesktop)</option>
+                                        <option value="http">Local HTTP Bridge</option>
+                                        <option value="tauri">Tauri Native IPC</option>
+                                        <option value="webhook">Discord Webhook (Status)</option>
+                                    </select>
+                                </div>
+                                <div class="setting-item" id="discord-rpc-url-setting">
+                                    <div class="info">
+                                        <span class="label">Bridge / Webhook URL</span>
+                                        <span class="description" id="discord-rpc-url-desc">Custom WebSocket or Webhook URL (leave default for arRPC)</span>
+                                    </div>
+                                    <input
+                                        type="text"
+                                        id="discord-rpc-url"
+                                        placeholder="ws://127.0.0.1:1337"
+                                        class="template-input"
+                                        style="width: 250px"
+                                    />
+                                </div>
+                                <div class="setting-item" id="discord-rpc-buttons-setting">
+                                    <div class="info">
+                                        <span class="label">Show Action Buttons</span>
+                                        <span class="description">Include "Listen on Echoes" link button in Discord presence</span>
+                                    </div>
+                                    <label class="toggle-switch">
+                                        <input type="checkbox" id="discord-rpc-buttons-toggle" checked />
+                                        <span class="slider"></span>
+                                    </label>
+                                </div>
+                                <div class="setting-item" id="discord-rpc-test-setting">
+                                    <div class="info">
+                                        <span class="label">Test Connection</span>
+                                        <span class="description">Verify communication with your local Discord bridge</span>
+                                    </div>
+                                    <button id="discord-rpc-test-btn" class="btn-secondary" style="padding: 6px 16px;">Test Bridge</button>
                                 </div>
                             </div>
                         </div>

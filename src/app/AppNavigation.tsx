@@ -15,6 +15,7 @@ const primaryItems: NavigationItem[] = [
     { id: 'sidebar-nav-home', href: '/', label: 'Home', icon: icons.house },
     { id: 'sidebar-nav-library', href: '/library', label: 'Library', icon: icons.library },
     { id: 'sidebar-nav-recent', href: '/recent', label: 'Recent', icon: icons.recent },
+    { id: 'sidebar-nav-recap', href: '/recap', label: 'Recap', icon: icons.sparkles },
     { id: 'sidebar-nav-donate', href: '/donate', label: 'Donate', icon: icons.handHeart },
     { id: 'sidebar-nav-settings', href: '/settings', label: 'Settings', icon: icons.settings },
 ];

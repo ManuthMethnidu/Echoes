@@ -109,6 +109,9 @@ export function createRouter(ui) {
             case 'recent':
                 await ui.renderRecentPage();
                 break;
+            case 'recap':
+                await ui.renderRecapPage(param || 'all');
+                break;
             case 'unreleased':
                 if (param) {
                     const parts = param.split('/');

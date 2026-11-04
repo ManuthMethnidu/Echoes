@@ -60,6 +60,7 @@ import { syncManager } from './accounts/pocketbase.js';
 import { containerFormats, customFormats } from './ffmpegFormats.ts';
 import { BulkDownloadMethod, modernSettings } from './ModernSettings.js';
 import { canBrowserStreamAtmosQuality } from './platform-detection.js';
+import { discordRPC } from './discord-rpc.js';
 
 async function getButterchurnPresets(...args) {
     const butterchurnModule = await import('./visualizers/butterchurn.js');
@@ -771,6 +772,104 @@ export async function initializeSettings(scrobbler, player, api, ui) {
             });
         }
     }
+
+    // ========================================
+    // Discord Rich Presence Settings
+    // ========================================
+    const discordToggle = document.getElementById('discord-rpc-toggle');
+    const discordStatusBadge = document.getElementById('discord-rpc-status');
+    const discordTypeSelect = document.getElementById('discord-rpc-type');
+    const discordUrlInput = document.getElementById('discord-rpc-url');
+    const discordUrlDesc = document.getElementById('discord-rpc-url-desc');
+    const discordButtonsToggle = document.getElementById('discord-rpc-buttons-toggle');
+    const discordTestBtn = document.getElementById('discord-rpc-test-btn');
+
+    function updateDiscordRPCUI() {
+        if (!discordRPC) return;
+        if (discordToggle) discordToggle.checked = discordRPC.enabled;
+        if (discordTypeSelect) discordTypeSelect.value = discordRPC.type;
+        if (discordUrlInput) {
+            discordUrlInput.value = discordRPC.type === 'webhook' ? discordRPC.webhookUrl : discordRPC.url;
+            discordUrlInput.placeholder =
+                discordRPC.type === 'webhook' ? 'https://discord.com/api/webhooks/...' : 'ws://127.0.0.1:1337';
+        }
+        if (discordUrlDesc) {
+            discordUrlDesc.textContent =
+                discordRPC.type === 'webhook'
+                    ? 'Discord Webhook URL for channel status posts'
+                    : 'Custom WebSocket bridge URL (default: ws://127.0.0.1:1337)';
+        }
+        if (discordButtonsToggle) discordButtonsToggle.checked = discordRPC.showButtons;
+        if (discordStatusBadge) {
+            if (!discordRPC.enabled) {
+                discordStatusBadge.textContent = 'Disabled';
+                discordStatusBadge.style.color = 'var(--muted, #888)';
+                discordStatusBadge.style.background = 'rgba(255,255,255,0.05)';
+            } else if (discordRPC.isConnected) {
+                discordStatusBadge.textContent = 'Connected';
+                discordStatusBadge.style.color = '#4ade80';
+                discordStatusBadge.style.background = 'rgba(74, 222, 128, 0.15)';
+            } else {
+                discordStatusBadge.textContent = 'Disconnected';
+                discordStatusBadge.style.color = '#f87171';
+                discordStatusBadge.style.background = 'rgba(248, 113, 113, 0.15)';
+            }
+        }
+    }
+
+    if (discordToggle) {
+        discordToggle.addEventListener('change', (e) => {
+            discordRPC.setEnabled(e.target.checked);
+            updateDiscordRPCUI();
+        });
+    }
+
+    if (discordTypeSelect) {
+        discordTypeSelect.addEventListener('change', (e) => {
+            discordRPC.setType(e.target.value);
+            updateDiscordRPCUI();
+        });
+    }
+
+    if (discordUrlInput) {
+        discordUrlInput.addEventListener('change', (e) => {
+            const val = e.target.value.trim();
+            if (discordRPC.type === 'webhook') {
+                discordRPC.setWebhookUrl(val);
+            } else {
+                discordRPC.setUrl(val);
+            }
+        });
+    }
+
+    if (discordButtonsToggle) {
+        discordButtonsToggle.addEventListener('change', (e) => {
+            discordRPC.setShowButtons(e.target.checked);
+        });
+    }
+
+    if (discordTestBtn) {
+        discordTestBtn.addEventListener('click', async () => {
+            discordTestBtn.disabled = true;
+            discordTestBtn.textContent = 'Testing...';
+            try {
+                const res = await discordRPC.testConnection();
+                alert(res.message);
+            } catch (err) {
+                alert(`Test failed: ${err.message}`);
+            } finally {
+                discordTestBtn.disabled = false;
+                discordTestBtn.textContent = 'Test Bridge';
+                updateDiscordRPCUI();
+            }
+        });
+    }
+
+    window.addEventListener('discord-rpc:status', () => {
+        updateDiscordRPCUI();
+    });
+
+    updateDiscordRPCUI();
 
     // Theme picker
     const themePicker = document.getElementById('theme-picker');

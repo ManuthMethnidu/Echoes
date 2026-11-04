@@ -7380,6 +7380,19 @@ export class UIRenderer {
         }
     }
 
+    async renderRecapPage(timeframe = 'all') {
+        await this.showPage('recap');
+        const container = document.getElementById('page-recap');
+        if (!container) return;
+        try {
+            const { renderRecapPage } = await import('./recap.js');
+            await renderRecapPage(container, this, timeframe);
+        } catch (err) {
+            console.error('Failed to load recap module:', err);
+            container.innerHTML = `<div style="padding: 3rem; text-align: center; color: var(--muted, #888);">Failed to load Recap. Please try again.</div>`;
+        }
+    }
+
     async renderUnreleasedPage() {
         await this.showPage('unreleased');
         const container = document.getElementById('unreleased-content');

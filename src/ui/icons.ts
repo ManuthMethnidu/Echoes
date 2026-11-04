@@ -23,6 +23,7 @@ import rotateCw from '../../node_modules/lucide-static/icons/rotate-cw.svg?svg';
 import search from '../../node_modules/lucide-static/icons/search.svg?svg';
 import settings from '../../node_modules/lucide-static/icons/settings.svg?svg';
 import shuffle from '../../node_modules/lucide-static/icons/shuffle.svg?svg';
+import sparkles from '../../node_modules/lucide-static/icons/sparkles.svg?svg';
 import plus from '../../node_modules/lucide-static/icons/plus.svg?svg';
 import smartphone from '../../node_modules/lucide-static/icons/smartphone.svg?svg';
 import user from '../../node_modules/lucide-static/icons/user.svg?svg';
@@ -69,6 +70,7 @@ export const icons = {
     settings,
     shieldCheck,
     shuffle,
+    sparkles,
     smartphone,
     squares,
     user,

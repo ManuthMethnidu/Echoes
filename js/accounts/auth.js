@@ -41,6 +41,7 @@ export function resetSessionData() {
         localStorage.removeItem('party_guest_profile');
         localStorage.removeItem('party_member_guest');
         localStorage.removeItem('echos_yt_token');
+        localStorage.removeItem('search-history');
 
         // Clear user-specific party tokens and cached profiles
         const keysToRemove = [];
@@ -52,7 +53,8 @@ export function resetSessionData() {
                     key.startsWith('party_member_user_') ||
                     key.startsWith('party_host_token_') ||
                     key.startsWith('party_guest_member_') ||
-                    key.startsWith('echos_party_host_'))
+                    key.startsWith('echos_party_host_') ||
+                    key.startsWith('playlist-sort-'))
             ) {
                 keysToRemove.push(key);
             }
@@ -404,7 +406,17 @@ export class AuthManager {
             storeAuthToken(data.token);
             this.user = normalizeUser(data.user);
             this.updateUI(this.user);
-            this.authListeners.forEach((listener) => listener(this.user));
+            const authModal = document.getElementById('email-auth-modal');
+            if (authModal) {
+                authModal.classList.remove('active');
+            }
+            this.authListeners.forEach((listener) => {
+                try {
+                    listener(this.user);
+                } catch (e) {
+                    console.error('[Auth Listener Error]:', e);
+                }
+            });
             return this.user;
         } catch (error) {
             console.error('Email Login failed:', error);
@@ -441,7 +453,17 @@ export class AuthManager {
             storeAuthToken(data.token);
             this.user = normalizeUser(data.user);
             this.updateUI(this.user);
-            this.authListeners.forEach((listener) => listener(this.user));
+            const authModal = document.getElementById('email-auth-modal');
+            if (authModal) {
+                authModal.classList.remove('active');
+            }
+            this.authListeners.forEach((listener) => {
+                try {
+                    listener(this.user);
+                } catch (e) {
+                    console.error('[Auth Listener Error]:', e);
+                }
+            });
             return this.user;
         } catch (error) {
             console.error('Sign Up failed:', error);
@@ -451,15 +473,34 @@ export class AuthManager {
 
     async sendPasswordReset(email) {
         try {
-            const { error } = await authClient.requestPasswordReset({
-                email,
-                redirectTo: window.location.origin + '/reset-password',
+            const res = await fetch(`${AUTH_BASE_URL}/api/auth/request-password-reset`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    email: email.trim(),
+                    redirectTo: window.location.origin + '/reset-password',
+                }),
+                credentials: 'include',
             });
-            if (error) throw new Error(error.message);
-            alert(`Password reset email sent to ${email}`);
+            const data = await res.json().catch(() => null);
+
+            if (!res.ok || data?.error) {
+                const msg = data?.error?.message || data?.error || `Failed to send reset email (${res.status})`;
+                throw new Error(msg);
+            }
+
+            if (data?.resetUrl && (!data.emailSent || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+                const proceed = confirm(`Password reset link generated for ${email}!\n\nWould you like to open the reset page now?`);
+                if (proceed) {
+                    window.location.href = data.resetUrl;
+                    return;
+                }
+            }
+
+            alert(`Password reset instructions sent to ${email}. Please check your inbox.`);
         } catch (error) {
             console.error('Password reset failed:', error);
-            alert(`Failed to send reset email: ${error.message}`);
+            alert(`Failed to send reset email: ${error.message || error}`);
             throw error;
         }
     }
@@ -468,9 +509,27 @@ export class AuthManager {
         if (password !== confirmPassword) {
             throw new Error('Passwords do not match');
         }
+        if (password.length < 6) {
+            throw new Error('Password must be at least 6 characters');
+        }
         try {
-            const { error } = await authClient.resetPassword({ newPassword: password, token });
-            if (error) throw new Error(error.message);
+            const res = await fetch(`${AUTH_BASE_URL}/api/auth/reset-password`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    token,
+                    newPassword: password,
+                }),
+                credentials: 'include',
+            });
+            const data = await res.json().catch(() => null);
+
+            if (!res.ok || data?.error) {
+                const msg = data?.error?.message || data?.error || `Password reset failed (${res.status})`;
+                throw new Error(msg);
+            }
+
+            return data;
         } catch (error) {
             console.error('Password reset failed:', error);
             throw error;
@@ -484,9 +543,25 @@ export class AuthManager {
             console.error('Remote logout failed:', error);
         } finally {
             resetSessionData();
+            try {
+                const { db } = await import('../db.js');
+                await db.clearUserData();
+            } catch (e) {
+                console.warn('[signOut] Failed to clear user database stores:', e);
+            }
+
             this.user = null;
             this.updateUI(null);
-            this.authListeners.forEach((listener) => listener(null));
+            this.authListeners.forEach((listener) => {
+                try {
+                    listener(null);
+                } catch (e) {
+                    console.error('[signOut] Listener error:', e);
+                }
+            });
+
+            window.dispatchEvent(new CustomEvent('library-changed'));
+            window.dispatchEvent(new CustomEvent('history-changed'));
 
             if (window.__AUTH_GATE__) {
                 window.location.href = '/login';
@@ -504,6 +579,13 @@ export class AuthManager {
         const emailToggleBtn = document.getElementById('toggle-email-auth-btn');
         const githubBtn = document.getElementById('auth-github-btn');
         const discordBtn = document.getElementById('auth-discord-btn');
+
+        if (user) {
+            const authModal = document.getElementById('email-auth-modal');
+            if (authModal) {
+                authModal.classList.remove('active');
+            }
+        }
 
         if (!connectBtn) return;
 

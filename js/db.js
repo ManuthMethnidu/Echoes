@@ -478,6 +478,37 @@ export class MusicDatabase {
         }
     }
 
+    async clearUserData() {
+        const stores = [
+            'user_playlists',
+            'user_folders',
+            'favorites_tracks',
+            'favorites_videos',
+            'favorites_albums',
+            'favorites_artists',
+            'favorites_playlists',
+            'favorites_mixes',
+            'pinned_items',
+            'history_tracks'
+        ];
+        try {
+            const db = await this.open();
+            for (const storeName of stores) {
+                if (db.objectStoreNames.contains(storeName)) {
+                    try {
+                        await this.performTransaction(storeName, 'readwrite', (store) => store.clear());
+                    } catch (e) {
+                        console.warn(`[clearUserData] Failed to clear store ${storeName}:`, e);
+                    }
+                }
+            }
+            return true;
+        } catch (err) {
+            console.error('[clearUserData] Error clearing user data:', err);
+            return false;
+        }
+    }
+
     async exportData() {
         const tracks = await this.getFavorites('track');
         const albums = await this.getFavorites('album');

@@ -9,6 +9,8 @@ import authSignInSocialHandler from './_handlers/auth/sign-in/social.js';
 import authGetSessionHandler from './_handlers/auth/get-session.js';
 import authSignOutHandler from './_handlers/auth/sign-out.js';
 import authCallbackHandler from './_handlers/auth/callback.js';
+import authRequestPasswordResetHandler from './_handlers/auth/request-password-reset.js';
+import authResetPasswordHandler from './_handlers/auth/reset-password.js';
 import meIndexHandler from './_handlers/me/index.js';
 import meProfileHandler from './_handlers/me/profile.js';
 import pairInitHandler from './_handlers/pair/init.js';
@@ -42,6 +44,9 @@ const STATIC_ROUTES: Record<string, ApiHandler> = {
     'auth/sign-out': authSignOutHandler,
     'auth/callback': authCallbackHandler,
     'auth/callback/google': authCallbackHandler,
+    'auth/request-password-reset': authRequestPasswordResetHandler,
+    'auth/forget-password': authRequestPasswordResetHandler,
+    'auth/reset-password': authResetPasswordHandler,
     'me': meIndexHandler,
     'me/profile': meProfileHandler,
     'pair/init': pairInitHandler,

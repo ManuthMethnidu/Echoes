@@ -118,6 +118,34 @@ export async function verifyToken(token: string): Promise<AuthUser | null> {
     }
 }
 
+export async function createPasswordResetToken(userId: string, email: string, fingerprint: string): Promise<string> {
+    return new SignJWT({
+        id: userId,
+        sub: userId,
+        email,
+        fingerprint,
+        purpose: 'password_reset',
+    })
+        .setProtectedHeader({ alg: 'HS256' })
+        .setIssuedAt()
+        .setExpirationTime('1h')
+        .sign(JWT_SECRET);
+}
+
+export async function verifyPasswordResetToken(token: string): Promise<{ id: string; email: string; fingerprint: string } | null> {
+    try {
+        const { payload } = await jwtVerify(token, JWT_SECRET);
+        if (payload.purpose !== 'password_reset') return null;
+        return {
+            id: (payload.id || payload.sub) as string,
+            email: (payload.email || '') as string,
+            fingerprint: (payload.fingerprint || '') as string,
+        };
+    } catch {
+        return null;
+    }
+}
+
 export function extractToken(req: VercelRequest): string | null {
     const authHeader = req.headers.authorization;
     if (authHeader && authHeader.startsWith('Bearer ')) {

@@ -104,4 +104,21 @@ describe('MusicDatabase', () => {
         expect(pinned.some((p) => p.id === 'a4')).toBe(true);
         expect(pinned.some((p) => p.id === 'album1')).toBe(false);
     });
+
+    test('clearUserData clears playlists, favorites, history and pinned items', async () => {
+        await db.toggleFavorite('track', { id: 'tr1', title: 'Track 1' });
+        await db.createPlaylist('My Playlist', 'desc', null, [{ id: 'tr1' }]);
+        await db.togglePinned({ id: 'alb1', title: 'Alb 1' }, 'album');
+
+        expect((await db.getFavorites('track')).length).toBe(1);
+        expect((await db.getPlaylists(true)).length).toBe(1);
+        expect((await db.getPinned()).length).toBe(1);
+
+        const cleared = await db.clearUserData();
+        expect(cleared).toBe(true);
+
+        expect((await db.getFavorites('track')).length).toBe(0);
+        expect((await db.getPlaylists(true)).length).toBe(0);
+        expect((await db.getPinned()).length).toBe(0);
+    });
 });

@@ -159,60 +159,103 @@ export async function initializeSettings(scrobbler, player, api, ui) {
     }
 
     if (authModal) {
-        const closeAuthModal = () => authModal.classList.remove('active');
+        const closeAuthModal = () => {
+            authModal.classList.remove('active');
+            if (emailInput) emailInput.value = '';
+            if (passwordInput) passwordInput.value = '';
+        };
         authModalCloseBtn?.addEventListener('click', closeAuthModal);
         authModal.querySelector('.modal-overlay')?.addEventListener('click', closeAuthModal);
+
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && authModal.classList.contains('active')) {
+                closeAuthModal();
+            }
+        });
+
+        emailInput?.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                passwordInput?.focus();
+            }
+        });
+
+        passwordInput?.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                signInBtn?.click();
+            }
+        });
     }
 
     if (signInBtn) {
         signInBtn.addEventListener('click', async () => {
-            const email = emailInput.value;
-            const password = passwordInput.value;
+            const email = emailInput?.value?.trim() || '';
+            const password = passwordInput?.value || '';
             if (!email || !password) {
                 alert('Please enter both email and password.');
                 return;
             }
+            const originalText = signInBtn.textContent;
             try {
+                signInBtn.disabled = true;
+                signInBtn.textContent = 'Signing in...';
                 await authManager.signInWithEmail(email, password);
-                authModal.classList.remove('active');
-                emailInput.value = '';
-                passwordInput.value = '';
+                authModal?.classList.remove('active');
+                if (emailInput) emailInput.value = '';
+                if (passwordInput) passwordInput.value = '';
             } catch {
                 // Error handled in authManager
+            } finally {
+                signInBtn.disabled = false;
+                signInBtn.textContent = originalText;
             }
         });
     }
 
     if (signUpBtn) {
         signUpBtn.addEventListener('click', async () => {
-            const email = emailInput.value;
-            const password = passwordInput.value;
+            const email = emailInput?.value?.trim() || '';
+            const password = passwordInput?.value || '';
             if (!email || !password) {
                 alert('Please enter both email and password.');
                 return;
             }
+            const originalText = signUpBtn.textContent;
             try {
+                signUpBtn.disabled = true;
+                signUpBtn.textContent = 'Creating account...';
                 await authManager.signUpWithEmail(email, password);
-                authModal.classList.remove('active');
-                emailInput.value = '';
-                passwordInput.value = '';
+                authModal?.classList.remove('active');
+                if (emailInput) emailInput.value = '';
+                if (passwordInput) passwordInput.value = '';
             } catch {
                 // Error handled in authManager
+            } finally {
+                signUpBtn.disabled = false;
+                signUpBtn.textContent = originalText;
             }
         });
     }
 
     if (resetPasswordBtn) {
         resetPasswordBtn.addEventListener('click', async () => {
-            const email = emailInput.value;
+            const email = emailInput?.value?.trim() || '';
             if (!email) {
                 alert('Please enter your email address to reset your password.');
+                emailInput?.focus();
                 return;
             }
+            const originalText = resetPasswordBtn.textContent;
             try {
+                resetPasswordBtn.disabled = true;
+                resetPasswordBtn.textContent = 'Sending...';
                 await authManager.sendPasswordReset(email);
             } catch {
                 /* ignore */
+            } finally {
+                resetPasswordBtn.disabled = false;
+                resetPasswordBtn.textContent = originalText;
             }
         });
     }

@@ -2782,7 +2782,13 @@ export class UIRenderer {
         if (!form) return;
 
         const params = new URLSearchParams(window.location.search);
-        const token = params.get('token');
+        let token = params.get('token');
+        if (!token && window.location.hash) {
+            const hashQuery = window.location.hash.includes('?') ? window.location.hash.split('?')[1] : window.location.hash.slice(1);
+            if (hashQuery) {
+                token = new URLSearchParams(hashQuery).get('token');
+            }
+        }
 
         if (!token) {
             errorEl.textContent = 'Invalid or missing password reset link.';

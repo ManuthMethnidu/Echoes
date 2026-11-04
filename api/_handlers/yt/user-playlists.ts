@@ -93,7 +93,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 thumbnails.high?.url ||
                 thumbnails.medium?.url ||
                 thumbnails.default?.url ||
-                'images/echos_logo.svg';
+                '/images/echos_logo.svg';
 
             return {
                 id: item.id,
@@ -113,7 +113,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 title: 'Liked Music & Videos',
                 description: 'Your liked tracks from YouTube Music',
                 channelTitle: 'You',
-                thumbnail: 'images/echos_logo.svg',
+                thumbnail: '/images/echos_logo.svg',
                 itemCount: 0,
                 isLikedList: true,
             },

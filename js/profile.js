@@ -152,7 +152,7 @@ export async function loadProfile(username) {
     profilePage.classList.add('active');
 
     document.getElementById('profile-banner').style.backgroundImage = '';
-    document.getElementById('profile-avatar').src = 'images/echos_logo.svg';
+    document.getElementById('profile-avatar').src = '/images/echos_logo.svg';
     document.getElementById('profile-display-name').innerHTML =
         '<div class="skeleton" style="height: 28px; width: 180px; display: inline-block;"></div>';
     document.getElementById('profile-username').textContent = '@' + username;

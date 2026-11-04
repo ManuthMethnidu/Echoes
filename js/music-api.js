@@ -278,8 +278,8 @@ export class MusicAPI {
                         artistMap.set(c.id, {
                             id: c.id,
                             name: c.name,
-                            picture: c.picture || 'images/echos_logo.svg',
-                            avatar: c.picture || 'images/echos_logo.svg',
+                            picture: c.picture || '/images/echos_logo.svg',
+                            avatar: c.picture || '/images/echos_logo.svg',
                             provider: 'youtube',
                             _href: `/artist/${c.id}`,
                         });
@@ -859,7 +859,7 @@ export class MusicAPI {
     // Cover/artwork methods
     getCoverUrl(id, size = '320') {
         if (!id) {
-            return 'images/echos_logo.svg';
+            return '/images/echos_logo.svg';
         }
         if (typeof id === 'string') {
             if (this.isYouTubeId(id)) {
@@ -943,7 +943,7 @@ export class MusicAPI {
 
     getArtistPictureUrl(id, size = '320') {
         if (!id) {
-            return 'images/echos_logo.svg';
+            return '/images/echos_logo.svg';
         }
         if (typeof id === 'string') {
             if (this.isYouTubeId(id)) {
@@ -1175,7 +1175,7 @@ export class MusicAPI {
                     return channels.map((c) => ({
                         id: c.id,
                         name: c.name,
-                        picture: c.picture || 'images/echos_logo.svg',
+                        picture: c.picture || '/images/echos_logo.svg',
                         provider: 'youtube',
                         _href: `/artist/${c.id}`,
                     }));

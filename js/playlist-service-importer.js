@@ -173,7 +173,7 @@ export function initYouTubeAccountUI() {
                 .map(
                     (p) => `
                 <div style="display: flex; align-items: center; justify-content: space-between; padding: 6px 10px; background: rgba(255,255,255,0.05); border-radius: 6px; gap: 10px;">
-                    <img src="${p.thumbnail || 'images/echos_logo.svg'}" style="width: 34px; height: 34px; object-fit: cover; border-radius: 4px;" onerror="this.src='images/echos_logo.svg'" />
+                    <img src="${p.thumbnail || '/images/echos_logo.svg'}" style="width: 34px; height: 34px; object-fit: cover; border-radius: 4px;" onerror="this.src='/images/echos_logo.svg'" />
                     <div style="flex: 1; min-width: 0;">
                         <div style="font-size: 0.85rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(
                             p.title

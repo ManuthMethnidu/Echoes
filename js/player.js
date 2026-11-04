@@ -494,6 +494,13 @@ export class Player {
                     const coverUrl = this.api.getCoverUrl(coverId);
                     const coverSrcset = this.api.getCoverSrcset(coverId);
                     const setImgSrcset = (img) => {
+                        img.onerror = () => {
+                            img.onerror = null;
+                            img.removeAttribute('srcset');
+                            img.removeAttribute('sizes');
+                            img.removeAttribute('crossorigin');
+                            img.src = '/images/echos_logo.svg';
+                        };
                         if (img.getAttribute('src') !== coverUrl) img.src = coverUrl;
                         if (coverSrcset) {
                             img.setAttribute('srcset', coverSrcset);
@@ -1317,6 +1324,14 @@ export class Player {
                     imgEl.id = coverEl.id;
                     coverEl.replaceWith(imgEl);
                 }
+
+                imgEl.onerror = () => {
+                    imgEl.onerror = null;
+                    imgEl.removeAttribute('srcset');
+                    imgEl.removeAttribute('sizes');
+                    imgEl.removeAttribute('crossorigin');
+                    imgEl.src = '/images/echos_logo.svg';
+                };
 
                 if (imgEl.getAttribute('src') !== coverUrl) {
                     imgEl.src = coverUrl;

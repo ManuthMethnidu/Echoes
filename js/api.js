@@ -3350,7 +3350,7 @@ export class LosslessAPI {
 
     getCoverUrl(id, size = '320') {
         if (!id) {
-            return 'images/echos_logo.svg';
+            return '/images/echos_logo.svg';
         }
 
         if (typeof id === 'string' && (id.startsWith('http') || id.startsWith('blob:') || id.startsWith('assets/'))) {
@@ -3383,7 +3383,7 @@ export class LosslessAPI {
 
     getArtistPictureUrl(id, size = '320') {
         if (!id) {
-            return 'images/echos_logo.svg';
+            return '/images/echos_logo.svg';
         }
 
         if (typeof id === 'string' && (id.startsWith('http') || id.startsWith('blob:') || id.startsWith('assets/'))) {

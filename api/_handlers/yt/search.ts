@@ -22,7 +22,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             if (item.type === 'channel' || queryType === 'channel') {
                 const authorId = item.authorId || item.id || '';
                 const author = item.author || 'Unknown Artist';
-                let picture = 'images/echos_logo.svg';
+                let picture = '/images/echos_logo.svg';
                 if (Array.isArray(item.authorThumbnails) && item.authorThumbnails.length > 0) {
                     const sorted = [...item.authorThumbnails].sort((a, b) => (b.width || 0) - (a.width || 0));
                     picture = sorted[0].url;

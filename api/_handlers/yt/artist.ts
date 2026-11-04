@@ -17,7 +17,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     try {
         let channelId = '';
         let artistName = clean;
-        let artistPicture = 'images/echos_logo.svg';
+        let artistPicture = '/images/echos_logo.svg';
         let bio = '';
         let channelVideos: any[] = [];
         let channelPlaylists: any[] = [];
@@ -153,7 +153,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         // Format albums
         const albums = channelPlaylists.slice(0, 15).map((p: any) => {
             const pId = p.playlistId || p.id;
-            const thumb = p.playlistThumbnail || (tracks.length > 0 ? tracks[0].cover : 'images/echos_logo.svg');
+            const thumb = p.playlistThumbnail || (tracks.length > 0 ? tracks[0].cover : '/images/echos_logo.svg');
             return {
                 id: pId,
                 title: p.title || 'Album',

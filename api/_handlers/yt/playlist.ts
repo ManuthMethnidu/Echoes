@@ -99,7 +99,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 return res.status(200).json({
                     id: `yt:playlist:${playlistId}`,
                     title: `YouTube Playlist (${playlistId})`,
-                    cover: tracks[0]?.cover || 'images/echos_logo.svg',
+                    cover: tracks[0]?.cover || '/images/echos_logo.svg',
                     trackCount: tracks.length,
                     tracks,
                     provider: 'youtube',

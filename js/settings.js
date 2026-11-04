@@ -61,6 +61,7 @@ import { containerFormats, customFormats } from './ffmpegFormats.ts';
 import { BulkDownloadMethod, modernSettings } from './ModernSettings.js';
 import { canBrowserStreamAtmosQuality } from './platform-detection.js';
 import { discordRPC } from './discord-rpc.js';
+import { offlineStorage } from './offline-storage.js';
 
 async function getButterchurnPresets(...args) {
     const butterchurnModule = await import('./visualizers/butterchurn.js');
@@ -1349,6 +1350,35 @@ export async function initializeSettings(scrobbler, player, api, ui) {
             playlistSettings.setIncludeCover(e.target.checked);
         });
     }
+
+    // Offline Cache Settings
+    const updateOfflineCacheInfo = async () => {
+        const infoEl = document.getElementById('settings-offline-cache-info');
+        if (!infoEl) return;
+        try {
+            const usage = await offlineStorage.getStorageUsage();
+            infoEl.textContent = `${usage.count} track${usage.count === 1 ? '' : 's'} (${usage.mb} MB) cached in browser for zero-data playback`;
+        } catch {
+            infoEl.textContent = 'Store full audio, cover art, and lyrics directly in browser cache to play without internet';
+        }
+    };
+    updateOfflineCacheInfo();
+
+    const clearCacheBtn = document.getElementById('settings-clear-offline-cache-btn');
+    if (clearCacheBtn) {
+        clearCacheBtn.addEventListener('click', async () => {
+            if (confirm('Clear all downloaded offline music from browser cache?')) {
+                await offlineStorage.clearAll();
+                await updateOfflineCacheInfo();
+                const { showNotification } = await import('./downloads.js');
+                showNotification('Offline cache cleared');
+            }
+        });
+    }
+
+    window.addEventListener('offline-tracks-changed', () => {
+        updateOfflineCacheInfo();
+    });
 
     const gaplessPlaybackToggle = document.getElementById('gapless-playback-toggle');
     if (gaplessPlaybackToggle) {

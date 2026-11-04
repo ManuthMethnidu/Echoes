@@ -1,5 +1,6 @@
 //js/ui.js
 import { showNotification } from './downloads.js';
+import { offlineStorage } from './offline-storage.js';
 import {
     formatTime,
     createPlaceholder,
@@ -347,6 +348,12 @@ export class UIRenderer {
             }
         });
 
+        window.addEventListener('offline-tracks-changed', async () => {
+            if (this.currentPage === 'library') {
+                await this.renderOfflineTracks();
+            }
+        });
+
         this.loadDonateGoal();
     }
 
@@ -625,6 +632,10 @@ export class UIRenderer {
         const checkboxHTML = `<div class="track-checkbox" data-action="toggle-select">${SVG_CHECKBOX(18)}</div>`;
         const explicitBadge = hasExplicitContent(track) ? this.createExplicitBadge() : '';
         const qualityBadge = createQualityBadgeHTML(track);
+        const isOffline = track.isOffline || (track.id && offlineStorage.hasTrackSync(track.id));
+        const offlineBadge = isOffline
+            ? `<span class="badge offline-badge" title="Saved to offline cache" style="display: inline-flex; align-items: center; font-size: 0.65rem; padding: 1px 5px; border-radius: 4px; background: rgba(59, 130, 246, 0.15); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.3); vertical-align: middle; margin-left: 4px;">Offline</span>`
+            : '';
         const trackTitle = getTrackTitle(track);
         const isCurrentTrack = this.player?.currentTrack?.id === track.id;
 
@@ -687,6 +698,7 @@ export class UIRenderer {
                             ${escapeHtml(trackTitle)}
                             ${explicitBadge}
                             ${qualityBadge}
+                            ${offlineBadge}
                         </div>
                         <div class="artist">${getTrackArtistsHTML(track)}${yearDisplay}</div>
                         ${lyricSnippetHTML}
@@ -3019,6 +3031,68 @@ export class UIRenderer {
         if (localContainer) {
             await this.renderLocalFiles(localContainer);
         }
+
+        // Render Offline Cached Tracks
+        await this.renderOfflineTracks();
+    }
+
+    async renderOfflineTracks() {
+        const offlineContainer = document.getElementById('library-offline-container');
+        const storageInfo = document.getElementById('offline-storage-info');
+        const countSpan = document.getElementById('offline-tracks-tab-count');
+        const playAllBtn = document.getElementById('offline-play-all-btn');
+        const clearAllBtn = document.getElementById('offline-clear-all-btn');
+
+        if (!offlineContainer) return;
+
+        let records = [];
+        let usage = { bytes: 0, mb: '0.0', count: 0 };
+        try {
+            records = await offlineStorage.getAllTracks();
+            usage = await offlineStorage.getStorageUsage();
+        } catch (e) {
+            console.error('[UIRenderer] Failed to load offline tracks:', e);
+        }
+
+        if (countSpan) {
+            countSpan.textContent = String(records.length);
+        }
+
+        if (storageInfo) {
+            storageInfo.textContent = `${usage.count} track${usage.count === 1 ? '' : 's'} (${usage.mb} MB) cached`;
+        }
+
+        if (playAllBtn) {
+            playAllBtn.style.display = records.length ? 'inline-flex' : 'none';
+            playAllBtn.onclick = () => {
+                if (!records.length) return;
+                const playerTracks = records.map((r) => offlineStorage.toPlayerTrack(r));
+                this.player.setQueue(playerTracks, 0);
+                this.player.playAtIndex(0);
+                showNotification(`Playing ${playerTracks.length} offline tracks`);
+            };
+        }
+
+        if (clearAllBtn) {
+            clearAllBtn.style.display = records.length ? 'inline-flex' : 'none';
+            clearAllBtn.onclick = async () => {
+                if (confirm('Clear all downloaded offline music from cache?')) {
+                    await offlineStorage.clearAll();
+                    showNotification('Offline cache cleared');
+                    await this.renderOfflineTracks();
+                }
+            };
+        }
+
+        if (!records.length) {
+            offlineContainer.innerHTML = createPlaceholder(
+                'No cached tracks yet. Use "Save to Cache (Offline)" in track menus to listen offline without internet.'
+            );
+            return;
+        }
+
+        const playerTracks = records.map((r) => offlineStorage.toPlayerTrack(r));
+        await this.renderListWithTracks(offlineContainer, playerTracks, true, false, false, true);
     }
 
     async renderLocalFiles(container) {

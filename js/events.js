@@ -33,6 +33,7 @@ import { LyricsManager } from './lyrics.js';
 import { Player } from './player.js';
 import { UIRenderer } from './ui.js';
 import { connectManager } from './connect-manager.js';
+import { offlineStorage } from './offline-storage.js';
 
 let currentTrackIdForWaveform = null;
 let copiedTracks = [];
@@ -1428,6 +1429,72 @@ export async function handleTrackAction(
         return;
     }
 
+    if (action === 'toggle-offline-cache') {
+        const isCollection = ['album', 'playlist', 'user-playlist', 'mix'].includes(type);
+        if (isCollection) {
+            try {
+                let tracks = [];
+                let name = item.title || item.name || type;
+                if (type === 'album') {
+                    const data = await api.getAlbum(item.id);
+                    tracks = data?.tracks || [];
+                    name = data?.album?.title || name;
+                } else if (type === 'playlist') {
+                    const data = await api.getPlaylist(item.uuid);
+                    tracks = data?.tracks || [];
+                    name = data?.playlist?.title || name;
+                } else if (type === 'user-playlist') {
+                    let playlist = await db.getPlaylist(item.id);
+                    if (!playlist) {
+                        try {
+                            playlist = await syncManager.getPublicPlaylist(item.id);
+                        } catch {}
+                    }
+                    tracks = playlist?.tracks || [];
+                    name = playlist?.name || name;
+                }
+                if (!tracks.length) {
+                    showNotification(`No tracks found to cache in ${name}`);
+                    return;
+                }
+                showNotification(`Saving ${tracks.length} tracks from "${name}" to offline cache...`);
+                let saved = 0;
+                for (const t of tracks) {
+                    try {
+                        await offlineStorage.cacheTrack(t, api, lyricsManager);
+                        saved++;
+                    } catch (e) {
+                        console.warn('[Offline] Failed to cache track:', t.id, e);
+                    }
+                }
+                showNotification(`Cached ${saved} tracks offline from "${name}"!`);
+            } catch (err) {
+                console.error('[Offline] Failed to cache collection:', err);
+                showNotification('Failed to save to offline cache');
+            }
+            return;
+        }
+
+        // Single track
+        try {
+            const trackId = String(item.id);
+            const isCached = await offlineStorage.hasTrack(trackId);
+            const title = item.title || item.name || 'Track';
+            if (isCached) {
+                await offlineStorage.removeTrack(trackId);
+                showNotification(`Removed "${title}" from offline cache`);
+            } else {
+                showNotification(`Saving "${title}" to offline cache...`);
+                await offlineStorage.cacheTrack(item, api, lyricsManager);
+                showNotification(`Saved "${title}" for offline playback!`);
+            }
+        } catch (err) {
+            console.error('[Offline] Failed to toggle offline cache:', err);
+            showNotification(`Failed to cache track: ${err.message || 'Error'}`);
+        }
+        return;
+    }
+
     // Collection Actions (Album, Playlist, Mix)
     const isCollection = ['album', 'playlist', 'user-playlist', 'mix'].includes(type);
     const collectionActions = ['play-card', 'shuffle-play-card', 'add-to-queue', 'play-next', 'download', 'start-mix'];
@@ -2264,6 +2331,23 @@ async function updateContextMenuLikeState(contextMenu, contextTrack) {
             const label = item.dataset[labelKey] || item.dataset[fallbackKey] || (isLiked ? 'Unlike' : 'Like');
             item.textContent = label;
         }
+
+        // Update labels for Offline Cache
+        if (item.dataset.action === 'toggle-offline-cache') {
+            const labelEl = item.querySelector('.offline-cache-label') || item;
+            if (type === 'track') {
+                const trackId = String(contextTrack.id);
+                const isCached = offlineStorage.hasTrackSync(trackId);
+                labelEl.textContent = isCached ? 'Remove from Offline Cache' : 'Save to Cache (Offline)';
+                offlineStorage.hasTrack(trackId).then((cached) => {
+                    if (contextMenu.style.display !== 'none') {
+                        labelEl.textContent = cached ? 'Remove from Offline Cache' : 'Save to Cache (Offline)';
+                    }
+                }).catch(() => {});
+            } else {
+                labelEl.textContent = 'Save to Cache (Offline)';
+            }
+        }
     });
 
     // Handle multiple artists for "Go to artist"
@@ -2803,6 +2887,22 @@ export function initializeTrackInteractions(player, api, mainContent, contextMen
                                 lyricsManager
                             );
                         }
+                        break;
+                    case 'toggle-offline-cache':
+                        showNotification(`Saving ${selectedTracks.length} tracks to offline cache...`);
+                        clearSelection();
+                        (async () => {
+                            let count = 0;
+                            for (const track of selectedTracks) {
+                                try {
+                                    await offlineStorage.cacheTrack(track, api, lyricsManager);
+                                    count++;
+                                } catch (e) {
+                                    console.warn('[Offline] Failed to cache track:', track.id, e);
+                                }
+                            }
+                            showNotification(`Cached ${count} tracks for offline playback!`);
+                        })();
                         break;
                     default:
                         clearSelection();

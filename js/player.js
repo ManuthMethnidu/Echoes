@@ -30,6 +30,8 @@ import { db } from './db.js';
 import { getProxyUrl } from './proxy-utils.js';
 import { getReplayGainScale } from './replay-gain.js';
 import { waveformGenerator } from './waveform.js';
+import { offlineStorage } from './offline-storage.js';
+import { showNotification } from './downloads.js';
 
 import { SVG_CLOCK, SVG_ATMOS, SVG_TRIANGLE_ALERT, SVG_PLAY, SVG_PAUSE } from './icons.js';
 import { UIRenderer } from './ui.js';
@@ -1464,6 +1466,35 @@ export class Player {
                 }
                 const played = await this.safePlay(activeElement);
                 if (!played) return;
+            } else if (track.isOffline || (await offlineStorage.hasTrack(track.id))) {
+                const offlineRecord = await offlineStorage.getTrack(track.id);
+                if (offlineRecord && offlineRecord.audioBlob) {
+                    streamUrl = URL.createObjectURL(offlineRecord.audioBlob);
+                    if (this.playbackSequence !== currentSequence) return;
+
+                    this.currentRgValues = null;
+                    this.applyReplayGain();
+
+                    activeElement.src = streamUrl;
+                    this.applyAudioEffects();
+
+                    if (offlineRecord.coverBlob && coverEl && coverEl.tagName === 'IMG') {
+                        coverEl.src = URL.createObjectURL(offlineRecord.coverBlob);
+                    }
+
+                    if (offlineRecord.lyrics && UIRenderer.instance?.lyricsManager) {
+                        UIRenderer.instance.lyricsManager.lyricsCache.set(track.id, offlineRecord.lyrics);
+                    }
+
+                    const canPlay = await this.waitForCanPlayOrTimeout(activeElement);
+                    if (!canPlay || this.playbackSequence !== currentSequence) return;
+
+                    if (startTime > 0) {
+                        activeElement.currentTime = startTime;
+                    }
+                    const played = await this.safePlay(activeElement);
+                    if (!played) return;
+                }
             } else if (track.isLocal && track.file) {
                 streamUrl = URL.createObjectURL(track.file);
                 if (this.playbackSequence !== currentSequence) return;
@@ -1548,6 +1579,18 @@ export class Player {
                         recursiveCount,
                     })
                 ) {
+                    return;
+                }
+
+                if (!navigator.onLine && !track.isLocal && !track.isOffline) {
+                    showNotification(`You are offline. "${track.title || 'This track'}" is not cached.`);
+                    this.setLoadingState(false);
+                    const currentQueue = this.getCurrentQueue();
+                    const nextCachedIdx = await offlineStorage.findNextCachedIndex(currentQueue, this.currentQueueIndex);
+                    if (nextCachedIdx !== -1 && nextCachedIdx !== this.currentQueueIndex) {
+                        this.currentQueueIndex = nextCachedIdx;
+                        await this.playTrackFromQueue(0, recursiveCount + 1);
+                    }
                     return;
                 }
 

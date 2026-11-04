@@ -178,6 +178,9 @@
                 <li data-action="open-original-url" data-type-filter="track,video">Open original URL</li>
                 <li data-action="download">Download</li>
                 <li data-action="export-download" data-type-filter="track,video">Export Audio File</li>
+                <li data-action="toggle-offline-cache" data-type-filter="track,album,playlist,user-playlist">
+                    <span class="offline-cache-label">Save to Cache (Offline)</span>
+                </li>
                 <li class="separator" data-type-filter="track,album,artist,user-playlist" data-action="horizantal-rule">
                     <!-- IDK why adding a `data-action` is necessary, but without it
                       the `data-type-filter` gets ignored; So I've added it -->
@@ -2101,6 +2104,7 @@
                             <button class="search-tab" data-tab="artists">Artists</button>
                             <button class="search-tab" data-tab="playlists">Playlists and Mixes</button>
                             <button class="search-tab" data-tab="local">Local Files</button>
+                            <button class="search-tab" data-tab="offline">Downloaded (<span id="offline-tracks-tab-count">0</span>)</button>
                         </div>
                         <div class="search-tab-content active" id="library-tab-tracks">
                             <div
@@ -2235,6 +2239,37 @@
                                 </div>
                                 <div id="local-files-list"></div>
                             </div>
+                        </div>
+                        <div class="search-tab-content" id="library-tab-offline">
+                            <div
+                                id="library-offline-toolbar"
+                                class="library-liked-tracks-toolbar"
+                                style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.75rem;"
+                            >
+                                <div style="display: flex; align-items: center; gap: 0.75rem;">
+                                    <button
+                                        id="offline-play-all-btn"
+                                        class="btn-primary"
+                                        style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; font-size: 0.85rem;"
+                                    >
+                                        <use svg="!lucide/play.svg" size="16" />
+                                        <span>Play Offline</span>
+                                    </button>
+                                    <button
+                                        id="offline-clear-all-btn"
+                                        class="btn-secondary"
+                                        style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; font-size: 0.85rem;"
+                                        title="Clear all cached offline music"
+                                    >
+                                        <use svg="!lucide/trash-2.svg" size="16" />
+                                        <span>Clear Offline Cache</span>
+                                    </button>
+                                </div>
+                                <div style="font-size: 0.85rem; color: var(--muted-foreground);" id="offline-storage-info">
+                                    0 tracks (0 MB) cached
+                                </div>
+                            </div>
+                            <div class="track-list" id="library-offline-container"></div>
                         </div>
                     </section>
                 </div>
@@ -5569,6 +5604,25 @@
                                         <input type="checkbox" id="include-cover-toggle" />
                                         <span class="slider"></span>
                                     </label>
+                                </div>
+                            </div>
+
+                            <div class="settings-group">
+                                <div class="setting-item">
+                                    <div class="info">
+                                        <span class="label">Offline Cache / Zero-Data Playback</span>
+                                        <span class="description" id="settings-offline-cache-info">Store full audio, cover art, and lyrics directly in browser cache to play without internet</span>
+                                    </div>
+                                    <div style="display: flex; gap: 8px; align-items: center;">
+                                        <button
+                                            type="button"
+                                            id="settings-clear-offline-cache-btn"
+                                            class="btn-secondary"
+                                            style="padding: 6px 12px; font-size: 0.8rem;"
+                                        >
+                                            Clear Cache
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         </div>

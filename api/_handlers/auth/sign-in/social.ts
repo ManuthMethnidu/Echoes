@@ -1,31 +1,36 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-    if (req.method !== 'POST') {
+    if (req.method !== 'POST' && req.method !== 'GET') {
         return res.status(405).json({ error: 'Method Not Allowed' });
     }
 
     try {
-        const { provider, callbackURL } = req.body || {};
+        const payload = req.method === 'POST' ? req.body || {} : req.query || {};
+        const { provider, callbackURL } = payload;
         const forwardedHost = (req.headers['x-forwarded-host'] || req.headers.host || '') as string;
         const host = forwardedHost.split(',')[0].trim();
         const origin = (req.headers.origin as string) || (host ? `https://${host}` : 'https://echoes.mteck.tech');
 
         const neonAuthUrl = process.env.NEON_AUTH_BASE_URL || 'https://ep-small-mouse-a11jp1gr.neonauth.ap-southeast-1.aws.neon.tech/neondb/auth';
 
-        if (provider === 'google' || provider === 'youtube') {
+        if (!provider || provider === 'google' || provider === 'youtube') {
             // Use Neon Shared OAuth for Google Sign-In
             try {
+                const targetCallback = callbackURL || `${origin}/index.html`;
                 const neonRes = await fetch(`${neonAuthUrl}/sign-in/social`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         provider: 'google',
-                        callbackURL: callbackURL || `${origin}/index.html`,
+                        callbackURL: targetCallback,
                     }),
                 });
                 const neonData = await neonRes.json();
                 if (neonData?.url) {
+                    if (req.method === 'GET') {
+                        return res.redirect(302, neonData.url);
+                    }
                     return res.status(200).json({ url: neonData.url, redirectUrl: neonData.url, redirect: true });
                 }
                 console.error('[Neon Auth Social Sign-In Response]', neonData);

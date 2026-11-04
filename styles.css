@@ -7002,6 +7002,21 @@ img[src=''] {
     animation: fade-in 0.1s ease-in;
 }
 
+#playlist-modal .modal-content {
+    max-width: 520px;
+    width: 92%;
+    box-sizing: border-box;
+    overflow-x: hidden;
+    padding: 1.5rem;
+    border-radius: var(--radius-md, 12px);
+}
+
+#playlist-modal h3 {
+    margin: 0 0 0.5rem 0;
+    font-size: 1.35rem;
+    font-weight: 700;
+}
+
 /* fuck this chud ass shit bro */
 .csv-import-progress {
     position: fixed;

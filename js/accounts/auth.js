@@ -116,7 +116,15 @@ function getOAuthParams(urlString = window.location.href) {
 }
 
 function hasOAuthParams(params) {
-    return !!(params && (params.has('oauth') || params.has('userId') || params.has('secret') || params.has('error')));
+    return !!(
+        params &&
+        (params.has('oauth') ||
+            params.has('userId') ||
+            params.has('secret') ||
+            params.has('token') ||
+            params.has('session_token') ||
+            params.has('error'))
+    );
 }
 
 function getHandledNativeOAuthUrls() {
@@ -276,6 +284,10 @@ export class AuthManager {
 
         if (params.has('secret')) {
             storeAuthToken(params.get('secret'));
+        } else if (params.has('token')) {
+            storeAuthToken(params.get('token'));
+        } else if (params.has('session_token')) {
+            storeAuthToken(params.get('session_token'));
         }
         if (params.has('yt_token')) {
             localStorage.setItem('echos_yt_token', params.get('yt_token'));
@@ -386,10 +398,27 @@ export class AuthManager {
         try {
             const isNative = isCapacitorNative();
             const callbackURL = isNative ? getNativeOAuthCallbackURL() : window.location.origin + '/index.html';
-            await authClient.signIn.social({
+            const res = await authClient.signIn.social({
                 provider: 'google',
                 callbackURL: callbackURL,
             });
+
+            const oauthUrl = res?.data?.url || res?.url;
+            if (oauthUrl) {
+                if (isNative) {
+                    await openNativeOAuthUrl(oauthUrl);
+                } else {
+                    window.location.href = oauthUrl;
+                }
+                return;
+            }
+
+            if (res?.error) {
+                throw new Error(res.error.message || 'Google sign-in initialization failed');
+            }
+
+            // Fallback to internal API
+            await this._signInSocial('google');
         } catch (err) {
             console.warn('[Neon Auth direct social sign-in failed, trying API]:', err);
             await this._signInSocial('google');

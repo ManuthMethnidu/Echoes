@@ -17,6 +17,7 @@
   <a href="#support-by-starring">Star Repository</a> |
   <a href="#donations-and-sponsorship">Donations</a> |
   <a href="#bug-reports-and-feature-requests">Report Issue &amp; Feature Requests</a> |
+  <a href="#security-and-responsible-disclosure">Security Policy</a> |
   <a href="#features">Features</a> |
   <a href="#architecture">Architecture</a> |
   <a href="#getting-started">Getting Started</a> |
@@ -70,6 +71,28 @@ Community feedback directly drives the Echoes roadmap. Whether you noticed an au
 - Submit a Bug Report or Feature Request: https://github.com/ManuthMethnidu/Echoes/issues/new/choose
 - Feature Request Form: https://github.com/ManuthMethnidu/Echoes/issues/new?template=feature_request.yml
 - Bug Report Form: https://github.com/ManuthMethnidu/Echoes/issues/new?template=bug_report.yml
+
+---
+
+## Security and Responsible Disclosure
+
+We prioritize user privacy and defensive engineering. Key security measures implemented in Echoes:
+- Database Protection: Neon Serverless PostgreSQL parameterized queries protecting against SQL injection (SQLi).
+- SSRF & Proxy Hardening: The audio stream proxy enforces a strict domain allowlist and explicitly blocks private IP ranges (RFC 1918) and cloud metadata services.
+- XSS Prevention: Centralized sanitization module (`api/_lib/sanitize.ts`) with safe DOMParser node generation and protocol filtering.
+- Reduced Attack Surface: Third-party file uploads have been completely removed in favor of validated HTTPS URLs.
+- Device Pairing Defense: High-entropy pairing codes via `crypto.getRandomValues()` combined with brute-force rate limiting.
+- HTTP Security Headers: Enforced via edge rules (`X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`).
+
+### Reporting a Security Vulnerability
+
+If you discover a security vulnerability or potential breach in Echoes, please kindly report it responsibly. Please do NOT disclose vulnerabilities publicly in GitHub Issues.
+
+Report directly to maintainer **Manuth Methnidu**:
+- Security Contact: contact.Echoes@proton.me
+- Subject line: `[SECURITY VULNERABILITY] <Brief description>`
+
+For our complete vulnerability disclosure policy and response commitment, see [SECURITY.md](SECURITY.md).
 
 ---
 

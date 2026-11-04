@@ -439,7 +439,7 @@ async function handleSelectionAction(action) {
                     await downloadTrackWithMetadata(
                         track,
                         downloadQualitySettings.getQuality(),
-                        MusicAPI.instance.tidalAPI,
+                        MusicAPI.instance,
                         LyricsManager.instance
                     );
                 }

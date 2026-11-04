@@ -2832,7 +2832,7 @@ export class LosslessAPI {
             console.debug('tracks.monochrome.st stream lookup failed in LosslessAPI:', err);
         }
 
-        if (!streamResult?.url) {
+        if (!streamResult?.url && (String(id).startsWith('tracks:') || String(id).startsWith('mono:') || /^\d{17,20}$/.test(String(id)))) {
             const cleanId = String(id).replace(/^(?:tracks|mono):(?:track:)?/, '');
             streamResult = tracksStreamerAPI.getStreamUrl(cleanId, quality, { track });
         }
@@ -2925,7 +2925,7 @@ export class LosslessAPI {
                 console.debug('tracks.monochrome.st lookup failed during download enrichment:', error);
             }
 
-            if (!streamResult?.url) {
+            if (!streamResult?.url && (String(id).startsWith('tracks:') || String(id).startsWith('mono:') || /^\d{17,20}$/.test(String(id)))) {
                 const cleanId = String(id).replace(/^(?:tracks|mono):(?:track:)?/, '');
                 try {
                     streamResult = tracksStreamerAPI.getStreamUrl(cleanId, cleanQuality, { track });

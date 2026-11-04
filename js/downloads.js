@@ -153,6 +153,9 @@ function friendlyEnrichError(error) {
     if (msg.includes('DOLBY ATMOS') || msg.includes('Dolby Atmos')) return msg;
     if (msg.includes('status 404')) return 'this track was not found on the provider';
     if (msg.includes('status 422')) return 'this track cannot be downloaded';
+    if (msg.includes('monochrome.st') || msg.includes('NetworkError') || msg.includes('Failed to fetch')) {
+        return 'the stream server is currently unreachable. Please try again';
+    }
     return msg || 'the track could not be prepared for download';
 }
 
@@ -346,7 +349,8 @@ function removeBulkDownloadTask(notifEl) {
 }
 
 async function downloadTrackBlob(track, quality, api, signal = null, onProgress = null) {
-    const blob = await api.downloadTrack(track.id, quality, undefined, {
+    const downloadApi = (api && typeof api.downloadYouTubeTrack === 'function') ? api : (MusicAPI.instance || api);
+    const blob = await downloadApi.downloadTrack(track.id, quality, undefined, {
         track,
         signal,
         onProgress,
@@ -1167,6 +1171,7 @@ export async function downloadTrackWithMetadata(
 
     /** @type {LosslessAPI} */
     const tidalAPI = api.tidalAPI || api;
+    const downloadApi = (api && typeof api.downloadYouTubeTrack === 'function') ? api : (MusicAPI.instance || api);
 
     const downloadKey = `track-${track.id}`;
     if (ongoingDownloads.has(downloadKey)) {
@@ -1220,10 +1225,10 @@ export async function downloadTrackWithMetadata(
         // any permission prompt (requestPermission) shows before the UI task appears.
         const folderWriter = (await createSingleTrackFolderWriter()) || SequentialFileWriter;
 
-        addDownloadTask(track.id, enrichedTrack, filename, api, controller);
+        addDownloadTask(track.id, enrichedTrack, filename, downloadApi, controller);
 
         // Download the blob (metadata already applied inside downloadTrack)
-        const blob = await api.downloadTrack(track.id, quality, filename, {
+        const blob = await downloadApi.downloadTrack(track.id, quality, filename, {
             signal: controller.signal,
             track: enrichedTrack,
             enriched,

@@ -75,6 +75,86 @@ function trackIsJapanese(track) {
     return containsJapaneseKana(title) || containsJapaneseKana(artist);
 }
 
+// Check if text contains Sinhala (0D80-0DFF), Devanagari (0900-097F), Tamil (0B80-0BFF), or Bengali (0980-09FF) characters
+function containsIndicOrSinhalaText(text) {
+    if (!text) return false;
+    return /[\u0D80-\u0DFF\u0900-\u097F\u0B80-\u0BFF\u0980-\u09FF]/.test(text);
+}
+
+// Smart candidate extractor for track title & artist variations (handles YouTube noise, bilingual titles, and reversed artist/title)
+export function extractSearchCandidates(track) {
+    const rawTitle = track?.title || track?.name || '';
+    const rawArtist = Array.isArray(track?.artists)
+        ? track.artists.map((a) => a.name || a).join(', ')
+        : track?.artist?.name || (typeof track?.artist === 'string' ? track.artist : '') || '';
+
+    const cleanNoise = (str) =>
+        String(str || '')
+            .replace(/\s*\([^)]*(?:official|video|audio|lyric|visualizer|hd|4k|version|prod|remix)[^)]*\)/gi, '')
+            .replace(/\s*\[[^\]]*(?:official|video|audio|lyric|visualizer|hd|4k|version|prod|remix)[^\]]*\]/gi, '')
+            .replace(/\s*[-–—|:]\s*(?:official\s+)?(?:music\s+)?(?:video|audio|visualizer|lyric video|lyrics?|hd|4k).*$/gi, '')
+            .replace(/\s+(?:official\s+)?(?:music\s+)?(?:video|audio|visualizer|lyric video|lyrics?|hd|4k)$/gi, '')
+            .replace(/\b(?:feat|ft)\.?\s+.*$/i, '')
+            .trim();
+
+    const cleanArtist = rawArtist.replace(/vevo$/i, '').replace(/\s*-\s*topic$/i, '').trim();
+    let cleanedTitle = cleanNoise(rawTitle);
+
+    const candidates = [];
+
+    // Check if title has "Artist - Song" or "Song - Artist"
+    if (cleanedTitle.includes(' - ') || cleanedTitle.includes(' – ') || cleanedTitle.includes(' — ')) {
+        const parts = cleanedTitle.split(/\s*[-–—]\s*/);
+        if (parts.length >= 2) {
+            const p0 = parts[0].trim();
+            const p1 = parts.slice(1).join(' - ').trim();
+
+            const p0Norm = p0.toLowerCase();
+            const p1Norm = p1.toLowerCase();
+            const artNorm = cleanArtist.toLowerCase();
+
+            if (artNorm && p0Norm.includes(artNorm)) {
+                candidates.push({ title: cleanNoise(p1), artist: cleanArtist || p0 });
+            } else if (artNorm && p1Norm.includes(artNorm)) {
+                candidates.push({ title: cleanNoise(p0), artist: cleanArtist || p1 });
+            } else {
+                candidates.push({ title: cleanNoise(p1), artist: p0 });
+                candidates.push({ title: cleanNoise(p0), artist: p1 });
+            }
+        }
+    }
+
+    // Direct cleaned title + artist
+    candidates.push({ title: cleanedTitle || rawTitle, artist: cleanArtist });
+
+    // Check for native Indic / Sinhala script in parentheses e.g. "Saragaye (සරාගයේ)"
+    if (/\([\u0D80-\u0DFF\u0900-\u097F\u0B80-\u0BFF\s]+\)/.test(cleanedTitle)) {
+        const withoutParen = cleanedTitle.replace(/\s*\([\u0D80-\u0DFF\u0900-\u097F\u0B80-\u0BFF\s]+\)\s*/g, ' ').trim();
+        if (withoutParen) {
+            candidates.push({ title: withoutParen, artist: cleanArtist });
+        }
+    }
+
+    const parenMatch = rawTitle.match(/\(([\u0D80-\u0DFF\u0900-\u097F\u0B80-\u0BFF\s]+)\)/);
+    if (parenMatch && parenMatch[1]) {
+        candidates.push({ title: parenMatch[1].trim(), artist: cleanArtist });
+    }
+
+    // Pure cleaned title without artist
+    if (cleanedTitle && cleanedTitle !== rawTitle) {
+        candidates.push({ title: cleanedTitle, artist: '' });
+    }
+
+    // Deduplicate
+    const seen = new Set();
+    return candidates.filter((c) => {
+        const key = `${c.title.toLowerCase()}:::${c.artist.toLowerCase()}`;
+        if (!c.title || seen.has(key)) return false;
+        seen.add(key);
+        return true;
+    });
+}
+
 function cleanTrackerSearch(text) {
     if (!text) return '';
     // chud emojis will NOT be tolerated in my precious genius lyrics worker
@@ -469,53 +549,67 @@ export class LyricsManager {
         }
 
         try {
-            let artist = Array.isArray(track.artists)
-                ? track.artists.map((a) => a.name || a).join(', ')
-                : track.artist?.name || '';
-            let rawTitle = track.title || '';
-
-            // Clean title and artist from YouTube noise
-            let cleanTitle = rawTitle
-                .replace(/^.+?\s*[-–—]\s*/, '') // remove "Artist - "
-                .replace(/\s*\([^)]*(?:official|video|audio|lyric|visualizer|hd|4k|version)[^)]*\)/gi, '')
-                .replace(/\s*\[[^\]]*(?:official|video|audio|lyric|visualizer|hd|4k|version)[^\]]*\]/gi, '')
-                .replace(/\b(feat|ft)\.?\s+.*$/i, '')
-                .trim();
-
-            if (!cleanTitle) cleanTitle = rawTitle;
-
-            const cleanArtist = artist.replace(/vevo$/i, '').replace(/\s*-\s*topic$/i, '').trim();
+            const candidates = extractSearchCandidates(track);
             const duration = track.duration ? Math.round(track.duration) : null;
-
-            // 1. Try exact match on lrclib.net/api/get
             let foundData = null;
-            try {
-                const params = new URLSearchParams({
-                    track_name: cleanTitle,
-                    artist_name: cleanArtist,
-                });
-                if (duration) params.append('duration', duration.toString());
-                const res = await fetch(`https://lrclib.net/api/get?${params.toString()}`);
-                if (res.ok) {
-                    const data = await res.json();
-                    if (data?.syncedLyrics || data?.plainLyrics) {
-                        foundData = data;
-                    }
-                }
-            } catch {}
 
-            // 2. Fallback to lrclib.net/api/search
-            if (!foundData) {
+            // 1. Try LRCLIB for each candidate (preferring syncedLyrics)
+            for (const { title, artist } of candidates) {
+                // Exact match via /api/get
+                if (title && artist) {
+                    try {
+                        const params = new URLSearchParams({ track_name: title, artist_name: artist });
+                        if (duration) params.append('duration', duration.toString());
+                        const res = await fetch(`https://lrclib.net/api/get?${params.toString()}`);
+                        if (res.ok) {
+                            const data = await res.json();
+                            if (data?.syncedLyrics || data?.plainLyrics) {
+                                foundData = data;
+                                if (data.syncedLyrics) break;
+                            }
+                        }
+                    } catch {}
+                }
+
+                // Search query via /api/search
                 try {
-                    const query = `${cleanArtist} ${cleanTitle}`.trim();
-                    const sRes = await fetch(`https://lrclib.net/api/search?q=${encodeURIComponent(query)}`);
-                    if (sRes.ok) {
-                        const items = await sRes.json();
-                        if (Array.isArray(items) && items.length > 0) {
-                            foundData = items.find((i) => i.syncedLyrics) || items[0];
+                    const query = `${artist} ${title}`.trim();
+                    if (query) {
+                        const sRes = await fetch(`https://lrclib.net/api/search?q=${encodeURIComponent(query)}`);
+                        if (sRes.ok) {
+                            const items = await sRes.json();
+                            if (Array.isArray(items) && items.length > 0) {
+                                const best = items.find((i) => i.syncedLyrics) || items[0];
+                                if (best?.syncedLyrics || best?.plainLyrics) {
+                                    foundData = best;
+                                    if (best.syncedLyrics) break;
+                                }
+                            }
                         }
                     }
                 } catch {}
+            }
+
+            // 2. Fallback: Query Genius worker if no lyrics were found on LRCLIB
+            if (!foundData || (!foundData.syncedLyrics && !foundData.plainLyrics)) {
+                for (const { title, artist } of candidates) {
+                    if (!title) continue;
+                    try {
+                        const gUrl = `https://fetch-genius.samidy.workers.dev/?title=${encodeURIComponent(title)}&artist=${encodeURIComponent(artist || '')}`;
+                        const gRes = await fetch(gUrl);
+                        if (gRes.ok) {
+                            const gData = await gRes.json();
+                            if (gData?.lyrics) {
+                                foundData = {
+                                    plainLyrics: gData.lyrics,
+                                    syncedLyrics: null,
+                                    lyricsProvider: 'Genius',
+                                };
+                                break;
+                            }
+                        }
+                    } catch {}
+                }
             }
 
             if (foundData && (foundData.syncedLyrics || foundData.plainLyrics)) {
@@ -524,13 +618,13 @@ export class LyricsManager {
                     subtitles,
                     plainLyrics: foundData.plainLyrics,
                     syncedLyrics: foundData.syncedLyrics,
-                    lyricsProvider: 'LRCLIB',
+                    lyricsProvider: foundData.lyricsProvider || 'LRCLIB',
                 };
                 this.lyricsCache.set(trackId, lyricsData);
                 return lyricsData;
             }
         } catch (error) {
-            console.warn('LRCLIB fetch failed:', error);
+            console.warn('Lyrics fetch failed:', error);
         }
 
         return null;
@@ -605,12 +699,33 @@ export class LyricsManager {
     }
 
     generateTTMLContent(lyricsData, track) {
-        if (!lyricsData || !lyricsData.subtitles) return null;
-        const lines = this.parseSyncedLyrics(lyricsData.subtitles);
-        if (!lines.length) return null;
+        if (!lyricsData || (!lyricsData.subtitles && !lyricsData.plainLyrics)) return null;
+        const rawContent = lyricsData.subtitles || lyricsData.plainLyrics || '';
+        const lines = this.parseSyncedLyrics(rawContent);
 
         const trackTitle = getTrackTitle(track);
         const trackArtist = getTrackArtists(track);
+
+        // If no synced timestamps found, generate line-by-line TTML from plain lyrics
+        if (!lines.length) {
+            const plainLines = rawContent
+                .split('\n')
+                .map((l) => l.trim())
+                .filter((l) => l && !l.startsWith('['));
+            if (!plainLines.length) return null;
+
+            let ttml = '<?xml version="1.0" encoding="UTF-8"?>\n';
+            ttml += '<tt xmlns="http://www.w3.org/ns/ttml" xmlns:ttm="http://www.w3.org/ns/ttml#metadata">\n';
+            ttml += '<head>\n<metadata>\n';
+            ttml += `<ttm:title>${escapeHtml(trackTitle)}</ttm:title>\n`;
+            if (trackArtist) ttml += `<ttm:copyright>${escapeHtml(trackArtist)}</ttm:copyright>\n`;
+            ttml += '</metadata>\n</head>\n<body>\n<div>\n';
+            for (const line of plainLines) {
+                ttml += `<p begin="00:00:00.000" end="00:00:00.000"><span>${escapeHtml(line)}</span></p>\n`;
+            }
+            ttml += '</div>\n</body>\n</tt>';
+            return ttml;
+        }
 
         // Detect per-line singer prefixes ("V1:", "V2:", ...) for ttm:agent.
         const agents = new Set();
@@ -1228,13 +1343,10 @@ async function renderLyricsComponent(container, track, audioPlayer, lyricsManage
         const isrc = (track.isrc || track.mediaMetadata?.isrc || track.audioQuality?.isrc || '').trim();
 
         const isTracker = track.isTracker || (track.id && String(track.id).startsWith('tracker-'));
-        let queryTitle = title;
-        let queryArtist = artist;
-
-        if (isTracker) {
-            queryTitle = cleanTrackerSearch(title);
-            queryArtist = cleanTrackerSearch(artist);
-        }
+        const candidates = extractSearchCandidates(track);
+        const bestCandidate = candidates[0] || { title, artist };
+        let queryTitle = isTracker ? cleanTrackerSearch(title) : (bestCandidate.title || title);
+        let queryArtist = isTracker ? cleanTrackerSearch(artist) : (bestCandidate.artist || artist);
 
         container.innerHTML = '';
         const amLyrics = document.createElement('am-lyrics');
@@ -1251,6 +1363,9 @@ async function renderLyricsComponent(container, track, audioPlayer, lyricsManage
         amLyrics.setAttribute('interpolate', '');
         amLyrics.toggleAttribute('no-blur', disableBlurEffectsSettings.isEnabled());
         if (trackIsJapanese(track)) amLyrics.setAttribute('lang', 'ja');
+        if (containsIndicOrSinhalaText(title) || containsIndicOrSinhalaText(artist)) {
+            amLyrics.style.lineHeight = '1.45';
+        }
         amLyrics.style.height = '100%';
         amLyrics.style.width = '100%';
 
@@ -1312,6 +1427,31 @@ async function renderLyricsComponent(container, track, audioPlayer, lyricsManage
         };
 
         await waitForLyrics();
+
+        // Check if lyrics actually loaded in am-lyrics
+        const hasRenderedLyrics = () => {
+            return Boolean(
+                amLyrics.querySelector(".lyric-line, [class*='lyric']") ||
+                (amLyrics.shadowRoot && amLyrics.shadowRoot.querySelector("[class*='lyric']")) ||
+                (amLyrics.textContent && amLyrics.textContent.length > 50)
+            );
+        };
+
+        if (!hasRenderedLyrics()) {
+            try {
+                const lyricsData = await lyricsManager.fetchLyrics(track.id, track);
+                if (lyricsData && (lyricsData.syncedLyrics || lyricsData.plainLyrics || lyricsData.subtitles)) {
+                    const ttml = lyricsManager.generateTTMLContent(lyricsData, track);
+                    if (ttml && lyricsManager.currentTrackId === track.id) {
+                        amLyrics.setAttribute('ttml', ttml);
+                        // Brief wait for am-lyrics to parse and apply the TTML
+                        await new Promise((r) => setTimeout(r, 250));
+                    }
+                }
+            } catch (err) {
+                console.warn('[Lyrics] Fallback TTML injection failed:', err);
+            }
+        }
 
         // Convert immediately after lyrics detected
         if (lyricsManager.isRomajiMode) {

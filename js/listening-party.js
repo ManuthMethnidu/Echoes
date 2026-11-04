@@ -9,12 +9,15 @@ import { SVG_PAUSE } from './icons.js';
 import { PartySocketClient } from './party-socket.js';
 
 export const LISTENING_PARTIES_DISABLED_MESSAGE =
-    'Listening parties are temporarily unavailable. Please try again later.';
+    'Listening parties require WebRTC support in your browser. Please try again with a modern browser.';
 
 export function areListeningPartiesDisabled() {
     const flags = window.__FEATURE_FLAGS__ || {};
     if (typeof flags.listeningParties === 'boolean') return !flags.listeningParties;
     if (typeof flags.listeningPartiesDisabled === 'boolean') return flags.listeningPartiesDisabled;
+    if (typeof window !== 'undefined' && typeof window.RTCPeerConnection === 'undefined') {
+        return true;
+    }
     return false;
 }
 
@@ -122,6 +125,22 @@ export class ListeningPartyManager {
         chatInput?.addEventListener('input', () => this._pingTyping());
         chatInput?.addEventListener('blur', () => this._clearTyping());
 
+        const joinBtn = document.getElementById('join-party-btn');
+        const joinInput = document.getElementById('party-join-input');
+        const handleJoinSubmit = () => {
+            const raw = joinInput?.value?.trim();
+            if (!raw) return;
+            let code = raw;
+            if (code.includes('/party/')) {
+                code = code.split('/party/').pop().split('?')[0].split('#')[0];
+            }
+            if (code) navigate(`/party/${code}`);
+        };
+        joinBtn?.addEventListener('click', handleJoinSubmit);
+        joinInput?.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') handleJoinSubmit();
+        });
+
         if (LISTENING_PARTIES_DISABLED) {
             this.maintenanceMode = true;
             this.maintenanceMessage = LISTENING_PARTIES_DISABLED_MESSAGE;
@@ -130,14 +149,14 @@ export class ListeningPartyManager {
             const hostControls = document.getElementById('parties-host-controls');
             const disabledNotice = document.getElementById('parties-disabled-notice');
             if (createBtn) {
-                createBtn.textContent = 'Temporarily Disabled';
+                createBtn.textContent = 'WebRTC Unsupported';
                 createBtn.disabled = true;
                 createBtn.style.opacity = '0.5';
                 createBtn.style.cursor = 'not-allowed';
             }
             if (nameInput) {
                 nameInput.disabled = true;
-                nameInput.placeholder = 'Hosting temporarily unavailable';
+                nameInput.placeholder = 'WebRTC required';
             }
             if (hostControls) hostControls.style.display = 'none';
             if (disabledNotice) disabledNotice.style.display = 'block';
@@ -314,10 +333,19 @@ export class ListeningPartyManager {
     }
 
     async showJoinModal(user, pbUser = null) {
+        const securityNoteHtml = `
+            <div style="margin-top: 1.25rem; padding: 0.85rem; background: var(--background-secondary); border: 1px solid var(--border); border-radius: 8px; font-size: 0.82rem; text-align: left; color: var(--muted-foreground); line-height: 1.5;">
+                <div style="color: var(--foreground); font-weight: 600; display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.3rem;">
+                    <span>🛡️</span> P2P WebRTC Direct Connection
+                </div>
+                Connections are end-to-end encrypted directly between listeners with zero server logs. Connected peers in this room share a direct network connection (IP address).
+            </div>
+        `;
+
         if (user && this._hasProfileName(pbUser)) {
             const confirmed = await Modal.confirm(
-                'Join Party',
-                `You are about to join a listening party. Everyone in the party will see your profile. Are you ready to listen together?`,
+                'Join Listening Party',
+                `<p>You are about to join a listening party. Everyone in the party will see your profile.</p>${securityNoteHtml}`,
                 'Join Party'
             );
             return confirmed ? { profile: null } : false;
@@ -327,7 +355,7 @@ export class ListeningPartyManager {
             const stored = this._getStoredUserProfile(user.$id);
             const result = await this._promptNickname({
                 title: 'Pick a Nickname',
-                body: "You don't have a profile yet. Pick a nickname so other people in the party can see who you are.",
+                body: `<p>Pick a nickname so other listeners in the room can see who you are.</p>${securityNoteHtml}`,
                 cached: stored?.name || '',
             });
             if (result && result.profile) {
@@ -341,8 +369,8 @@ export class ListeningPartyManager {
         const cached = localStorage.getItem('party_guest_profile');
         const cachedName = cached ? JSON.parse(cached).name : '';
         const result = await this._promptNickname({
-            title: 'Join as Guest',
-            body: 'Enter a nickname to join the party!',
+            title: 'Join Listening Party',
+            body: `<p>Enter a nickname to join the listening party!</p>${securityNoteHtml}`,
             cached: cachedName,
         });
         if (result && result.profile) {
@@ -612,6 +640,22 @@ export class ListeningPartyManager {
         this.renderMembers();
         this.renderRequests();
         this.showPartyIndicator();
+
+        const badge = document.getElementById('party-p2p-badge');
+        if (badge && !badge.dataset.bound) {
+            badge.dataset.bound = '1';
+            badge.addEventListener('click', () => {
+                Modal.alert(
+                    'P2P Privacy & Security',
+                    `<div style="text-align: left; font-size: 0.9rem; line-height: 1.6;">
+                        <p style="margin-bottom: 0.75rem;"><strong>🔒 End-to-End Encrypted:</strong> This listening room communicates directly between peers using WebRTC with DTLS data channel encryption. No audio sync or chat messages are routed through an intermediate server.</p>
+                        <p style="margin-bottom: 0.75rem;"><strong>⚡ Zero Server Storage:</strong> No rooms, chat history, or listening activities are recorded or logged on any server.</p>
+                        <p><strong>🌐 Direct Network Mesh:</strong> In peer-to-peer networks, connected devices connect directly, sharing network addresses (IP) within the room. Only share your party invite link with people you trust.</p>
+                    </div>`
+                );
+            });
+        }
+
         if (this.isHost) {
             this.unlockControls();
             this.setupHostPlayerSync();

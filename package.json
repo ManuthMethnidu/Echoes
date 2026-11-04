@@ -78,6 +78,7 @@
         "@kawarp/core": "^1.1.1",
         "@neondatabase/serverless": "^1.2.0",
         "@sentry/browser": "^10.70.0",
+        "@trystero-p2p/nostr": "^0.26.0",
         "@trystero-p2p/torrent": "^0.26.0",
         "@types/qrcode": "^1.5.6",
         "@types/wicg-file-system-access": "^2023.10.7",

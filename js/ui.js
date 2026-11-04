@@ -2690,8 +2690,8 @@ export class UIRenderer {
         const activeParty = document.getElementById('parties-active-party');
         const returnBtn = document.getElementById('parties-return-btn');
 
-        const authServerAvailable = await this.checkPartiesServerAvailable();
-        if (areListeningPartiesDisabled() || !authServerAvailable) {
+        const isSupported = typeof RTCPeerConnection !== 'undefined';
+        if (!isSupported || areListeningPartiesDisabled()) {
             if (disabledNotice) disabledNotice.style.display = 'block';
             if (hostControls) hostControls.style.display = 'none';
             if (authRequired) authRequired.style.display = 'none';
@@ -2719,20 +2719,7 @@ export class UIRenderer {
     }
 
     async checkPartiesServerAvailable() {
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 3000);
-        try {
-            const response = await fetch(`${AUTH_BASE_URL}/health`, {
-                credentials: 'include',
-                cache: 'no-store',
-                signal: controller.signal,
-            });
-            return response.ok;
-        } catch (_e) {
-            return false;
-        } finally {
-            clearTimeout(timeout);
-        }
+        return typeof RTCPeerConnection !== 'undefined';
     }
 
     async renderResetPasswordPage() {

@@ -2898,12 +2898,11 @@ export class LosslessAPI {
         const id = input?.id || input;
         const inputTrack = typeof input === 'object' ? input : null;
         const isApple = inputTrack?.provider === 'apple' || String(id || '').startsWith('apple:');
-        const metadataTrack = id && !isApple ? await this.getTrackMetadata(id).catch(() => null) : null;
+        const isYT = inputTrack?.provider === 'youtube' || inputTrack?.videoId || String(id || '').startsWith('yt:');
+        const metadataTrack = id && !isApple && !isYT ? await this.getTrackMetadata(id).catch(() => null) : null;
         const track = metadataTrack
             ? this.prepareTrack({ ...(inputTrack || {}), ...metadataTrack })
-            : inputTrack?.isrc || isApple
-              ? inputTrack
-              : await this.getTrackMetadata(id);
+            : inputTrack || (await this.getTrackMetadata(id));
         const isVideo = track?.type?.toLowerCase().includes('video');
         const cleanQuality = isCustomFormat(downloadQuality) ? 'LOSSLESS' : downloadQuality;
 

@@ -12,6 +12,9 @@ import {
 import { TracksStreamerAPI, tracksStreamerAPI, normalizeTracksSearchResults } from './tracks-api.js';
 import { getCommunityPlaylist } from './community-playlists.js';
 import { ytEngine } from './yt-music.js';
+import { sanitizeForFilename, getExtensionFromBlob } from './utils.js';
+import { DownloadProgress } from './progressEvents.ts';
+import { triggerDownload } from './download-utils.ts';
 
 /**
  * MusicAPI - Singleton class that provides a unified interface for accessing music streaming services.
@@ -1151,12 +1154,156 @@ export class MusicAPI {
     }
 
     // Download methods
+    async downloadYouTubeTrack(id, quality, filename, options = {}) {
+        const videoId =
+            this.getYouTubeId(id) ||
+            options.track?.videoId ||
+            String(id || '').replace(/^yt:/, '').replace(/^youtube:/, '');
+
+        if (!videoId) {
+            throw new Error(`Invalid YouTube track ID: ${id}`);
+        }
+
+        const track = options.track || (await this.getTrackMetadata(id).catch(() => null)) || {
+            id: `yt:${videoId}`,
+            videoId,
+            title: filename || 'Track',
+            provider: 'youtube',
+        };
+
+        const title = track?.title || track?.name || filename || 'track';
+        const safeTitle = sanitizeForFilename(title);
+        const downloadUrl = `/api/yt/download?id=${encodeURIComponent(videoId)}&filename=${encodeURIComponent(safeTitle)}`;
+
+        let response;
+        try {
+            response = await fetch(downloadUrl, {
+                cache: 'no-store',
+                signal: options.signal,
+            });
+            if (!response.ok) {
+                throw new Error(`Server returned HTTP ${response.status}`);
+            }
+        } catch (fetchErr) {
+            if (fetchErr.name === 'AbortError') throw fetchErr;
+            // Fallback: resolve stream directly via ytEngine and proxy if needed
+            try {
+                const stream = await ytEngine.resolveStream(track || videoId);
+                const rawUrl = stream?.streamUrl || stream?.url;
+                if (!rawUrl) throw fetchErr;
+                const proxyUrl = `/api/yt/proxy-stream?url=${encodeURIComponent(rawUrl)}`;
+                response = await fetch(proxyUrl, {
+                    cache: 'no-store',
+                    signal: options.signal,
+                });
+                if (!response.ok) throw fetchErr;
+            } catch (fallbackErr) {
+                if (fallbackErr.name === 'AbortError') throw fallbackErr;
+                throw new Error(`Failed to download YouTube track: ${fetchErr.message}`);
+            }
+        }
+
+        const contentLengthHeader = response.headers.get('Content-Length');
+        const totalBytes = contentLengthHeader ? parseInt(contentLengthHeader, 10) : undefined;
+        let blob;
+
+        if (response.body && typeof options.onProgress === 'function') {
+            const reader = response.body.getReader();
+            const chunks = [];
+            let receivedBytes = 0;
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                chunks.push(value);
+                receivedBytes += value.byteLength;
+                options.onProgress(new DownloadProgress(receivedBytes, totalBytes));
+            }
+            const mimeType = response.headers.get('Content-Type') || 'audio/webm';
+            blob = new Blob(chunks, { type: mimeType });
+        } else {
+            blob = await response.blob();
+            if (typeof options.onProgress === 'function') {
+                options.onProgress(new DownloadProgress(blob.size, blob.size));
+            }
+        }
+
+        // Tag audio with metadata if possible
+        try {
+            const metadataModule = await import('./metadata.js');
+            const { prefetchMetadataObjects, addMetadataToAudio } = metadataModule;
+            const prefetchPromises = prefetchMetadataObjects(track, this);
+            blob = await addMetadataToAudio(blob, track, this, quality, prefetchPromises);
+        } catch (tagErr) {
+            console.warn('[MusicAPI] Metadata tagging skipped:', tagErr);
+        }
+
+        if (options.triggerDownload) {
+            const ext = await getExtensionFromBlob(blob);
+            let targetName = filename || `${safeTitle}.${ext}`;
+            if (!targetName.endsWith(`.${ext}`)) {
+                targetName = targetName.replace(/\.[^.]+$/, `.${ext}`);
+            }
+            triggerDownload(blob, targetName);
+        }
+
+        return blob;
+    }
+
     async downloadTrack(id, quality, filename, options = {}) {
+        const isYT =
+            this.isYouTubeId(id) ||
+            options.track?.provider === 'youtube' ||
+            Boolean(options.track?.videoId) ||
+            String(id || '').startsWith('yt:') ||
+            String(id || '').startsWith('youtube:');
+
+        if (isYT) {
+            return this.downloadYouTubeTrack(id, quality, filename, options);
+        }
+
         const api = this.getAPI();
         const appleTrack = this.getCachedAppleTrack(id);
-        if (appleTrack) return api.downloadTrack(id, quality, filename, { ...options, track: appleTrack });
+        const trackOpt = appleTrack ? { ...options, track: appleTrack } : options;
         const cleanId = this.stripProviderPrefix(id);
-        return api.downloadTrack(cleanId, quality, filename, options);
+
+        try {
+            return await api.downloadTrack(cleanId, quality, filename, trackOpt);
+        } catch (primaryErr) {
+            if (primaryErr?.name === 'AbortError') throw primaryErr;
+            console.warn('[MusicAPI] Primary provider download failed, trying YouTube fallback:', primaryErr);
+
+            // Attempt YouTube fallback
+            const targetTrack = options.track || appleTrack || this.getCachedTracksTrack(id);
+            const title = targetTrack?.title || targetTrack?.name || filename || '';
+            const artist = targetTrack?.artist?.name || targetTrack?.artists?.[0]?.name || '';
+            const query = `${title} ${artist}`.trim();
+
+            if (query) {
+                try {
+                    const ytResults = await ytEngine.search(query);
+                    if (ytResults && ytResults.length > 0) {
+                        const bestMatch = ytResults[0];
+                        const videoId = bestMatch.videoId || bestMatch.id;
+                        if (videoId) {
+                            return await this.downloadYouTubeTrack(videoId, quality, filename, {
+                                ...options,
+                                track: {
+                                    ...(targetTrack || {}),
+                                    id: `yt:${videoId}`,
+                                    videoId,
+                                    provider: 'youtube',
+                                },
+                            });
+                        }
+                    }
+                } catch (ytErr) {
+                    if (ytErr?.name === 'AbortError') throw ytErr;
+                    console.warn('[MusicAPI] YouTube fallback search/download failed:', ytErr);
+                }
+            }
+
+            throw primaryErr;
+        }
     }
 
     // Similar/recommendation methods

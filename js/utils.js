@@ -769,6 +769,11 @@ export async function getCoverBlob(api, coverId) {
 
     const fetchWithProxy = async (url) => {
         try {
+            const internalProxy = `/api/yt/proxy-stream?url=${encodeURIComponent(url)}`;
+            const response = await fetch(internalProxy);
+            if (response.ok) return await response.blob();
+        } catch (_) {}
+        try {
             const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(url)}`;
             const response = await fetch(proxyUrl);
             if (response.ok) return await response.blob();

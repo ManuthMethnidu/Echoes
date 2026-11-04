@@ -709,10 +709,15 @@ async function startBulkDownload({
             });
         }
 
-        completeBulkDownload(notification, true, null, {
-            failedTracks: stats?.failed || 0,
-            totalTracks: stats?.total || 0,
-        });
+        const allFailed = stats && stats.total > 0 && stats.failed >= stats.total;
+        if (allFailed) {
+            completeBulkDownload(notification, false, stats.firstError || 'All tracks failed to download');
+        } else {
+            completeBulkDownload(notification, true, null, {
+                failedTracks: stats?.failed || 0,
+                totalTracks: stats?.total || 0,
+            });
+        }
 
         // If the download went to the local media folder, refresh the local library.
         if (modernSettings.bulkDownloadMethod === BulkDownloadMethod.LocalMedia) {
@@ -1175,8 +1180,32 @@ export async function downloadTrackWithMetadata(
     ongoingDownloads.add(downloadKey);
 
     let enriched;
+    const isYT =
+        track?.provider === 'youtube' ||
+        Boolean(track?.videoId) ||
+        api.isYouTubeId?.(track?.id) ||
+        String(track?.id || '').startsWith('yt:') ||
+        String(track?.id || '').startsWith('youtube:');
+
     try {
-        enriched = await tidalAPI.enrichTrack(track, { downloadQuality: quality });
+        if (isYT) {
+            enriched = {
+                enrichedTrack: track,
+                lookup: { info: { audioQuality: 'LOSSLESS' } },
+                isVideo: false,
+            };
+        } else {
+            try {
+                enriched = await tidalAPI.enrichTrack(track, { downloadQuality: quality });
+            } catch (tidalErr) {
+                console.warn('[downloadTrackWithMetadata] Tidal enrich failed, using track object:', tidalErr);
+                enriched = {
+                    enrichedTrack: track,
+                    lookup: { info: { audioQuality: 'LOSSLESS' } },
+                    isVideo: false,
+                };
+            }
+        }
     } catch (error) {
         ongoingDownloads.delete(downloadKey);
         const title = track?.title || track?.name || 'this track';

@@ -17,6 +17,9 @@ const ALLOWED_STREAM_DOMAINS = [
     'adminforge.de',
     'projectsegfau.lt',
     'chocolatemoo53.com',
+    'materialio.us',
+    'protokolla.fi',
+    'ducks.party',
     'qzz.io',
 ];
 

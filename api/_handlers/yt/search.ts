@@ -36,6 +36,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 const targetArtistId = `yt_art_${authorId || author.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
                 return {
                     id: targetArtistId,
+                    type: 'channel',
                     name: author,
                     picture,
                     avatar: picture,
@@ -46,6 +47,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             }
 
             const videoId = item.videoId || item.id;
+            if (!videoId || typeof videoId !== 'string') {
+                return null;
+            }
+
             const title = item.title || 'Unknown Title';
             const author = item.author || 'Unknown Artist';
             const duration = Number(item.lengthSeconds) || 0;
@@ -88,7 +93,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 isUnavailable: false,
                 provider: 'youtube',
             };
-        });
+        }).filter(Boolean);
 
         return res.status(200).json({
             results,

@@ -127,6 +127,7 @@ export class MusicAPI {
     _formatYtTrack(t) {
         if (!t) return null;
         const vid = t.videoId || this.getYouTubeId(t.id);
+        if (!vid || vid.startsWith('art_')) return null;
         const trackId = `yt:${vid}`;
         const cover = `https://i.ytimg.com/vi/${vid}/hqdefault.jpg`;
         return {
@@ -152,10 +153,23 @@ export class MusicAPI {
         try {
             const ytResults = await ytEngine.search(query);
             if (ytResults && ytResults.length > 0) {
-                const preparedTracks = ytResults.map((t) => this._formatYtTrack(t));
+                const channelItems = ytResults.filter((t) => t.type === 'channel' || (t.id && String(t.id).startsWith('yt_art_')));
+                const trackItems = ytResults.filter((t) => t.type !== 'channel' && (!t.id || !String(t.id).startsWith('yt_art_')));
+                const preparedTracks = trackItems.map((t) => this._formatYtTrack(t)).filter(Boolean);
                 this.cacheTracks(preparedTracks);
 
                 const artistMap = new Map();
+                for (const c of channelItems) {
+                    artistMap.set(c.id, {
+                        id: c.id,
+                        name: c.name,
+                        picture: c.picture || c.avatar,
+                        avatar: c.avatar || c.picture,
+                        provider: 'youtube',
+                        _href: c._href || `/artist/${c.id}`,
+                    });
+                }
+
                 const albumMap = new Map();
                 for (const t of preparedTracks) {
                     if (t.artist && !artistMap.has(t.artist.id)) {
@@ -244,7 +258,8 @@ export class MusicAPI {
         try {
             const ytResults = await ytEngine.search(query);
             if (ytResults && ytResults.length > 0) {
-                const prepared = ytResults.map((t) => this._formatYtTrack(t));
+                const trackItems = ytResults.filter((t) => t.type !== 'channel' && (!t.id || !String(t.id).startsWith('yt_art_')));
+                const prepared = trackItems.map((t) => this._formatYtTrack(t)).filter(Boolean);
                 this.cacheTracks(prepared);
                 return { items: prepared, limit: prepared.length, offset: 0, totalNumberOfItems: prepared.length };
             }

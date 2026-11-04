@@ -140,3 +140,4 @@ export class YouTubeMusicEngine {
 }
 
 export const ytEngine = new YouTubeMusicEngine();
+export default ytEngine;

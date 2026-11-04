@@ -31,7 +31,6 @@ import { authManager } from './accounts/auth.js';
 import { connectManager } from './connect-manager.js';
 import { registerSW } from 'virtual:pwa-register';
 import { openEditProfile } from './profile.js';
-import { ThemeStore } from './themeStore.js';
 import { discordRPC } from './discord-rpc.js';
 import './commandPalette.js';
 import { initTracker } from './tracker.js';
@@ -349,8 +348,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (aboutEl) aboutEl.innerHTML = html;
         if (settingsEl) settingsEl.innerHTML = html;
     }
-
-    new ThemeStore();
 
     try {
         await HiFiClient.initialize({

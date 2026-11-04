@@ -1948,6 +1948,24 @@ input[type='search']::-webkit-search-cancel-button {
     /* Subtle zoom */
 }
 
+/* Crop YouTube letterbox/pillarbox bars in cards */
+.card-image-wrapper .card-image[src*="ytimg.com"],
+.card-image-wrapper .card-image[src*="youtube.com"],
+.card-image-wrapper .card-image[src*="hqdefault"],
+.card-image-wrapper .card-image[src*="/vi/"],
+.card-image-wrapper .card-image.yt-cover-crop {
+    transform: scale(1.34);
+    transform-origin: center center;
+}
+
+.card:hover .card-image-wrapper .card-image[src*="ytimg.com"],
+.card:hover .card-image-wrapper .card-image[src*="youtube.com"],
+.card:hover .card-image-wrapper .card-image[src*="hqdefault"],
+.card:hover .card-image-wrapper .card-image[src*="/vi/"],
+.card:hover .card-image-wrapper .card-image.yt-cover-crop {
+    transform: scale(1.4);
+}
+
 .card-like-btn {
     position: absolute;
     right: 2%;
@@ -2485,6 +2503,17 @@ body.multi-select-mode .track-item:hover {
     border-radius: var(--radius-sm);
     object-fit: cover;
     flex-shrink: 0;
+    transition: transform var(--transition);
+}
+
+.track-item-cover[src*="ytimg.com"],
+.track-item-cover[src*="youtube.com"],
+.track-item-cover[src*="hqdefault"],
+.track-item-cover[src*="/vi/"],
+.track-item-cover.yt-cover-crop {
+    clip-path: inset(0 round var(--radius-sm));
+    transform: scale(1.34);
+    transform-origin: center center;
 }
 
 .track-item-details {
@@ -2631,12 +2660,40 @@ body.multi-select-mode .track-item:hover {
     border-radius: var(--radius);
     object-fit: cover;
     box-shadow: var(--shadow-lg);
-    transition: opacity 0.3s ease-in-out;
+    transition: opacity 0.3s ease-in-out, transform 0.2s ease;
 }
 
 .detail-header-cover-container {
     position: relative;
     flex-shrink: 0;
+    width: 200px;
+    height: 200px;
+    border-radius: var(--radius);
+    overflow: hidden;
+    box-shadow: var(--shadow-lg);
+}
+
+.detail-header-cover-container .detail-header-image {
+    width: 100%;
+    height: 100%;
+    border-radius: inherit;
+    box-shadow: none;
+    display: block;
+}
+
+.detail-header-cover-container .detail-header-image[src*="ytimg.com"],
+.detail-header-cover-container .detail-header-image[src*="youtube.com"],
+.detail-header-cover-container .detail-header-image[src*="hqdefault"],
+.detail-header-cover-container .detail-header-image[src*="/vi/"],
+.detail-header-cover-container .detail-header-image.yt-cover-crop,
+.detail-header-image[src*="ytimg.com"],
+.detail-header-image[src*="youtube.com"],
+.detail-header-image[src*="hqdefault"],
+.detail-header-image[src*="/vi/"],
+.detail-header-image.yt-cover-crop {
+    clip-path: inset(0 round var(--radius));
+    transform: scale(1.34);
+    transform-origin: center center;
 }
 
 .detail-header-collage {
@@ -3627,6 +3684,17 @@ input:checked + .slider::before {
     min-width: 0;
 }
 
+.track-info .cover-wrapper {
+    width: 56px;
+    height: 56px;
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    flex-shrink: 0;
+    position: relative;
+    cursor: pointer;
+    background-color: var(--muted);
+}
+
 .track-info .cover {
     width: 56px;
     height: 56px;
@@ -3634,6 +3702,36 @@ input:checked + .slider::before {
     background-color: var(--muted);
     object-fit: cover;
     flex-shrink: 0;
+    transition: transform var(--transition);
+}
+
+.track-info .cover-wrapper .cover {
+    width: 100%;
+    height: 100%;
+    border-radius: inherit;
+    display: block;
+}
+
+.track-info .cover-wrapper:hover .cover {
+    transform: scale(1.05);
+}
+
+.track-info .cover[src*="ytimg.com"],
+.track-info .cover[src*="youtube.com"],
+.track-info .cover[src*="hqdefault"],
+.track-info .cover[src*="/vi/"],
+.track-info .cover.yt-cover-crop {
+    clip-path: inset(0 round var(--radius-sm));
+    transform: scale(1.34);
+    transform-origin: center center;
+}
+
+.track-info .cover-wrapper:hover .cover[src*="ytimg.com"],
+.track-info .cover-wrapper:hover .cover[src*="youtube.com"],
+.track-info .cover-wrapper:hover .cover[src*="hqdefault"],
+.track-info .cover-wrapper:hover .cover[src*="/vi/"],
+.track-info .cover-wrapper:hover .cover.yt-cover-crop {
+    transform: scale(1.4);
 }
 
 .track-info .details {
@@ -10989,8 +11087,19 @@ body:has(#side-panel.active) #close-fullscreen-cover-btn {
     max-height: none;
     object-fit: cover;
     border-radius: 20px;
-    clip-path: none !important;
-    transform: none !important;
+    clip-path: none;
+    transform: none;
+    transform-origin: center center;
+    transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/* Crop YouTube letterboxed/pillarboxed thumbnails to clean 1:1 square */
+#fullscreen-cover-overlay #fullscreen-cover-image[src*="ytimg.com"],
+#fullscreen-cover-overlay #fullscreen-cover-image[src*="youtube.com"],
+#fullscreen-cover-overlay #fullscreen-cover-image[src*="hqdefault"],
+#fullscreen-cover-overlay #fullscreen-cover-image[src*="/vi/"],
+#fullscreen-cover-overlay #fullscreen-cover-image.yt-cover-crop {
+    transform: scale(1.34) !important;
 }
 
 #fullscreen-cover-overlay .fullscreen-track-info {

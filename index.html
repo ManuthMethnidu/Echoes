@@ -2587,14 +2587,16 @@
 
                 <div id="page-album" class="page">
                     <header class="detail-header">
-                        <img
-                            crossorigin="anonymous"
-                            referrerpolicy="no-referrer"
-                            id="album-detail-image"
-                            src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
-                            alt=""
-                            class="detail-header-image"
-                        />
+                        <div class="detail-header-cover-container">
+                            <img
+                                crossorigin="anonymous"
+                                referrerpolicy="no-referrer"
+                                id="album-detail-image"
+                                src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
+                                alt=""
+                                class="detail-header-image"
+                            />
+                        </div>
                         <div class="detail-header-info">
                             <h2 class="title" id="album-detail-title"></h2>
                             <div class="meta" id="album-detail-meta"></div>
@@ -2772,14 +2774,16 @@
 
                 <section id="page-folder" class="page">
                     <header class="detail-header">
-                        <img
-                            crossorigin="anonymous"
-                            referrerpolicy="no-referrer"
-                            id="folder-detail-image"
-                            src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
-                            class="detail-header-image"
-                            alt="Folder Cover"
-                        />
+                        <div class="detail-header-cover-container">
+                            <img
+                                crossorigin="anonymous"
+                                referrerpolicy="no-referrer"
+                                id="folder-detail-image"
+                                src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
+                                class="detail-header-image"
+                                alt="Folder Cover"
+                            />
+                        </div>
                         <div class="detail-header-info">
                             <h2 class="title" id="folder-detail-title"></h2>
                             <div class="meta" id="folder-detail-meta"></div>
@@ -2793,14 +2797,16 @@
 
                 <section id="page-mix" class="page">
                     <header class="detail-header">
-                        <img
-                            crossorigin="anonymous"
-                            referrerpolicy="no-referrer"
-                            id="mix-detail-image"
-                            src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
-                            class="detail-header-image"
-                            alt="Mix Cover"
-                        />
+                        <div class="detail-header-cover-container">
+                            <img
+                                crossorigin="anonymous"
+                                referrerpolicy="no-referrer"
+                                id="mix-detail-image"
+                                src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
+                                class="detail-header-image"
+                                alt="Mix Cover"
+                            />
+                        </div>
                         <div class="detail-header-info">
                             <h2 class="title" id="mix-detail-title"></h2>
                             <div class="meta" id="mix-detail-meta"></div>
@@ -2938,14 +2944,16 @@
 
                 <div id="page-track" class="page">
                     <header class="detail-header">
-                        <img
-                            crossorigin="anonymous"
-                            referrerpolicy="no-referrer"
-                            id="track-detail-image"
-                            src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
-                            class="detail-header-image"
-                            alt="Track Cover"
-                        />
+                        <div class="detail-header-cover-container">
+                            <img
+                                crossorigin="anonymous"
+                                referrerpolicy="no-referrer"
+                                id="track-detail-image"
+                                src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
+                                class="detail-header-image"
+                                alt="Track Cover"
+                            />
+                        </div>
                         <div class="detail-header-info">
                             <div class="type">Song</div>
                             <h2 class="title" id="track-detail-title"></h2>
@@ -6574,15 +6582,17 @@
 
             <footer class="now-playing-bar">
                 <div class="track-info">
-                    <img
-                        crossorigin="anonymous"
-                        referrerpolicy="no-referrer"
-                        src="/images/echos_logo.svg"
-                        alt=""
-                        class="cover"
-                        fetchpriority="high"
-                        onerror="this.src='/images/echos_logo.svg';this.onerror=null;"
-                    />
+                    <div class="cover-wrapper">
+                        <img
+                            crossorigin="anonymous"
+                            referrerpolicy="no-referrer"
+                            src="/images/echos_logo.svg"
+                            alt=""
+                            class="cover"
+                            fetchpriority="high"
+                            onerror="this.src='/images/echos_logo.svg';this.onerror=null;"
+                        />
+                    </div>
                     <div class="details">
                         <div class="title">Select a song</div>
                         <div class="album"></div>

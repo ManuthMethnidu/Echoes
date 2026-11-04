@@ -742,9 +742,28 @@ export class UIRenderer {
             return `<img crossorigin="anonymous" referrerpolicy="no-referrer" src="${wsrvUrl}" class="${className}" alt="${alt}" loading="${loading}"${fetchPriorityAttr} onerror="this.src='/images/echos_logo.svg';this.onerror=null;">`;
         }
 
+        const isYt =
+            Boolean(
+                typeof cover === 'string' &&
+                    (cover.includes('ytimg.com') ||
+                        cover.includes('youtube.com') ||
+                        cover.includes('/vi/') ||
+                        cover.includes('hqdefault') ||
+                        cover.startsWith('yt:') ||
+                        /^[a-zA-Z0-9_-]{11}$/.test(cover))
+            ) ||
+            Boolean(
+                typeof imageUrl === 'string' &&
+                    (imageUrl.includes('ytimg.com') ||
+                        imageUrl.includes('youtube.com') ||
+                        imageUrl.includes('/vi/') ||
+                        imageUrl.includes('hqdefault'))
+            );
+        const finalClass = isYt ? `${className} yt-cover-crop` : className;
+
         const loadingAttr = loading && loading !== 'eager' ? ` loading="${loading}"` : '';
         const fetchPriorityAttr = loading === 'eager' ? ' fetchpriority="high"' : '';
-        return `<img crossorigin="anonymous" referrerpolicy="no-referrer" src="${imageUrl}" class="${className}" alt="${alt}"${loadingAttr}${fetchPriorityAttr} onerror="this.src='/images/echos_logo.svg';this.onerror=null;">`;
+        return `<img crossorigin="anonymous" referrerpolicy="no-referrer" src="${imageUrl}" class="${finalClass}" alt="${alt}"${loadingAttr}${fetchPriorityAttr} onerror="this.src='/images/echos_logo.svg';this.onerror=null;">`;
     }
 
     createBaseCardHTML({
@@ -1519,6 +1538,18 @@ export class UIRenderer {
                         currentImage.src = '/images/echos_logo.svg';
                     };
                     currentImage.src = coverUrl;
+                }
+                const activeImg = document.getElementById('fullscreen-cover-image');
+                if (activeImg) {
+                    const isYt = Boolean(
+                        track.provider === 'youtube' ||
+                            track.id?.startsWith('yt:') ||
+                            coverUrl?.includes('ytimg.com') ||
+                            coverUrl?.includes('youtube.com') ||
+                            coverUrl?.includes('/vi/') ||
+                            coverUrl?.includes('hqdefault')
+                    );
+                    activeImg.classList.toggle('yt-cover-crop', isYt);
                 }
             }
             await this.extractAndApplyColor(this.api.getCoverUrl(track.album?.cover, '80'));

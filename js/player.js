@@ -1343,6 +1343,16 @@ export class Player {
                         imgEl.removeAttribute('sizes');
                     }
                 }
+
+                const isYtCover = Boolean(
+                    track.provider === 'youtube' ||
+                        track.id?.startsWith('yt:') ||
+                        coverUrl?.includes('ytimg.com') ||
+                        coverUrl?.includes('youtube.com') ||
+                        coverUrl?.includes('/vi/') ||
+                        coverUrl?.includes('hqdefault')
+                );
+                imgEl.classList.toggle('yt-cover-crop', isYtCover);
             }
             if (this.audio) {
                 const isInFullscreen = document.getElementById('fullscreen-cover-overlay')?.style.display === 'flex';

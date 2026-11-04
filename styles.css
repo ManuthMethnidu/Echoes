@@ -64,6 +64,9 @@
     --radius-2xl: 24px;
     --radius-full: 9999px;
     --radius: var(--radius-md);
+    --skeleton-base: color-mix(in srgb, var(--foreground) 7%, transparent);
+    --skeleton-highlight: color-mix(in srgb, var(--foreground) 18%, transparent);
+    --skeleton-duration: 1.5s;
     --player-bar-height-desktop: 90px;
     --player-bar-height-mobile: 130px;
     --sidebar-width: 240px;
@@ -5070,13 +5073,51 @@ input:checked + .slider::before {
     animation: pulse 1.5s infinite ease-in-out;
 }
 
-.skeleton {
-    background: linear-gradient(90deg, var(--secondary) 0%, var(--muted) 50%, var(--secondary) 100%);
-    background-size: 200% 100%;
-    animation: skeleton-loading 2s infinite ease-in-out;
+.skeleton,
+.react-loading-skeleton {
+    position: relative;
+    overflow: hidden;
+    background-color: var(--skeleton-base, rgb(255 255 255 / 8%));
+    border-radius: var(--radius-sm, 6px);
+    display: block;
+    user-select: none;
+    -webkit-user-select: none;
+}
 
-    /* Slower, smoother pulse */
-    border-radius: var(--radius);
+.skeleton::after,
+.react-loading-skeleton::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background-image: linear-gradient(
+        90deg,
+        transparent 0%,
+        var(--skeleton-highlight, rgb(255 255 255 / 18%)) 50%,
+        transparent 100%
+    );
+    animation: react-skeleton-shimmer var(--skeleton-duration, 1.5s) infinite ease-in-out;
+    pointer-events: none;
+}
+
+@keyframes react-skeleton-shimmer {
+    100% {
+        transform: translateX(100%);
+    }
+}
+
+/* Fallback for replaced elements like img.skeleton or input.skeleton where ::after is ignored */
+img.skeleton,
+input.skeleton {
+    background-color: var(--skeleton-base, rgb(255 255 255 / 8%));
+    background-image: linear-gradient(
+        90deg,
+        var(--skeleton-base, rgb(255 255 255 / 8%)) 0%,
+        var(--skeleton-highlight, rgb(255 255 255 / 18%)) 50%,
+        var(--skeleton-base, rgb(255 255 255 / 8%)) 100%
+    );
+    background-size: 200% 100%;
+    animation: skeleton-loading var(--skeleton-duration, 1.5s) infinite ease-in-out;
 }
 
 .skeleton-track {

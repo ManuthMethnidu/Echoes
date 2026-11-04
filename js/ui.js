@@ -5421,7 +5421,8 @@ export class UIRenderer {
         }
 
         imageEl.src = '';
-        imageEl.style.backgroundColor = 'var(--muted)';
+        imageEl.classList.add('skeleton');
+        titleEl.innerHTML = '<div class="skeleton" style="height: 38px; width: 280px; max-width: 90%; border-radius: var(--radius);"></div>';
         metaEl.innerHTML = '<div class="skeleton" style="height: 16px; width: 200px; max-width: 80%;"></div>';
         prodEl.innerHTML = '<div class="skeleton" style="height: 16px; width: 200px; max-width: 80%;"></div>';
         rateCriticsEl.innerHTML = '<div class="skeleton" style="height: 16px; width: 200px; max-width: 80%;"></div>';
@@ -5515,6 +5516,7 @@ export class UIRenderer {
                     imageEl.src = coverUrl;
                 }
             }
+            imageEl.classList.remove('skeleton');
             imageEl.style.backgroundColor = '';
 
             // Set background and vibrant color
@@ -5949,7 +5951,7 @@ export class UIRenderer {
         const addPlaylistBtn = document.getElementById('add-playlist-to-playlist-btn');
 
         imageEl.src = '';
-        imageEl.style.backgroundColor = 'var(--muted)';
+        imageEl.classList.add('skeleton');
         titleEl.innerHTML = '<div class="skeleton" style="height: 48px; width: 300px; max-width: 90%;"></div>';
         metaEl.innerHTML = '<div class="skeleton" style="height: 16px; width: 200px; max-width: 80%;"></div>';
         descEl.innerHTML = '<div class="skeleton" style="height: 16px; width: 100%;"></div>';
@@ -6259,7 +6261,7 @@ export class UIRenderer {
         const container = document.getElementById('folder-detail-container');
 
         imageEl.src = '';
-        imageEl.style.backgroundColor = 'var(--muted)';
+        imageEl.classList.add('skeleton');
         titleEl.innerHTML = '<div class="skeleton" style="height: 48px; width: 300px; max-width: 90%;"></div>';
         container.innerHTML = this.createSkeletonCards(4, false);
 
@@ -6271,6 +6273,7 @@ export class UIRenderer {
             imageEl.onerror = () => {
                 imageEl.src = '/assets/folder.png';
             };
+            imageEl.classList.remove('skeleton');
             imageEl.style.backgroundColor = '';
 
             titleEl.textContent = folder.name;
@@ -6317,7 +6320,7 @@ export class UIRenderer {
 
         // Skeleton loading
         imageEl.src = '';
-        imageEl.style.backgroundColor = 'var(--muted)';
+        imageEl.classList.add('skeleton');
         titleEl.innerHTML = '<div class="skeleton" style="height: 48px; width: 300px; max-width: 90%;"></div>';
         metaEl.innerHTML = '<div class="skeleton" style="height: 16px; width: 200px; max-width: 80%;"></div>';
         descEl.innerHTML = '<div class="skeleton" style="height: 16px; width: 100%;"></div>';
@@ -6376,6 +6379,7 @@ export class UIRenderer {
                 }
             }
 
+            imageEl.classList.remove('skeleton');
             imageEl.style.backgroundColor = '';
 
             // Use title and subtitle from API directly
@@ -6475,7 +6479,7 @@ export class UIRenderer {
         if (dlBtn) dlBtn.innerHTML = `${SVG_DOWNLOAD(20)}<span>Download Discography</span>`;
 
         imageEl.src = '';
-        imageEl.style.backgroundColor = 'var(--muted)';
+        imageEl.classList.add('skeleton');
         nameEl.innerHTML = '<div class="skeleton" style="height: 48px; width: 300px; max-width: 90%;"></div>';
         metaEl.innerHTML = '<div class="skeleton" style="height: 16px; width: 150px;"></div>';
         if (socialsEl) socialsEl.innerHTML = '';
@@ -6716,6 +6720,7 @@ export class UIRenderer {
             }
 
             imageEl.src = this.api.getArtistPictureUrl(artist.picture);
+            imageEl.classList.remove('skeleton');
             imageEl.style.backgroundColor = '';
             nameEl.textContent = artist.name;
 
@@ -7725,7 +7730,7 @@ export class UIRenderer {
         }
 
         imageEl.src = '';
-        imageEl.style.backgroundColor = 'var(--muted)';
+        imageEl.classList.add('skeleton');
         titleEl.innerHTML = '<div class="skeleton" style="height: 48px; width: 300px; max-width: 90%;"></div>';
         artistEl.innerHTML = '<div class="skeleton" style="height: 16px; width: 100px;"></div>';
         albumEl.innerHTML = '';
@@ -7829,6 +7834,7 @@ export class UIRenderer {
                     imageEl.src = coverUrl;
                 }
             }
+            imageEl.classList.remove('skeleton');
             imageEl.style.backgroundColor = '';
 
             this.setPageBackground(coverUrl);

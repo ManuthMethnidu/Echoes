@@ -158,8 +158,8 @@ export function createRouter(ui) {
             case 'issues':
             case 'report':
             case 'feedback':
-                ui.showPage('issues');
-                break;
+                window.location.replace('https://github.com/ManuthMethnidu/Echoes/issues/new/choose');
+                return;
             case 'user':
                 if (param && param.startsWith('@') && !param.includes('/')) {
                     await loadProfile(decodeURIComponent(param.slice(1)));

@@ -66,7 +66,7 @@ If you would like to help cover operational server expenses, sponsor new feature
 
 ## Bug Reports and Feature Requests
 
-Community feedback directly drives the Echoes roadmap. Whether you noticed an audio playback glitch, encountered a bug, or have an exciting idea for a new feature, we strongly encourage you to submit an issue:
+Community feedback directly drives the Echoes roadmap. Whether you noticed an audio playback glitch, encountered a bug, or have an exciting idea for a new feature, please submit an issue on GitHub. Please do not email for bug reports or feature requests so that all community issues remain publicly tracked and organized:
 
 - Submit a Bug Report or Feature Request: https://github.com/ManuthMethnidu/Echoes/issues/new/choose
 - Feature Request Form: https://github.com/ManuthMethnidu/Echoes/issues/new?template=feature_request.yml

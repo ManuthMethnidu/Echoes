@@ -3,6 +3,23 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "cleanUrls": false,
+  "redirects": [
+    {
+      "source": "/issues",
+      "destination": "https://github.com/ManuthMethnidu/Echoes/issues/new/choose",
+      "permanent": false
+    },
+    {
+      "source": "/report",
+      "destination": "https://github.com/ManuthMethnidu/Echoes/issues/new/choose",
+      "permanent": false
+    },
+    {
+      "source": "/feedback",
+      "destination": "https://github.com/ManuthMethnidu/Echoes/issues/new/choose",
+      "permanent": false
+    }
+  ],
   "rewrites": [
     {
       "source": "/googlecc07749c8a73346d.html",

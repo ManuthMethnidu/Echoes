@@ -9,6 +9,7 @@ export { default as SVG_CHECKBOX } from '!lucide/square.svg?svg&icon';
 export { default as SVG_CHECKBOX_CHECKED } from '!lucide/check-square.svg?svg&icon';
 export { default as SVG_CLOCK } from '!lucide/clock.svg?svg&icon';
 export { default as SVG_CLOSE } from '!lucide/x.svg?svg&icon';
+export { default as SVG_CLOUD_DOWNLOAD } from '!lucide/cloud-download.svg?svg&icon';
 export { default as SVG_DISC } from '!lucide/disc.svg?svg&icon';
 export { default as SVG_DOWNLOAD } from '!lucide/download.svg?svg&icon';
 export { default as SVG_EYE } from '!lucide/eye.svg?svg&icon';

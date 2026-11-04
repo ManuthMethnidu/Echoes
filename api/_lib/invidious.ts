@@ -11,7 +11,7 @@ const ORDERED_INSTANCES = [
 
 export async function fetchWithFailover(
     pathBuilder: (base: string) => string,
-    timeoutMs = 8000
+    timeoutMs = 5000
 ): Promise<{ data: any; instance: string }> {
     const sampleKey = pathBuilder('');
     
@@ -21,13 +21,14 @@ export async function fetchWithFailover(
         return { data: cached.data, instance: cached.instance };
     }
 
-    let lastError: any = null;
+    const abortControllers: AbortController[] = [];
 
-    for (const base of ORDERED_INSTANCES) {
+    const fetchInstance = async (base: string): Promise<{ data: any; instance: string }> => {
+        const controller = new AbortController();
+        abortControllers.push(controller);
+        const timer = setTimeout(() => controller.abort(), timeoutMs);
+
         try {
-            const controller = new AbortController();
-            const timer = setTimeout(() => controller.abort(), timeoutMs);
-
             const url = pathBuilder(base);
             const res = await fetch(url, {
                 signal: controller.signal,
@@ -37,27 +38,49 @@ export async function fetchWithFailover(
                 },
             });
 
-            clearTimeout(timer);
-
             if (!res.ok) {
-                lastError = new Error(`HTTP ${res.status} from ${base}`);
-                continue;
+                throw new Error(`HTTP ${res.status} from ${base}`);
+            }
+
+            const contentType = res.headers.get('content-type') || '';
+            if (!contentType.includes('json')) {
+                throw new Error(`Non-JSON (${contentType}) from ${base}`);
             }
 
             const data = await res.json();
-            
-            // Cache successful response
-            cache.set(sampleKey, { data, instance: base, timestamp: Date.now() });
-            if (cache.size > 200) {
-                const oldest = cache.keys().next().value;
-                if (oldest) cache.delete(oldest);
+            if (data && typeof data === 'object' && data.error) {
+                throw new Error(`Invidious error from ${base}: ${data.error}`);
             }
 
             return { data, instance: base };
-        } catch (err: any) {
-            lastError = err;
+        } finally {
+            clearTimeout(timer);
         }
-    }
+    };
 
-    throw new Error(`All audio streaming instances failed: ${lastError?.message || 'timeout'}`);
+    try {
+        const result = await Promise.any(
+            ORDERED_INSTANCES.map((base) => fetchInstance(base))
+        );
+
+        // Abort in-flight requests once fastest succeeds
+        abortControllers.forEach((ac) => {
+            try { ac.abort(); } catch {}
+        });
+
+        // Cache successful response
+        cache.set(sampleKey, { data: result.data, instance: result.instance, timestamp: Date.now() });
+        if (cache.size > 200) {
+            const oldest = cache.keys().next().value;
+            if (oldest) cache.delete(oldest);
+        }
+
+        return result;
+    } catch (aggregateErr: any) {
+        abortControllers.forEach((ac) => {
+            try { ac.abort(); } catch {}
+        });
+        const firstErr = aggregateErr?.errors?.[0]?.message || aggregateErr?.message || 'timeout';
+        throw new Error(`All audio streaming instances failed: ${firstErr}`);
+    }
 }

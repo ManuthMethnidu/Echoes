@@ -61,7 +61,10 @@ import {
     SVG_PLAY,
     SVG_CLOSE,
     SVG_RESET,
+    SVG_CHECK,
+    SVG_CLOUD_DOWNLOAD,
 } from './icons.js';
+import { offlineStorage } from './offline-storage.js';
 import { HiFiClient } from './HiFi.js';
 
 // Capture real iOS state before spoofing (needed for background audio)
@@ -974,6 +977,76 @@ document.addEventListener('DOMContentLoaded', async () => {
                 console.error('Playlist download failed:', error);
                 alert('Failed to download playlist: ' + error.message);
             } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalHTML;
+            }
+        }
+
+        if (e.target.closest('#cache-playlist-btn')) {
+            const btn = e.target.closest('#cache-playlist-btn');
+            if (btn.disabled) return;
+
+            const playlistId = window.location.pathname.split('/')[2];
+            if (!playlistId) return;
+
+            btn.disabled = true;
+            const originalHTML = btn.innerHTML;
+            btn.innerHTML = `${SVG_ANIMATE_SPIN(20)}<span>Caching 0%...</span>`;
+
+            try {
+                let playlist, tracks;
+                let userPlaylist = await db.getPlaylist(playlistId);
+
+                if (!userPlaylist) {
+                    try {
+                        userPlaylist = await syncManager.getPublicPlaylist(playlistId);
+                    } catch {
+                        // Not a public playlist
+                    }
+                }
+
+                if (userPlaylist) {
+                    playlist = { ...userPlaylist, title: userPlaylist.name || userPlaylist.title };
+                    tracks = userPlaylist.tracks || [];
+                } else {
+                    const data = await MusicAPI.instance.getPlaylist(playlistId);
+                    playlist = data?.playlist;
+                    tracks = data?.tracks || [];
+                }
+
+                if (!tracks || tracks.length === 0) {
+                    alert('Playlist has no tracks to cache.');
+                    btn.disabled = false;
+                    btn.innerHTML = originalHTML;
+                    return;
+                }
+
+                showNotification(`Caching ${tracks.length} tracks to offline storage...`);
+                let cachedCount = 0;
+                let failedCount = 0;
+
+                for (let i = 0; i < tracks.length; i++) {
+                    const track = tracks[i];
+                    const percent = Math.round(((i + 1) / tracks.length) * 100);
+                    btn.innerHTML = `${SVG_ANIMATE_SPIN(20)}<span>Caching ${i + 1}/${tracks.length} (${percent}%)...</span>`;
+                    try {
+                        await offlineStorage.cacheTrack(track, MusicAPI.instance, lyricsManager);
+                        cachedCount++;
+                    } catch (trackErr) {
+                        console.warn(`Failed to cache track ${track.title || track.id}:`, trackErr);
+                        failedCount++;
+                    }
+                }
+
+                btn.innerHTML = `${SVG_CHECK(20)}<span>Cached!</span>`;
+                showNotification(`Cached ${cachedCount} of ${tracks.length} tracks offline!`);
+                setTimeout(() => {
+                    btn.innerHTML = originalHTML;
+                    btn.disabled = false;
+                }, 3000);
+            } catch (error) {
+                console.error('Playlist caching failed:', error);
+                alert('Failed to cache playlist: ' + error.message);
                 btn.disabled = false;
                 btn.innerHTML = originalHTML;
             }

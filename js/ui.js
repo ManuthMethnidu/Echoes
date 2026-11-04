@@ -72,6 +72,7 @@ fontSettings.applyFontSize();
 import {
     SVG_PLAY,
     SVG_DOWNLOAD,
+    SVG_CLOUD_DOWNLOAD,
     SVG_MENU,
     SVG_HEART,
     SVG_VOLUME,
@@ -5433,10 +5434,10 @@ export class UIRenderer {
                 }
                 const query = item.dataset.query;
                 const searchInput = document.getElementById('search-input');
-                if (searchInput) {
+                if (searchInput && query) {
                     searchInput.value = query;
-                    searchInput.dispatchEvent(new Event('input'));
                     historyEl.style.display = 'none';
+                    navigate(`/search/${encodeURIComponent(query)}`);
                 }
             });
         });
@@ -6130,6 +6131,8 @@ export class UIRenderer {
         if (playBtn) playBtn.innerHTML = `${SVG_PLAY(20)}<span>Play</span>`;
         const dlBtn = document.getElementById('download-playlist-btn');
         if (dlBtn) dlBtn.innerHTML = `${SVG_DOWNLOAD(20)}<span>Download</span>`;
+        const cacheBtn = document.getElementById('cache-playlist-btn');
+        if (cacheBtn) cacheBtn.innerHTML = `${SVG_CLOUD_DOWNLOAD(20)}<span>Cache All</span>`;
         const addPlaylistBtn = document.getElementById('add-playlist-to-playlist-btn');
 
         imageEl.src = '';

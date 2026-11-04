@@ -67,6 +67,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         if (req.method === 'PATCH' || req.method === 'POST') {
             const body = req.body || {};
+            // Enforce 2MB payload ceiling to prevent DoS / storage exhaustion
+            const payloadStr = JSON.stringify(body);
+            if (payloadStr.length > 2 * 1024 * 1024) {
+                return res.status(413).json({ error: 'Sync payload exceeds maximum allowed size (2MB)' });
+            }
+
             const { library, history, userPlaylists, userFolders, favoriteAlbums } = body;
 
             // Make sure the row exists first

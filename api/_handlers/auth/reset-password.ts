@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getDb, ensureSchema } from '../../_lib/db.js';
 import { verifyPasswordResetToken, hashPassword } from '../../_lib/auth.js';
 import { getClientIp, consumeRateLimit } from '../../_lib/rateLimit.js';
+import { sanitizePassword } from '../../_lib/sanitize.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method !== 'POST') {
@@ -10,12 +11,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     try {
         const { token, newPassword } = req.body || {};
-        if (!token || !newPassword) {
-            return res.status(400).json({ error: { message: 'Token and new password are required' } });
+        if (!token || typeof token !== 'string') {
+            return res.status(400).json({ error: { message: 'Valid token is required' } });
         }
 
-        if (typeof newPassword !== 'string' || newPassword.length < 6) {
-            return res.status(400).json({ error: { message: 'Password must be at least 6 characters' } });
+        const passCheck = sanitizePassword(newPassword);
+        if (!passCheck.valid) {
+            return res.status(400).json({ error: { message: passCheck.error } });
         }
 
         const sql = getDb();

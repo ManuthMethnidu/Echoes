@@ -1,5 +1,31 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { Readable } from 'stream';
+import { sanitizeUrl, isPrivateOrBlockedHost } from '../../_lib/sanitize.js';
+
+// Approved media streaming domains
+const ALLOWED_STREAM_DOMAINS = [
+    'googlevideo.com',
+    'youtube.com',
+    'ytimg.com',
+    'invidious.io',
+    'nadeko.net',
+    'snopyta.org',
+    'drgns.space',
+    'privacydev.net',
+    'lunar.icu',
+    'perennialte.ch',
+    'adminforge.de',
+    'projectsegfau.lt',
+    'chocolatemoo53.com',
+    'qzz.io',
+];
+
+function isAllowedDomain(hostname: string): boolean {
+    const lowerHost = hostname.toLowerCase();
+    return ALLOWED_STREAM_DOMAINS.some(
+        (domain) => lowerHost === domain || lowerHost.endsWith('.' + domain)
+    );
+}
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { url } = req.query;
@@ -7,7 +33,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(400).json({ error: 'Missing ?url=' });
     }
 
+    const validatedUrl = sanitizeUrl(url);
+    if (!validatedUrl) {
+        return res.status(400).json({ error: 'Invalid URL format' });
+    }
+
+    if (isPrivateOrBlockedHost(validatedUrl)) {
+        return res.status(403).json({ error: 'Access to private or internal addresses is forbidden' });
+    }
+
     try {
+        const parsed = new URL(validatedUrl);
+        if (!isAllowedDomain(parsed.hostname)) {
+            return res.status(403).json({ error: 'Domain not permitted for streaming proxy' });
+        }
+
         const headers: Record<string, string> = {
             'User-Agent':
                 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
@@ -16,7 +56,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             headers['range'] = req.headers.range;
         }
 
-        const upstream = await fetch(url, { headers });
+        const upstream = await fetch(validatedUrl, { headers });
         res.status(upstream.status);
 
         for (const [k, v] of upstream.headers.entries()) {

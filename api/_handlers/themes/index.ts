@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getDb, ensureSchema } from '../../_lib/db.js';
 import { getAuthenticatedUser } from '../../_lib/auth.js';
+import { sanitizeString, sanitizeCss } from '../../_lib/sanitize.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     const sql = getDb();
@@ -28,14 +29,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             }
 
             const { name, description, css } = req.body || {};
-            if (!name || !css) {
-                return res.status(400).json({ error: 'Theme name and CSS are required' });
+            const cleanName = sanitizeString(name, 50);
+            const cleanDescription = sanitizeString(description, 200);
+            const cleanCss = sanitizeCss(css, 50000);
+
+            if (!cleanName || !cleanCss) {
+                return res.status(400).json({
+                    error: 'Theme name and safe CSS are required. External URLs, @import, expressions, and scripts are forbidden.',
+                });
             }
 
             const themeId = 'thm_' + crypto.randomUUID().replace(/-/g, '').slice(0, 16);
             await sql`
                 INSERT INTO themes (id, author_id, author_name, name, description, css)
-                VALUES (${themeId}, ${user.id}, ${user.name || user.email}, ${name}, ${description || ''}, ${css})
+                VALUES (${themeId}, ${user.id}, ${sanitizeString(user.name || user.email, 60)}, ${cleanName}, ${cleanDescription}, ${cleanCss})
             `;
 
             return res.status(200).json({ id: themeId, ok: true });

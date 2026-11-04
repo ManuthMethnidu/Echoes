@@ -9,6 +9,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // Strip provider prefix if present
     const videoId = id.replace(/^yt:/, '').trim();
+    if (!/^[a-zA-Z0-9_-]{5,30}$/.test(videoId)) {
+        return res.status(400).json({ error: 'Invalid track ID format' });
+    }
 
     try {
         const { data, instance } = await fetchWithFailover(

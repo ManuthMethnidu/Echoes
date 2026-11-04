@@ -3,6 +3,14 @@ import { getDb, ensureSchema } from '../../_lib/db.js';
 import { createPasswordResetToken } from '../../_lib/auth.js';
 import { getClientIp, consumeRateLimit } from '../../_lib/rateLimit.js';
 import { sendEmail } from '../../_lib/email.js';
+import { sanitizeEmail } from '../../_lib/sanitize.js';
+
+const ALLOWED_RESET_ORIGINS = [
+    'https://echoes.mteck.tech',
+    'https://echos.vercel.app',
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+];
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method !== 'POST') {
@@ -11,15 +19,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     try {
         const { email, redirectTo } = req.body || {};
-        if (!email || typeof email !== 'string' || !email.trim()) {
-            return res.status(400).json({ error: { message: 'Email is required' } });
+        const normalizedEmail = sanitizeEmail(email);
+        if (!normalizedEmail) {
+            return res.status(400).json({ error: { message: 'A valid email address is required' } });
         }
 
         const sql = getDb();
         await ensureSchema(sql);
 
         const clientIp = getClientIp(req);
-        const normalizedEmail = String(email).trim().toLowerCase();
 
         // Rate limit: 5 requests per 15 minutes per IP, 3 per account
         const ipLimit = await consumeRateLimit(`reset_ip:${clientIp}`, 5, 900);
@@ -60,10 +68,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (redirectTo && typeof redirectTo === 'string') {
             try {
                 const u = new URL(redirectTo);
-                baseUrl = u.origin;
+                if (ALLOWED_RESET_ORIGINS.includes(u.origin)) {
+                    baseUrl = u.origin;
+                }
             } catch {}
         } else if (req.headers.origin && typeof req.headers.origin === 'string') {
-            baseUrl = req.headers.origin;
+            if (ALLOWED_RESET_ORIGINS.includes(req.headers.origin)) {
+                baseUrl = req.headers.origin;
+            }
         }
 
         const resetUrl = `${baseUrl.replace(/\/+$/, '')}/reset-password?token=${encodeURIComponent(token)}`;

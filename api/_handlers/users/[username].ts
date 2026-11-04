@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getDb, ensureSchema } from '../../_lib/db.js';
+import { sanitizeUsername } from '../../_lib/sanitize.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method !== 'GET') {
@@ -7,11 +8,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const { username } = req.query;
-    if (!username || typeof username !== 'string') {
-        return res.status(400).json({ error: 'Missing username' });
+    const cleanUsername = sanitizeUsername(username);
+    if (!cleanUsername) {
+        return res.status(400).json({ error: 'Invalid username format' });
     }
-
-    const cleanUsername = username.replace(/^@/, '');
 
     try {
         const sql = getDb();

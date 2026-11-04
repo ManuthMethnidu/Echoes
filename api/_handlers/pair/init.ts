@@ -1,13 +1,16 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getDb, ensureSchema } from '../../_lib/db.js';
 import { generateQrDataUrl } from '../../_lib/qr.js';
+import { sanitizeString } from '../../_lib/sanitize.js';
 
-// Generate human-friendly 6-character code (excluding ambiguous chars: 0, O, 1, I, L)
+// Generate cryptographically secure human-friendly 6-character code (excluding ambiguous chars: 0, O, 1, I, L)
 function generatePairingCode(): string {
     const chars = '23456789ABCDEFGHJKMNPQRSTUVWXYZ';
+    const rand = new Uint8Array(6);
+    crypto.getRandomValues(rand);
     let code = '';
     for (let i = 0; i < 6; i++) {
-        code += chars.charAt(Math.floor(Math.random() * chars.length));
+        code += chars.charAt(rand[i] % chars.length);
     }
     return code;
 }
@@ -24,7 +27,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const id = 'pair_' + crypto.randomUUID().replace(/-/g, '').slice(0, 16);
         const code = generatePairingCode();
         const pairingToken = 'ptok_' + crypto.randomUUID().replace(/-/g, '');
-        const deviceInfo = req.headers['user-agent'] || 'Smart TV / Browser';
+        const deviceInfo = sanitizeString(req.headers['user-agent'] || 'Smart TV / Browser', 150);
 
         // Expire in 10 minutes
         const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();

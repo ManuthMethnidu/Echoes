@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { fetchWithFailover } from '../../_lib/invidious.js';
 import { Readable } from 'stream';
+import { sanitizeFilename } from '../../_lib/sanitize.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method === 'OPTIONS') {
@@ -16,6 +17,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const videoId = id.replace(/^yt:/, '').trim();
+    if (!/^[a-zA-Z0-9_-]{5,30}$/.test(videoId)) {
+        return res.status(400).json({ error: 'Invalid track ID format' });
+    }
 
     try {
         const { data, instance } = await fetchWithFailover((base) => `${base}/api/v1/videos/${videoId}`);
@@ -54,12 +58,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             }
         }
 
-        const safeFilename =
-            filename && typeof filename === 'string'
-                ? filename.trim().endsWith(`.${ext}`)
-                    ? filename.trim()
-                    : `${filename.trim()}.${ext}`
-                : `${(data.title || 'track').replace(/[\/\\?%*:|"<>]/g, '_')}.${ext}`;
+        const cleanBase = sanitizeFilename(
+            filename && typeof filename === 'string' ? filename.replace(new RegExp(`\\.${ext}$`, 'i'), '') : data.title || 'track',
+            'track'
+        );
+        const safeFilename = `${cleanBase}.${ext}`;
 
         const isHead = req.method === 'HEAD';
         let audioRes = await fetch(streamUrl, {

@@ -20,6 +20,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         .replace(/^yt:/, '')
         .trim();
 
+    if (!/^[a-zA-Z0-9_-]{5,64}$/.test(playlistId)) {
+        return res.status(400).json({ error: 'Invalid playlist ID format' });
+    }
+
     const apiKey = process.env.YOUTUBE_API_KEY;
     const userToken = typeof token === 'string' ? token : '';
 

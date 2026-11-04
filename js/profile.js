@@ -37,101 +37,23 @@ const usernameError = document.getElementById('username-error');
 let currentFavoriteAlbums = [];
 const api = new MusicAPI(apiSettings);
 
-async function uploadImage(file) {
+function isValidHttpUrl(string) {
+    if (!string) return true;
     try {
-        const fileNameWithoutSpace = file.name.replace(/\s/g, '_');
-        const response = await fetch(`https://worker.uploads.monochrome.qzz.io/${fileNameWithoutSpace}`, {
-            method: 'PUT',
-            headers: {
-                'x-api-key': 'if_youre_reading_this_fuck_off',
-                'Content-Type': file.type || 'application/octet-stream',
-            },
-            body: file,
-        });
-
-        if (!response.ok) {
-            if (response.status === 413) throw new Error('File exceeds 10MB');
-            throw new Error(`Upload failed: ${response.status}`);
-        }
-
-        return `https://images.monochrome.qzz.io/${await response.text()}`;
-    } catch (error) {
-        console.error('Upload error:', error);
-        throw error;
+        const url = new URL(string.trim());
+        return url.protocol === 'http:' || url.protocol === 'https:';
+    } catch {
+        return false;
     }
 }
 
-function setupImageUploadControl(idPrefix) {
-    const urlInput = document.getElementById(idPrefix);
-    const fileInput = document.getElementById(idPrefix + '-file');
-    const uploadBtn = document.getElementById(idPrefix + '-upload-btn');
-    const toggleBtn = document.getElementById(idPrefix + '-toggle-btn');
-    const statusEl = document.getElementById(idPrefix + '-upload-status');
+const resetAvatarControl = (url) => {
+    if (editAvatar) editAvatar.value = url || '';
+};
 
-    if (!urlInput || !fileInput || !uploadBtn || !toggleBtn || !statusEl) return () => {};
-
-    let useUrl = false;
-
-    function updateUI() {
-        if (useUrl) {
-            uploadBtn.style.display = 'none';
-            urlInput.style.display = 'block';
-            toggleBtn.textContent = 'Upload';
-        } else {
-            uploadBtn.style.display = 'flex';
-            urlInput.style.display = 'none';
-            toggleBtn.textContent = 'or URL';
-        }
-    }
-
-    toggleBtn.addEventListener('click', () => {
-        useUrl = !useUrl;
-        updateUI();
-    });
-
-    uploadBtn.addEventListener('click', () => fileInput.click());
-
-    fileInput.addEventListener('change', async (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-
-        if (!file.type.startsWith('image/')) {
-            alert('Please select an image file');
-            return;
-        }
-
-        statusEl.style.display = 'block';
-        statusEl.textContent = 'Uploading...';
-        statusEl.style.color = 'var(--muted-foreground)';
-        uploadBtn.disabled = true;
-
-        try {
-            const url = await uploadImage(file);
-            urlInput.value = url;
-            statusEl.textContent = 'Done!';
-            statusEl.style.color = '#10b981';
-            setTimeout(() => {
-                statusEl.style.display = 'none';
-            }, 2000);
-        } catch {
-            statusEl.textContent = 'Failed - try URL';
-            statusEl.style.color = '#ef4444';
-        } finally {
-            uploadBtn.disabled = false;
-            fileInput.value = '';
-        }
-    });
-
-    return (currentUrl) => {
-        urlInput.value = currentUrl || '';
-        useUrl = !!currentUrl;
-        updateUI();
-        statusEl.style.display = 'none';
-    };
-}
-
-const resetAvatarControl = setupImageUploadControl('edit-profile-avatar');
-const resetBannerControl = setupImageUploadControl('edit-profile-banner');
+const resetBannerControl = (url) => {
+    if (editBanner) editBanner.value = url || '';
+};
 
 function createProfileSkeletonCards(count = 4) {
     return Array.from({ length: count })
@@ -577,10 +499,33 @@ export async function openEditProfile() {
 }
 
 async function saveProfile() {
-    const newUsername = editUsername.value.trim();
+    const newUsername = editUsername.value.trim().replace(/^@/, '');
     if (!newUsername) {
         usernameError.textContent = 'Username cannot be empty';
         usernameError.style.display = 'block';
+        return;
+    }
+    if (!/^[a-zA-Z0-9_.-]{1,40}$/.test(newUsername)) {
+        usernameError.textContent = 'Username must be 1-40 characters (letters, numbers, dots, hyphens, underscores)';
+        usernameError.style.display = 'block';
+        return;
+    }
+
+    const avatarUrl = editAvatar.value.trim();
+    if (avatarUrl && !isValidHttpUrl(avatarUrl)) {
+        alert('Please enter a valid HTTP or HTTPS image URL for your avatar (e.g. https://example.com/avatar.jpg).');
+        return;
+    }
+
+    const bannerUrl = editBanner.value.trim();
+    if (bannerUrl && !isValidHttpUrl(bannerUrl)) {
+        alert('Please enter a valid HTTP or HTTPS image URL for your banner.');
+        return;
+    }
+
+    const websiteUrl = editWebsite.value.trim();
+    if (websiteUrl && !isValidHttpUrl(websiteUrl)) {
+        alert('Please enter a valid HTTP or HTTPS URL for your website.');
         return;
     }
 
@@ -600,14 +545,14 @@ async function saveProfile() {
 
     const data = {
         username: newUsername,
-        display_name: editDisplayName.value.trim(),
-        avatar_url: editAvatar.value.trim(),
-        banner: editBanner.value.trim(),
-        status: editStatusJson.value.trim() || (editStatusSearch.value.trim() ? editStatusSearch.value.trim() : ''),
-        about: editAbout.value.trim(),
-        website: editWebsite.value.trim(),
+        display_name: editDisplayName.value.trim().slice(0, 60),
+        avatar_url: avatarUrl,
+        banner: bannerUrl,
+        status: editStatusJson.value.trim() || (editStatusSearch.value.trim() ? editStatusSearch.value.trim().slice(0, 300) : ''),
+        about: editAbout.value.trim().slice(0, 1000),
+        website: websiteUrl,
         favorite_albums: currentFavoriteAlbums,
-        lastfm_username: editLastfm.value.trim(),
+        lastfm_username: editLastfm.value.trim().slice(0, 50),
         privacy: {
             playlists: privacyPlaylists.checked ? 'public' : 'private',
             lastfm: privacyLastfm.checked ? 'public' : 'private',

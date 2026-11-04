@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getDb, ensureSchema } from '../../../_lib/db.js';
 import { hashPassword, createToken, setSessionCookie } from '../../../_lib/auth.js';
 import { getClientIp, consumeRateLimit } from '../../../_lib/rateLimit.js';
+import { sanitizeEmail, sanitizePassword, sanitizeString } from '../../../_lib/sanitize.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method !== 'POST') {
@@ -27,13 +28,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
 
         const { email, password, name } = req.body || {};
-        if (!email || !password) {
-            return res.status(400).json({ error: { message: 'Email and password are required' } });
+        const normalizedEmail = sanitizeEmail(email);
+        if (!normalizedEmail) {
+            return res.status(400).json({ error: { message: 'A valid email address is required' } });
         }
 
-        const normalizedEmail = String(email).trim().toLowerCase();
-        if (password.length < 6) {
-            return res.status(400).json({ error: { message: 'Password must be at least 6 characters' } });
+        const passCheck = sanitizePassword(password);
+        if (!passCheck.valid) {
+            return res.status(400).json({ error: { message: passCheck.error } });
         }
 
         // Check if user already exists
@@ -44,7 +46,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         const userId = 'usr_' + crypto.randomUUID().replace(/-/g, '').slice(0, 16);
         const passwordHash = await hashPassword(password);
-        const displayName = name ? String(name).trim() : normalizedEmail.split('@')[0];
+        const rawName = name ? sanitizeString(name, 60) : normalizedEmail.split('@')[0];
+        const displayName = rawName || normalizedEmail.split('@')[0];
         const baseUsername = displayName.toLowerCase().replace(/[^a-z0-9_]/g, '') || 'user';
         const username = `${baseUsername}_${Math.floor(1000 + Math.random() * 9000)}`;
 

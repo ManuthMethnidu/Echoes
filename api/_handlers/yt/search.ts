@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { fetchWithFailover } from '../../_lib/invidious.js';
+import { sanitizeString } from '../../_lib/sanitize.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { q, type } = req.query;
@@ -7,10 +8,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(400).json({ error: 'Missing search query ?q=' });
     }
 
+    const cleanQ = sanitizeString(q, 200);
+    if (!cleanQ) {
+        return res.status(400).json({ error: 'Empty search query' });
+    }
+
     try {
-        const queryType = type || 'video';
+        const queryType = ['video', 'channel', 'playlist', 'all'].includes(String(type)) ? String(type) : 'video';
         const { data, instance } = await fetchWithFailover(
-            (base) => `${base}/api/v1/search?q=${encodeURIComponent(q)}&type=${encodeURIComponent(String(queryType))}`
+            (base) => `${base}/api/v1/search?q=${encodeURIComponent(cleanQ)}&type=${encodeURIComponent(queryType)}`
         );
 
         if (!Array.isArray(data)) {

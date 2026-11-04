@@ -771,117 +771,27 @@
                 </div>
                 <div style="margin-bottom: 1rem">
                     <label style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem">Avatar URL</label>
-                    <div style="display: flex; gap: 0.5rem; align-items: stretch">
-                        <input
-                            type="url"
-                            id="edit-profile-avatar"
-                            class="template-input"
-                            placeholder="Avatar URL"
-                            style="flex: 1; margin: 0; display: none"
-                        />
-                        <input type="file" id="edit-profile-avatar-file" accept="image/*" style="display: none" />
-                        <button
-                            type="button"
-                            id="edit-profile-avatar-upload-btn"
-                            class="template-btn"
-                            style="
-                                flex: 1;
-                                padding: 0.5rem;
-                                font-size: 0.85rem;
-                                display: flex;
-                                align-items: center;
-                                justify-content: center;
-                                gap: 0.5rem;
-                                background: var(--input);
-                                border: 1px solid var(--border);
-                                color: var(--foreground);
-                                border-radius: var(--radius);
-                                cursor: pointer;
-                            "
-                        >
-                            <use svg="!lucide/upload.svg" size="16" />
-                            <span>Upload</span>
-                        </button>
-                        <button
-                            type="button"
-                            id="edit-profile-avatar-toggle-btn"
-                            class="template-btn"
-                            style="
-                                padding: 0.5rem;
-                                font-size: 0.85rem;
-                                white-space: nowrap;
-                                background: var(--input);
-                                border: 1px solid var(--border);
-                                color: var(--foreground);
-                                border-radius: var(--radius);
-                                cursor: pointer;
-                            "
-                            title="Switch to URL input"
-                        >
-                            or URL
-                        </button>
-                    </div>
-                    <div
-                        id="edit-profile-avatar-upload-status"
-                        style="display: none; margin-top: 0.25rem; font-size: 0.75rem; opacity: 0.8"
-                    ></div>
+                    <input
+                        type="url"
+                        id="edit-profile-avatar"
+                        class="template-input"
+                        placeholder="https://example.com/avatar.jpg"
+                    />
+                    <p style="color: var(--muted-foreground); font-size: 0.75rem; margin-top: 0.25rem">
+                        Direct HTTP or HTTPS image URL only.
+                    </p>
                 </div>
                 <div style="margin-bottom: 1rem">
                     <label style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem">Banner URL</label>
-                    <div style="display: flex; gap: 0.5rem; align-items: stretch">
-                        <input
-                            type="url"
-                            id="edit-profile-banner"
-                            class="template-input"
-                            placeholder="Banner URL"
-                            style="flex: 1; margin: 0; display: none"
-                        />
-                        <input type="file" id="edit-profile-banner-file" accept="image/*" style="display: none" />
-                        <button
-                            type="button"
-                            id="edit-profile-banner-upload-btn"
-                            class="template-btn"
-                            style="
-                                flex: 1;
-                                padding: 0.5rem;
-                                font-size: 0.85rem;
-                                display: flex;
-                                align-items: center;
-                                justify-content: center;
-                                gap: 0.5rem;
-                                background: var(--input);
-                                border: 1px solid var(--border);
-                                color: var(--foreground);
-                                border-radius: var(--radius);
-                                cursor: pointer;
-                            "
-                        >
-                            <use svg="!lucide/upload.svg" size="16" />
-                            <span>Upload</span>
-                        </button>
-                        <button
-                            type="button"
-                            id="edit-profile-banner-toggle-btn"
-                            class="template-btn"
-                            style="
-                                padding: 0.5rem;
-                                font-size: 0.85rem;
-                                white-space: nowrap;
-                                background: var(--input);
-                                border: 1px solid var(--border);
-                                color: var(--foreground);
-                                border-radius: var(--radius);
-                                cursor: pointer;
-                            "
-                            title="Switch to URL input"
-                        >
-                            or URL
-                        </button>
-                    </div>
-                    <div
-                        id="edit-profile-banner-upload-status"
-                        style="display: none; margin-top: 0.25rem; font-size: 0.75rem; opacity: 0.8"
-                    ></div>
+                    <input
+                        type="url"
+                        id="edit-profile-banner"
+                        class="template-input"
+                        placeholder="https://example.com/banner.jpg"
+                    />
+                    <p style="color: var(--muted-foreground); font-size: 0.75rem; margin-top: 0.25rem">
+                        Direct HTTP or HTTPS image URL only.
+                    </p>
                 </div>
                 <div style="margin-bottom: 1rem">
                     <label style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem"

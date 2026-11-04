@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getDb, ensureSchema } from '../../../_lib/db.js';
 import { verifyPassword, createToken, setSessionCookie } from '../../../_lib/auth.js';
 import { getClientIp, consumeRateLimit, clearRateLimit } from '../../../_lib/rateLimit.js';
+import { sanitizeEmail } from '../../../_lib/sanitize.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method !== 'POST') {
@@ -9,16 +10,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     try {
+        const { email, password } = req.body || {};
+        const normalizedEmail = sanitizeEmail(email);
+        if (!normalizedEmail || !password || typeof password !== 'string') {
+            return res.status(400).json({ error: { message: 'Valid email and password are required' } });
+        }
+        if (password.length > 128) {
+            return res.status(400).json({ error: { message: 'Invalid email or password' } });
+        }
+
         const sql = getDb();
         await ensureSchema(sql);
 
-        const { email, password } = req.body || {};
-        if (!email || !password) {
-            return res.status(400).json({ error: { message: 'Email and password are required' } });
-        }
-
         const clientIp = getClientIp(req);
-        const normalizedEmail = String(email).trim().toLowerCase();
 
         // Rate limit: 10 attempts per 15 minutes per IP, 5 attempts per 15 minutes per account
         const ipLimit = await consumeRateLimit(`signin_ip:${clientIp}`, 10, 900);

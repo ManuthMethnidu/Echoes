@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getDb, ensureSchema } from '../../_lib/db.js';
 import { getAuthenticatedUser, createToken } from '../../_lib/auth.js';
+import { getClientIp, consumeRateLimit } from '../../_lib/rateLimit.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method !== 'POST') {
@@ -13,12 +14,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             return res.status(401).json({ error: 'Please log in on your phone before approving this TV device' });
         }
 
+        const clientIp = getClientIp(req);
+        const limit = await consumeRateLimit(`pair_approve:${clientIp}`, 10, 300);
+        if (!limit.allowed) {
+            return res.status(429).json({ error: 'Too many attempts. Please wait 5 minutes.' });
+        }
+
         const { code } = req.body || {};
         if (!code || typeof code !== 'string') {
             return res.status(400).json({ error: 'Missing pairing code' });
         }
 
         const normalizedCode = code.toUpperCase().replace(/[\s-]/g, '').trim();
+        if (!/^[23456789ABCDEFGHJKMNPQRSTUVWXYZ]{6}$/.test(normalizedCode)) {
+            return res.status(400).json({ error: 'Invalid pairing code format' });
+        }
 
         const sql = getDb();
         await ensureSchema(sql);

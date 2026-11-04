@@ -635,10 +635,19 @@ export const escapeHtml = (unsafe) => {
 };
 
 export const decodeHtml = (html) => {
-    if (!html) return '';
-    const div = document.createElement('div');
-    div.innerHTML = html;
-    return div.textContent;
+    if (!html || typeof html !== 'string') return '';
+    try {
+        const doc = new DOMParser().parseFromString(html, 'text/html');
+        return doc.body.textContent || '';
+    } catch {
+        return html
+            .replace(/&amp;/g, '&')
+            .replace(/&lt;/g, '<')
+            .replace(/&gt;/g, '>')
+            .replace(/&quot;/g, '"')
+            .replace(/&#039;/g, "'")
+            .replace(/&#39;/g, "'");
+    }
 };
 
 export const getTrackTitle = (track, { fallback = 'Unknown Title' } = {}) => {

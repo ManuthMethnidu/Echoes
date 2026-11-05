@@ -590,20 +590,73 @@ export class LyricsManager {
                 } catch {}
             }
 
-            // 2. Fallback: Query Genius worker if no lyrics were found on LRCLIB
+            // 2. Try LyricsPlus (binimum.org) for synced Apple Music / QQ / Deezer lyrics
+            if (!foundData || !foundData.syncedLyrics) {
+                for (const { title, artist } of candidates) {
+                    if (!title || !artist) continue;
+                    try {
+                        const lpUrl = `https://lyricsplus.binimum.org/v2/lyrics/get?title=${encodeURIComponent(title)}&artist=${encodeURIComponent(artist)}`;
+                        const lpRes = await fetch(lpUrl);
+                        if (lpRes.ok) {
+                            const lpData = await lpRes.json();
+                            if (Array.isArray(lpData?.lyrics) && lpData.lyrics.length > 0) {
+                                const pad = (n, len = 2) => String(n).padStart(len, '0');
+                                const lrcLines = lpData.lyrics
+                                    .map((l) => {
+                                        const ms = Math.max(0, Number(l.time) || 0);
+                                        const m = Math.floor(ms / 60000);
+                                        const s = Math.floor((ms % 60000) / 1000);
+                                        const cs = Math.floor((ms % 1000) / 10);
+                                        return `[${pad(m)}:${pad(s)}.${pad(cs)}] ${l.text || ''}`;
+                                    })
+                                    .join('\n');
+                                foundData = {
+                                    syncedLyrics: lrcLines,
+                                    plainLyrics: lpData.lyrics.map((l) => l.text || '').join('\n'),
+                                    lyricsProvider: lpData.metadata?.source || 'LyricsPlus',
+                                };
+                                break;
+                            }
+                        }
+                    } catch {}
+                }
+            }
+
+            // 3. Try Tidal API if available and track has a numeric ID
+            if ((!foundData || !foundData.syncedLyrics) && this.api && typeof this.api.getLyrics === 'function') {
+                const numericId = Number(track.id);
+                if (!Number.isNaN(numericId) && numericId > 0) {
+                    try {
+                        const tidalRes = await this.api.getLyrics(numericId);
+                        if (tidalRes?.ok) {
+                            const tData = await tidalRes.json();
+                            if (tData?.subtitles || tData?.lyrics) {
+                                foundData = {
+                                    syncedLyrics: tData.subtitles || null,
+                                    plainLyrics: tData.lyrics || null,
+                                    lyricsProvider: tData.lyricsProvider || 'TIDAL',
+                                };
+                            }
+                        }
+                    } catch {}
+                }
+            }
+
+            // 4. Try lyrics.ovh for plain lyrics fallback
             if (!foundData || (!foundData.syncedLyrics && !foundData.plainLyrics)) {
                 for (const { title, artist } of candidates) {
-                    if (!title) continue;
+                    if (!title || !artist) continue;
                     try {
-                        const gUrl = `https://fetch-genius.samidy.workers.dev/?title=${encodeURIComponent(title)}&artist=${encodeURIComponent(artist || '')}`;
-                        const gRes = await fetch(gUrl);
-                        if (gRes.ok) {
-                            const gData = await gRes.json();
-                            if (gData?.lyrics) {
+                        const ovhRes = await fetch(
+                            `https://api.lyrics.ovh/v1/${encodeURIComponent(artist)}/${encodeURIComponent(title)}`
+                        );
+                        if (ovhRes.ok) {
+                            const ovhData = await ovhRes.json();
+                            if (ovhData?.lyrics) {
                                 foundData = {
-                                    plainLyrics: gData.lyrics,
+                                    plainLyrics: ovhData.lyrics.trim(),
                                     syncedLyrics: null,
-                                    lyricsProvider: 'Genius',
+                                    lyricsProvider: 'lyrics.ovh',
                                 };
                                 break;
                             }
@@ -1399,42 +1452,52 @@ async function renderLyricsComponent(container, track, audioPlayer, lyricsManage
         // Wait for lyrics to appear, then do an immediate conversion
         const waitForLyrics = () => {
             return new Promise((resolve) => {
-                // Check if lyrics are already loaded
                 const checkForLyrics = () => {
-                    const hasLyrics =
-                        amLyrics.querySelector(".lyric-line, [class*='lyric']") ||
-                        (amLyrics.shadowRoot && amLyrics.shadowRoot.querySelector("[class*='lyric']")) ||
-                        (amLyrics.textContent && amLyrics.textContent.length > 50);
-                    return hasLyrics;
+                    const root = amLyrics.shadowRoot;
+                    const hasValidLines =
+                        amLyrics.querySelector('.lyrics-line, .lyric-line') ||
+                        (root && root.querySelector('.lyrics-line, .lyric-line')) ||
+                        (amLyrics.textContent &&
+                            amLyrics.textContent.length > 50 &&
+                            !amLyrics.textContent.includes('No lyrics found'));
+                    return Boolean(hasValidLines);
                 };
 
-                if (checkForLyrics()) {
+                const isExplicitlyEmpty = () => {
+                    const root = amLyrics.shadowRoot;
+                    return Boolean(root && root.querySelector('.no-lyrics'));
+                };
+
+                if (checkForLyrics() || isExplicitlyEmpty()) {
                     resolve();
                     return;
                 }
 
-                // Check more frequently (200ms) for faster response
+                // Check frequently (150ms) for fast response, max 3 seconds (20 attempts)
                 let attempts = 0;
-                const maxAttempts = 25; // 5 seconds max
+                const maxAttempts = 20;
                 const interval = setInterval(() => {
                     attempts++;
-                    if (checkForLyrics() || attempts >= maxAttempts) {
+                    if (checkForLyrics() || isExplicitlyEmpty() || attempts >= maxAttempts) {
                         clearInterval(interval);
                         resolve();
                     }
-                }, 200);
+                }, 150);
             });
         };
 
         await waitForLyrics();
 
-        // Check if lyrics actually loaded in am-lyrics
+        // Check if lyrics actually loaded in am-lyrics (excluding .no-lyrics)
         const hasRenderedLyrics = () => {
-            return Boolean(
-                amLyrics.querySelector(".lyric-line, [class*='lyric']") ||
-                (amLyrics.shadowRoot && amLyrics.shadowRoot.querySelector("[class*='lyric']")) ||
-                (amLyrics.textContent && amLyrics.textContent.length > 50)
-            );
+            const root = amLyrics.shadowRoot;
+            const hasValidLines =
+                amLyrics.querySelector('.lyrics-line, .lyric-line') ||
+                (root && root.querySelector('.lyrics-line, .lyric-line')) ||
+                (amLyrics.textContent &&
+                    amLyrics.textContent.length > 50 &&
+                    !amLyrics.textContent.includes('No lyrics found'));
+            return Boolean(hasValidLines);
         };
 
         if (!hasRenderedLyrics()) {
@@ -1444,13 +1507,34 @@ async function renderLyricsComponent(container, track, audioPlayer, lyricsManage
                     const ttml = lyricsManager.generateTTMLContent(lyricsData, track);
                     if (ttml && lyricsManager.currentTrackId === track.id) {
                         amLyrics.setAttribute('ttml', ttml);
-                        // Brief wait for am-lyrics to parse and apply the TTML
-                        await new Promise((r) => setTimeout(r, 250));
+                        // Wait for am-lyrics to parse and apply the TTML
+                        await new Promise((r) => setTimeout(r, 350));
                     }
                 }
             } catch (err) {
                 console.warn('[Lyrics] Fallback TTML injection failed:', err);
             }
+        }
+
+        // If lyrics still could not be rendered across any provider, display informative empty state
+        if (!hasRenderedLyrics() && lyricsManager.currentTrackId === track.id) {
+            container.innerHTML = `
+                <div class="lyrics-empty-state">
+                    <div class="lyrics-empty-title">No lyrics found for "${escapeHtml(title)}"</div>
+                    <div class="lyrics-empty-subtitle">${artist ? `by ${escapeHtml(artist)}` : ''}</div>
+                    <p class="lyrics-empty-hint">Checked across LRCLIB, LyricsPlus, and open lyrics databases.</p>
+                    <button class="btn-secondary lyrics-retry-btn" type="button">Retry Lyrics</button>
+                </div>
+            `;
+            const retryBtn = container.querySelector('.lyrics-retry-btn');
+            if (retryBtn) {
+                retryBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    lyricsManager.lyricsCache.delete(track.id);
+                    renderLyricsComponent(container, track, audioPlayer, lyricsManager);
+                });
+            }
+            return null;
         }
 
         // Convert immediately after lyrics detected

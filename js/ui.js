@@ -1636,7 +1636,10 @@ export class UIRenderer {
             if (lyricsToggleBtn) lyricsToggleBtn.style.removeProperty('display');
             overlay.classList.remove('lyrics-unavailable');
             clearFullscreenLyricsSync(lyricsContent);
-            await renderLyricsInFullscreen(track, activeElement, lyricsManager, lyricsContent);
+            const rendered = await renderLyricsInFullscreen(track, activeElement, lyricsManager, lyricsContent);
+            if (!rendered) {
+                overlay.classList.add('lyrics-unavailable');
+            }
         } else {
             if (lyricsToggleBtn) lyricsToggleBtn.style.display = 'none';
             overlay.classList.add('lyrics-unavailable');

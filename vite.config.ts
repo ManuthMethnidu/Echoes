@@ -97,7 +97,7 @@ export default defineConfig(({ mode }) => {
             blobAssetPlugin(),
             svgUse(),
             VitePWA({
-                registerType: 'prompt',
+                registerType: 'autoUpdate',
                 devOptions: {
                     enabled: true,
                     type: 'classic',
@@ -110,6 +110,8 @@ export default defineConfig(({ mode }) => {
                     globPatterns: ['index.html', 'manifest.json'],
                     cleanupOutdatedCaches: true,
                     maximumFileSizeToCacheInBytes: 3 * 1024 * 1024, // 3 MiB limit
+                    navigateFallback: 'index.html',
+                    navigateFallbackDenylist: [/^\/api/],
                     // Define runtime caching strategies
                     runtimeCaching: [
                         {

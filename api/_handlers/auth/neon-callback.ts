@@ -15,6 +15,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const error = req.query.error || req.query.error_description;
     if (error) {
         res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
         return res.status(200).send(`<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -57,6 +58,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (!sessions || sessions.length === 0) {
             console.warn('[Neon Callback] No recent session found in neon_auth.session');
             res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
             return res.status(200).send(`<!DOCTYPE html>
 <html>
 <head>
@@ -133,6 +135,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         });
 
         res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
         return res.status(200).send(`<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -239,6 +242,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     } catch (err: any) {
         console.error('[Neon Auth Callback Error]', err);
         res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
         return res.status(200).send(`<!DOCTYPE html>
 <html>
 <head>

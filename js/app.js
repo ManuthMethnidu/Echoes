@@ -2554,6 +2554,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                     console.log('Service Worker registered:', swScriptUrl, registration?.scope, {
                         controlled: !!navigator.serviceWorker.controller,
                     });
+                    if (registration) {
+                        registration.update().catch(() => {});
+                    }
                 },
                 onRegisterError(error) {
                     console.warn('Service Worker registration failed:', error);

@@ -386,6 +386,9 @@ export class AuthManager {
     }
 
     async _signInSocial(provider) {
+        if (provider === 'google') {
+            return this.signInWithGoogle();
+        }
         try {
             const isNative = isCapacitorNative();
             const authUrl = `${AUTH_BASE_URL}/api/auth/sign-in/social?provider=${encodeURIComponent(provider)}`;
@@ -412,11 +415,10 @@ export class AuthManager {
         }
     }
 
-    signInWithGoogle() {
+    async signInWithGoogle() {
         const isNative = isCapacitorNative();
-        const authUrl = `${AUTH_BASE_URL}/api/auth/sign-in/social?provider=google`;
-
         if (isNative) {
+            const authUrl = `${AUTH_BASE_URL}/api/auth/sign-in/social?provider=google`;
             openNativeOAuthUrl(authUrl);
             return;
         }
@@ -428,13 +430,82 @@ export class AuthManager {
 
         // Open in new tab / popup window SYNCHRONOUSLY to prevent browser popup blockers
         const authWindow = window.open(
-            authUrl,
+            'about:blank',
             'echos_google_oauth',
             `width=${width},height=${height},left=${left},top=${top},status=no,toolbar=no,menubar=no,location=yes,resizable=yes`
         );
 
-        if (!authWindow || authWindow.closed || typeof authWindow.closed === 'undefined') {
-            window.open(authUrl, '_blank');
+        if (authWindow) {
+            try {
+                authWindow.document.write(`<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Connecting to Google...</title>
+    <style>
+        body {
+            background-color: #0c0d0e;
+            color: #f3f4f6;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            padding: 1rem;
+            box-sizing: border-box;
+        }
+        .container { text-align: center; }
+        .spinner {
+            width: 38px;
+            height: 38px;
+            border: 3px solid rgba(255, 255, 255, 0.12);
+            border-top: 3px solid #ffffff;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 16px auto;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        h3 { margin: 0 0 6px 0; font-size: 1.1rem; font-weight: 600; }
+        p { color: #9ca3af; font-size: 0.88rem; margin: 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="spinner"></div>
+        <h3>Connecting to Google...</h3>
+        <p>Please wait a moment</p>
+    </div>
+</body>
+</html>`);
+            } catch (_e) {}
+        }
+
+        try {
+            // Fetch direct OAuth initiation URL via POST API call (never intercepted by Service Worker navigation route)
+            const res = await fetch(`${AUTH_BASE_URL}/api/auth/sign-in/social`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ provider: 'google' }),
+            });
+            const data = await res.json().catch(() => null);
+
+            if (data?.url) {
+                if (authWindow && !authWindow.closed) {
+                    authWindow.location.href = data.url;
+                } else {
+                    window.open(data.url, '_blank');
+                }
+            } else {
+                throw new Error(data?.error?.message || 'Failed to initiate Google sign-in');
+            }
+        } catch (error) {
+            console.error('Login initiation failed:', error);
+            if (authWindow) {
+                try { authWindow.close(); } catch (_e) {}
+            }
+            alert(`Login initiation failed: ${error.message || error}`);
+            return;
         }
 
         // Active listener & poller to detect completion without user needing to reload

@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getDb, ensureSchema } from '../../../_lib/db.js';
-import { createToken, setSessionCookie } from '../../../_lib/auth.js';
+import { getDb, ensureSchema } from '../../_lib/db.js';
+import { createToken, setSessionCookie } from '../../_lib/auth.js';
 
 function escapeHtml(str: string): string {
     return str
@@ -121,7 +121,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
 
         // Generate application JWT
-        const userObj = { id: finalUserId, email, name };
+        const userObj = { id: finalUserId, email, name, avatar: avatarUrl };
         const appToken = await createToken(userObj);
         setSessionCookie(res, appToken);
 

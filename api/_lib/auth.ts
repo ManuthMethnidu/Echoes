@@ -81,6 +81,7 @@ export interface AuthUser {
     id: string;
     email: string;
     name?: string;
+    avatar?: string;
 }
 
 export async function createToken(user: AuthUser): Promise<string> {
@@ -88,6 +89,7 @@ export async function createToken(user: AuthUser): Promise<string> {
         id: user.id,
         email: user.email,
         name: user.name || '',
+        avatar: user.avatar || '',
     })
         .setProtectedHeader({ alg: 'HS256' })
         .setIssuedAt()
@@ -102,6 +104,7 @@ export async function verifyToken(token: string): Promise<AuthUser | null> {
             id: (payload.id || payload.sub) as string,
             email: (payload.email || '') as string,
             name: payload.name as string | undefined,
+            avatar: (payload.avatar || payload.image) as string | undefined,
         };
     } catch {
         // Fallback 1: Verify with Neon Better Auth JWKS
@@ -112,6 +115,7 @@ export async function verifyToken(token: string): Promise<AuthUser | null> {
                     id: (payload.sub || payload.id) as string,
                     email: (payload.email || '') as string,
                     name: payload.name as string | undefined,
+                    avatar: (payload.avatar || payload.image) as string | undefined,
                 };
             } catch {}
         }
@@ -153,6 +157,7 @@ export async function verifyToken(token: string): Promise<AuthUser | null> {
                     id: uid,
                     email,
                     name,
+                    avatar,
                 };
             }
         } catch (_dbErr) {}

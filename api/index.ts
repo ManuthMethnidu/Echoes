@@ -9,7 +9,7 @@ import authSignInSocialHandler from './_handlers/auth/sign-in/social.js';
 import authGetSessionHandler from './_handlers/auth/get-session.js';
 import authSignOutHandler from './_handlers/auth/sign-out.js';
 import authCallbackHandler from './_handlers/auth/callback.js';
-import authCallbackNeonHandler from './_handlers/auth/callback/neon.js';
+import authCallbackNeonHandler from './_handlers/auth/neon-callback.js';
 import authRequestPasswordResetHandler from './_handlers/auth/request-password-reset.js';
 import authResetPasswordHandler from './_handlers/auth/reset-password.js';
 import meIndexHandler from './_handlers/me/index.js';

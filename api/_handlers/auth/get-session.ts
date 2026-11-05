@@ -20,12 +20,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     id: user.id,
                     email: user.email,
                     name: user.name,
+                    image: user.avatar || '',
+                    avatar: user.avatar || '',
                 },
             },
             user: {
                 id: user.id,
                 email: user.email,
                 name: user.name,
+                image: user.avatar || '',
+                avatar: user.avatar || '',
             },
         });
     } catch (err: any) {

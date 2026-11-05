@@ -16,7 +16,7 @@ const getBaseURL = () => {
 export const AUTH_BASE_URL = getBaseURL();
 
 export const authClient = createAuthClient({
-    baseURL: NEON_AUTH_URL,
+    baseURL: AUTH_BASE_URL ? `${AUTH_BASE_URL}/api/auth` : NEON_AUTH_URL,
 });
 
 export { authClient as auth };

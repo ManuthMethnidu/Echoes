@@ -989,11 +989,17 @@ document.addEventListener('DOMContentLoaded', async () => {
             const playlistId = window.location.pathname.split('/')[2];
             if (!playlistId) return;
 
-            btn.disabled = true;
-            const originalHTML = btn.innerHTML;
-            btn.innerHTML = `${SVG_ANIMATE_SPIN(20)}<span>Caching 0%...</span>`;
+            const cacheModal = document.getElementById('cache-playlist-modal');
+            const metaEl = document.getElementById('cache-playlist-modal-meta');
+            const progressBox = document.getElementById('cache-playlist-progress-box');
+            const progressStatus = document.getElementById('cache-progress-status');
+            const progressPercent = document.getElementById('cache-progress-percent');
+            const progressBar = document.getElementById('cache-progress-bar');
+            const cancelBtn = document.getElementById('cache-modal-cancel-btn');
+            const startBtn = document.getElementById('cache-modal-start-btn');
+            const skipCheckbox = document.getElementById('skip-cache-prompt-checkbox');
 
-            try {
+            const loadTracks = async () => {
                 let playlist, tracks;
                 let userPlaylist = await db.getPlaylist(playlistId);
 
@@ -1013,13 +1019,15 @@ document.addEventListener('DOMContentLoaded', async () => {
                     playlist = data?.playlist;
                     tracks = data?.tracks || [];
                 }
+                return { playlist, tracks };
+            };
 
-                if (!tracks || tracks.length === 0) {
-                    alert('Playlist has no tracks to cache.');
-                    btn.disabled = false;
-                    btn.innerHTML = originalHTML;
-                    return;
-                }
+            const executeCache = async (tracks, originalHTML) => {
+                btn.disabled = true;
+                btn.innerHTML = `${SVG_ANIMATE_SPIN(20)}<span>Caching 0%...</span>`;
+                if (progressBox) progressBox.style.display = 'block';
+                if (startBtn) startBtn.disabled = true;
+                if (cancelBtn) cancelBtn.disabled = true;
 
                 showNotification(`Caching ${tracks.length} tracks to offline storage...`);
                 let cachedCount = 0;
@@ -1029,6 +1037,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                     const track = tracks[i];
                     const percent = Math.round(((i + 1) / tracks.length) * 100);
                     btn.innerHTML = `${SVG_ANIMATE_SPIN(20)}<span>Caching ${i + 1}/${tracks.length} (${percent}%)...</span>`;
+                    if (progressStatus) progressStatus.textContent = `Caching track ${i + 1} of ${tracks.length}: ${track.title || 'Audio'}...`;
+                    if (progressPercent) progressPercent.textContent = `${percent}%`;
+                    if (progressBar) progressBar.style.width = `${percent}%`;
+
                     try {
                         await offlineStorage.cacheTrack(track, MusicAPI.instance, lyricsManager);
                         cachedCount++;
@@ -1039,11 +1051,74 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
 
                 btn.innerHTML = `${SVG_CHECK(20)}<span>Cached!</span>`;
-                showNotification(`Cached ${cachedCount} of ${tracks.length} tracks offline!`);
+                if (progressStatus) progressStatus.textContent = `Completed! ${cachedCount} tracks cached offline.`;
+                showNotification(`Cached ${cachedCount} of ${tracks.length} tracks offline for zero-buffering playback!`);
+
                 setTimeout(() => {
                     btn.innerHTML = originalHTML;
                     btn.disabled = false;
-                }, 3000);
+                    if (cacheModal) cacheModal.classList.remove('active');
+                    if (progressBox) progressBox.style.display = 'none';
+                    if (startBtn) startBtn.disabled = false;
+                    if (cancelBtn) cancelBtn.disabled = false;
+                }, 1500);
+            };
+
+            const originalHTML = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = `${SVG_ANIMATE_SPIN(20)}<span>Loading tracks...</span>`;
+
+            try {
+                const { playlist, tracks } = await loadTracks();
+                if (!tracks || tracks.length === 0) {
+                    alert('Playlist has no tracks to cache.');
+                    btn.disabled = false;
+                    btn.innerHTML = originalHTML;
+                    return;
+                }
+
+                btn.disabled = false;
+                btn.innerHTML = originalHTML;
+
+                const skipPrompt = localStorage.getItem('echos_skip_cache_prompt') === 'true';
+                if (skipPrompt) {
+                    await executeCache(tracks, originalHTML);
+                    return;
+                }
+
+                if (metaEl) {
+                    metaEl.textContent = `${tracks.length} tracks • ~${Math.round(tracks.length * 3.5)} MB offline storage`;
+                }
+                if (cacheModal) {
+                    cacheModal.classList.add('active');
+
+                    const handleCancel = () => {
+                        cacheModal.classList.remove('active');
+                        cancelBtn?.removeEventListener('click', handleCancel);
+                        startBtn?.removeEventListener('click', handleStart);
+                    };
+
+                    const handleStart = async () => {
+                        if (skipCheckbox?.checked) {
+                            localStorage.setItem('echos_skip_cache_prompt', 'true');
+                        }
+                        startBtn?.removeEventListener('click', handleStart);
+                        await executeCache(tracks, originalHTML);
+                    };
+
+                    const handleOverlay = (evt) => {
+                        if (evt.target.classList.contains('modal-overlay')) {
+                            cacheModal.classList.remove('active');
+                            cacheModal.removeEventListener('click', handleOverlay);
+                        }
+                    };
+
+                    cacheModal.addEventListener('click', handleOverlay);
+                    cancelBtn?.addEventListener('click', handleCancel, { once: true });
+                    startBtn?.addEventListener('click', handleStart, { once: true });
+                } else {
+                    await executeCache(tracks, originalHTML);
+                }
             } catch (error) {
                 console.error('Playlist caching failed:', error);
                 alert('Failed to cache playlist: ' + error.message);

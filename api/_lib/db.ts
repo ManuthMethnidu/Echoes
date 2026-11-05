@@ -115,6 +115,15 @@ export async function ensureSchema(sql: ReturnType<typeof neon>) {
         `;
 
         await sql`
+            CREATE TABLE IF NOT EXISTS oauth_flows (
+                flow_id TEXT PRIMARY KEY,
+                provider TEXT NOT NULL,
+                created_at TIMESTAMPTZ DEFAULT NOW(),
+                expires_at TIMESTAMPTZ DEFAULT (NOW() + INTERVAL '15 minutes')
+            );
+        `;
+
+        await sql`
             CREATE INDEX IF NOT EXISTS idx_auth_rate_limits_expire ON auth_rate_limits(expire_at);
         `;
 

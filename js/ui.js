@@ -6132,7 +6132,7 @@ export class UIRenderer {
         const dlBtn = document.getElementById('download-playlist-btn');
         if (dlBtn) dlBtn.innerHTML = `${SVG_DOWNLOAD(20)}<span>Download</span>`;
         const cacheBtn = document.getElementById('cache-playlist-btn');
-        if (cacheBtn) cacheBtn.innerHTML = `${SVG_CLOUD_DOWNLOAD(20)}<span>Cache All</span>`;
+        if (cacheBtn) cacheBtn.innerHTML = `${SVG_CLOUD_DOWNLOAD(20)}<span>Cache Playlist</span>`;
         const addPlaylistBtn = document.getElementById('add-playlist-to-playlist-btn');
 
         imageEl.src = '';

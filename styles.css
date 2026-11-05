@@ -7017,6 +7017,52 @@ img[src=''] {
     font-weight: 700;
 }
 
+#cache-playlist-modal {
+    animation: fade-in 0.1s ease-in;
+}
+
+.cache-playlist-cta {
+    background: rgba(34, 197, 94, 0.14) !important;
+    color: #22c55e !important;
+    border: 1px solid rgba(34, 197, 94, 0.35) !important;
+    font-weight: 600 !important;
+    transition: background 0.15s ease, transform 0.1s ease, border-color 0.15s ease !important;
+}
+
+.cache-playlist-cta:hover {
+    background: rgba(34, 197, 94, 0.24) !important;
+    border-color: rgba(34, 197, 94, 0.55) !important;
+    transform: translateY(-1px);
+}
+
+.playlist-cache-hint {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    margin-top: 0.85rem;
+    padding: 0.45rem 0.85rem;
+    background: rgba(34, 197, 94, 0.05);
+    border: 1px solid rgba(34, 197, 94, 0.18);
+    border-radius: 8px;
+    width: fit-content;
+    max-width: 100%;
+    line-height: 1.4;
+}
+
+.cache-hint-badge {
+    background: rgba(34, 197, 94, 0.2);
+    color: #22c55e;
+    font-size: 0.68rem;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    flex-shrink: 0;
+}
+
 /* fuck this chud ass shit bro */
 .csv-import-progress {
     position: fixed;

@@ -250,6 +250,29 @@ export class AuthManager {
         this.user = null;
         this.authListeners = [];
         this.authRefreshId = 0;
+
+        // Listen for OAuth completion from popup / child window
+        if (typeof window !== 'undefined') {
+            window.addEventListener('message', async (event) => {
+                if (event.data?.type === 'echos:auth-success') {
+                    const token = event.data.token;
+                    if (token) {
+                        storeAuthToken(token);
+                        await this.refreshAuthState();
+                    }
+                }
+            });
+
+            window.addEventListener('storage', async (event) => {
+                if (event.key === PRIMARY_AUTH_TOKEN_KEY || event.key === LEGACY_AUTH_TOKEN_KEY) {
+                    if (event.newValue && event.newValue !== authToken) {
+                        authToken = event.newValue;
+                        await this.refreshAuthState();
+                    }
+                }
+            });
+        }
+
         this.setupNativeOAuthListener().catch(console.error);
         this.init().catch(console.error);
     }
@@ -365,64 +388,71 @@ export class AuthManager {
     async _signInSocial(provider) {
         try {
             const isNative = isCapacitorNative();
-            const callbackURL = isNative ? getNativeOAuthCallbackURL() : window.location.origin + '/index.html';
-            const errorCallbackURL = callbackURL;
-
-            const res = await fetch(`${AUTH_BASE_URL}/api/auth/sign-in/social`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ provider, callbackURL, errorCallbackURL, disableRedirect: true }),
-                credentials: 'include',
-            });
-            const data = await readAuthResponse(res);
-            const oauthUrl = findOAuthUrl(data, res);
-            if (oauthUrl) {
-                if (isNative) {
-                    await openNativeOAuthUrl(oauthUrl);
-                } else {
-                    window.location.href = oauthUrl;
-                }
+            const authUrl = `${AUTH_BASE_URL}/api/auth/sign-in/social?provider=${encodeURIComponent(provider)}`;
+            if (isNative) {
+                await openNativeOAuthUrl(authUrl);
                 return;
             }
-            if (!res.ok || data?.error || data?.message) {
-                throw new Error(getErrorMessage(data, `OAuth URL fetch failed (${res.status})`));
+
+            const width = 540;
+            const height = 680;
+            const left = window.screenX + Math.max(0, (window.outerWidth - width) / 2);
+            const top = window.screenY + Math.max(0, (window.outerHeight - height) / 2);
+            const authWindow = window.open(
+                authUrl,
+                `echos_${provider}_oauth`,
+                `width=${width},height=${height},left=${left},top=${top},status=no,toolbar=no,menubar=no,location=yes,resizable=yes`
+            );
+            if (!authWindow || authWindow.closed || typeof authWindow.closed === 'undefined') {
+                window.open(authUrl, '_blank');
             }
-            throw new Error(`Unexpected response from auth server: ${JSON.stringify(data)}`);
         } catch (error) {
             console.error('Login failed:', error);
             alert(`Login failed: ${error.message}`);
         }
     }
 
-    async signInWithGoogle() {
-        try {
-            const isNative = isCapacitorNative();
-            const callbackURL = isNative ? getNativeOAuthCallbackURL() : window.location.origin + '/index.html';
-            const res = await authClient.signIn.social({
-                provider: 'google',
-                callbackURL: callbackURL,
-            });
+    signInWithGoogle() {
+        const isNative = isCapacitorNative();
+        const authUrl = `${AUTH_BASE_URL}/api/auth/sign-in/social?provider=google`;
 
-            const oauthUrl = res?.data?.url || res?.url;
-            if (oauthUrl) {
-                if (isNative) {
-                    await openNativeOAuthUrl(oauthUrl);
-                } else {
-                    window.location.href = oauthUrl;
-                }
-                return;
-            }
-
-            if (res?.error) {
-                throw new Error(res.error.message || 'Google sign-in initialization failed');
-            }
-
-            // Fallback to internal API
-            await this._signInSocial('google');
-        } catch (err) {
-            console.warn('[Neon Auth direct social sign-in failed, trying API]:', err);
-            await this._signInSocial('google');
+        if (isNative) {
+            openNativeOAuthUrl(authUrl);
+            return;
         }
+
+        const width = 540;
+        const height = 680;
+        const left = window.screenX + Math.max(0, (window.outerWidth - width) / 2);
+        const top = window.screenY + Math.max(0, (window.outerHeight - height) / 2);
+
+        // Open in new tab / popup window SYNCHRONOUSLY to prevent browser popup blockers
+        const authWindow = window.open(
+            authUrl,
+            'echos_google_oauth',
+            `width=${width},height=${height},left=${left},top=${top},status=no,toolbar=no,menubar=no,location=yes,resizable=yes`
+        );
+
+        if (!authWindow || authWindow.closed || typeof authWindow.closed === 'undefined') {
+            window.open(authUrl, '_blank');
+        }
+
+        // Active listener & poller to detect completion without user needing to reload
+        const initialToken = getAuthToken();
+        const pollTimer = setInterval(async () => {
+            const currentToken = localStorage.getItem(PRIMARY_AUTH_TOKEN_KEY) || localStorage.getItem(LEGACY_AUTH_TOKEN_KEY);
+            if (currentToken && currentToken !== initialToken) {
+                clearInterval(pollTimer);
+                authToken = currentToken;
+                await this.refreshAuthState();
+            }
+            if (authWindow && authWindow.closed) {
+                clearInterval(pollTimer);
+                setTimeout(() => this.refreshAuthState(), 600);
+            }
+        }, 1000);
+
+        setTimeout(() => clearInterval(pollTimer), 300000);
     }
 
     async signInWithEmail(email, password) {

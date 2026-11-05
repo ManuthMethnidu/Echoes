@@ -1,4 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { getDb, ensureSchema } from '../../_lib/db.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method !== 'POST' && req.method !== 'GET') {
@@ -7,7 +8,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     try {
         const payload = req.method === 'POST' ? req.body || {} : req.query || {};
-        const { provider, callbackURL } = payload;
+        const { provider } = payload;
         const forwardedHost = (req.headers['x-forwarded-host'] || req.headers.host || '') as string;
         const host = forwardedHost.split(',')[0].trim();
         const origin = (req.headers.origin as string) || (host ? `https://${host}` : 'https://echoes.mteck.tech');
@@ -15,9 +16,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const neonAuthUrl = process.env.NEON_AUTH_BASE_URL || 'https://ep-small-mouse-a11jp1gr.neonauth.ap-southeast-1.aws.neon.tech/neondb/auth';
 
         if (!provider || provider === 'google' || provider === 'youtube') {
-            // Use Neon Shared OAuth for Google Sign-In
             try {
-                const targetCallback = callbackURL || `${origin}/index.html`;
+                const sql = getDb();
+                await ensureSchema(sql);
+
+                const flowId = crypto.randomUUID();
+                await sql`
+                    INSERT INTO oauth_flows (flow_id, provider)
+                    VALUES (${flowId}, 'google')
+                    ON CONFLICT (flow_id) DO NOTHING
+                `.catch((dbErr) => console.warn('[OAuth Flow DB Insert]', dbErr));
+
+                const targetCallback = `${origin}/api/auth/callback/neon?flow=${flowId}`;
+
                 const neonRes = await fetch(`${neonAuthUrl}/sign-in/social`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },

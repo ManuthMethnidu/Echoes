@@ -5099,6 +5099,7 @@ export class UIRenderer {
         const albumsContainer = document.getElementById('search-albums-container');
         const playlistsContainer = document.getElementById('search-playlists-container');
         const communityPlaylistsContainer = document.getElementById('search-community-playlists-container');
+        const usersContainer = document.getElementById('search-users-container');
         const podcastsContainer = document.getElementById('search-podcasts-container');
 
         tracksContainer.innerHTML = this.createSkeletonTracks(8, true);
@@ -5106,6 +5107,7 @@ export class UIRenderer {
         albumsContainer.innerHTML = this.createSkeletonCards(6, false);
         playlistsContainer.innerHTML = this.createSkeletonCards(6, false);
         communityPlaylistsContainer.innerHTML = this.createSkeletonCards(6, false);
+        if (usersContainer) usersContainer.innerHTML = this.createSkeletonCards(6, true);
         podcastsContainer.innerHTML = this.createSkeletonCards(6, true);
 
         if (this.searchAbortController) {
@@ -5176,7 +5178,18 @@ export class UIRenderer {
                 rendered: {},
             };
 
-            const activeTab = document.querySelector('#page-search .search-tab.active')?.dataset.tab || 'tracks';
+            let activeTab = document.querySelector('#page-search .search-tab.active')?.dataset.tab || 'tracks';
+            if (query.trim().startsWith('@')) {
+                activeTab = 'users';
+                const userTabBtn = document.querySelector('#page-search .search-tab[data-tab="users"]');
+                if (userTabBtn) {
+                    document.querySelectorAll('#page-search .search-tab').forEach((t) => t.classList.remove('active'));
+                    document.querySelectorAll('#page-search .search-tab-content').forEach((c) => c.classList.remove('active'));
+                    userTabBtn.classList.add('active');
+                    const usersContent = document.getElementById('search-tab-users');
+                    if (usersContent) usersContent.classList.add('active');
+                }
+            }
             await this.renderSearchTab(activeTab);
         } catch (error) {
             if (error.name === 'AbortError') return;
@@ -5186,6 +5199,7 @@ export class UIRenderer {
             artistsContainer.innerHTML = errorMsg;
             albumsContainer.innerHTML = errorMsg;
             playlistsContainer.innerHTML = errorMsg;
+            if (usersContainer) usersContainer.innerHTML = errorMsg;
             podcastsContainer.innerHTML = errorMsg;
         }
     }
@@ -5288,6 +5302,25 @@ export class UIRenderer {
                 case 'community-playlists':
                     await this._renderSearchCommunityPlaylists(state);
                     break;
+                case 'users': {
+                    if (!state.users) {
+                        const usersContainer = document.getElementById('search-users-container');
+                        if (usersContainer) usersContainer.innerHTML = this.createSkeletonCards(6, true);
+                        const cleanQuery = state.query.startsWith('@') ? state.query.slice(1).trim() : state.query.trim();
+                        try {
+                            const res = await fetch(`/api/users/search?q=${encodeURIComponent(cleanQuery)}`, {
+                                signal: state.signal,
+                            });
+                            const data = await res.json().catch(() => null);
+                            state.users = data?.users || [];
+                        } catch (e) {
+                            if (e.name === 'AbortError') return;
+                            state.users = [];
+                        }
+                    }
+                    await this._renderSearchUsers(state);
+                    break;
+                }
                 case 'podcasts':
                     await this.renderPodcastSearchResults(state.query);
                     break;
@@ -5301,6 +5334,8 @@ export class UIRenderer {
                 artists: 'search-artists-container',
                 playlists: 'search-playlists-container',
                 'community-playlists': 'search-community-playlists-container',
+                users: 'search-users-container',
+                podcasts: 'search-podcasts-container',
             };
             const container = document.getElementById(containerIds[tabName]);
             if (container) {
@@ -5396,6 +5431,53 @@ export class UIRenderer {
         }
     }
 
+    createUserCardHTML(user) {
+        const isCompact = cardSettings.isCompactArtist();
+        const avatarUrl = user.avatar_url || '/images/echos_logo.svg';
+        const displayName = escapeHtml(user.display_name || user.username);
+        const username = escapeHtml(user.username);
+        const subtitle = user.about
+            ? escapeHtml(user.about.length > 40 ? user.about.slice(0, 37) + '...' : user.about)
+            : `@${username}`;
+
+        return this.createBaseCardHTML({
+            type: 'user',
+            id: user.id || user.username,
+            href: `/user/@${user.username}`,
+            title: displayName,
+            subtitle: subtitle,
+            imageHTML: `
+                <img crossorigin="anonymous" referrerpolicy="no-referrer"
+                     src="${avatarUrl}" alt="${displayName}"
+                     class="card-image" loading="lazy"
+                     onerror="this.src='/images/echos_logo.svg'">
+            `,
+            actionButtonsHTML: '',
+            isCompact,
+            extraClasses: 'artist user-card',
+            extraAttributes: `data-username="${user.username}"`,
+        });
+    }
+
+    async _renderSearchUsers(state) {
+        const usersContainer = document.getElementById('search-users-container');
+        if (!usersContainer) return;
+        if (state.users && state.users.length) {
+            usersContainer.innerHTML = state.users.map((user) => this.createUserCardHTML(user)).join('');
+            usersContainer.querySelectorAll('.user-card').forEach((card) => {
+                card.onclick = (e) => {
+                    e.preventDefault();
+                    const username = card.dataset.username;
+                    if (username) {
+                        import('./router.js').then(({ navigate }) => navigate(`/user/@${username}`));
+                    }
+                };
+            });
+        } else {
+            usersContainer.innerHTML = createPlaceholder('No users found.');
+        }
+    }
+
     renderSearchHistory() {
         const historyEl = document.getElementById('search-history');
         if (!historyEl) return;
@@ -5467,14 +5549,14 @@ export class UIRenderer {
                 <div class="search-history-item search-suggestion-item" role="option"
                      data-suggestion-index="${index}">
                     ${
-                        suggestion.kind === 'song'
-                            ? `<img crossorigin="anonymous" src="${escapeHtml(suggestion.image)}" alt="" class="search-suggestion-cover">`
+                        suggestion.kind === 'song' || suggestion.kind === 'user'
+                            ? `<img crossorigin="anonymous" src="${escapeHtml(suggestion.image)}" alt="" class="search-suggestion-cover${suggestion.kind === 'user' ? ' circular' : ''}">`
                             : SVG_SEARCH(16)
                     }
                     <span class="query-text">
                         <span class="search-suggestion-title">${escapeHtml(suggestion.displayTerm)}</span>
                         ${
-                            suggestion.kind === 'song'
+                            suggestion.kind === 'song' || suggestion.kind === 'user'
                                 ? `<span class="search-suggestion-subtitle">${escapeHtml(suggestion.subtitle)}${suggestion.lyricSnippet ? ` · Lyrics: “${escapeHtml(suggestion.lyricSnippet)}”` : ''}</span>`
                                 : ''
                         }

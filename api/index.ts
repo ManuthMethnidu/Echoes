@@ -30,6 +30,7 @@ import ytProxyStreamHandler from './_handlers/yt/proxy-stream.js';
 import ytDownloadHandler from './_handlers/yt/download.js';
 import importSpotifyHandler from './_handlers/import/spotify.js';
 import userProfileHandler from './_handlers/users/[username].js';
+import usersSearchHandler from './_handlers/users/search.js';
 import publicPlaylistHandler from './_handlers/public/playlists/[id].js';
 
 type ApiHandler = (req: VercelRequest, res: VercelResponse) => Promise<any> | any;
@@ -66,6 +67,8 @@ const STATIC_ROUTES: Record<string, ApiHandler> = {
     'yt/proxy-stream': ytProxyStreamHandler,
     'yt/download': ytDownloadHandler,
     'import/spotify': importSpotifyHandler,
+    'users/search': usersSearchHandler,
+    'search/users': usersSearchHandler,
 };
 
 function extractRoute(req: VercelRequest): string {

@@ -2308,6 +2308,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         UIRenderer.instance.addToSearchHistory(query);
         const dropdown = document.getElementById('search-history');
         if (dropdown) dropdown.style.display = 'none';
+        if (suggestion.kind === 'user' && suggestion.username) {
+            navigate(`/user/@${suggestion.username}`);
+            return;
+        }
         if (suggestion.kind === 'song' && suggestion.track?.tracksTrackId) {
             navigate(`/track/${suggestion.track.tracksTrackId}`);
             return;
@@ -2323,12 +2327,53 @@ document.addEventListener('DOMContentLoaded', async () => {
         suggestionsAbortController?.abort();
         suggestionsAbortController = new AbortController();
         try {
-            const suggestions = await MusicAPI.instance.searchSuggestions(query, {
-                signal: suggestionsAbortController.signal,
-                limit: 8,
-            });
+            if (query.startsWith('@')) {
+                const cleanQuery = query.slice(1).trim();
+                const res = await fetch(`/api/users/search?q=${encodeURIComponent(cleanQuery)}&limit=6`, {
+                    signal: suggestionsAbortController.signal,
+                });
+                const data = await res.json().catch(() => null);
+                const userSuggestions = (data?.users || []).map((u) => ({
+                    kind: 'user',
+                    searchTerm: `@${u.username}`,
+                    displayTerm: u.display_name || u.username,
+                    subtitle: `@${u.username}`,
+                    image: u.avatar_url || '/images/echos_logo.svg',
+                    username: u.username,
+                }));
+                if (query !== searchInput.value.trim() || document.activeElement !== searchInput) return;
+                UIRenderer.instance.renderSearchSuggestions(userSuggestions, selectSearchSuggestion);
+                return;
+            }
+
+            const [suggestions, userRes] = await Promise.all([
+                MusicAPI.instance
+                    .searchSuggestions(query, {
+                        signal: suggestionsAbortController.signal,
+                        limit: 8,
+                    })
+                    .catch(() => []),
+                query.length >= 2
+                    ? fetch(`/api/users/search?q=${encodeURIComponent(query)}&limit=2`, {
+                          signal: suggestionsAbortController.signal,
+                      })
+                          .then((r) => r.json())
+                          .catch(() => null)
+                    : null,
+            ]);
+
+            const userSuggestions = (userRes?.users || []).map((u) => ({
+                kind: 'user',
+                searchTerm: `@${u.username}`,
+                displayTerm: u.display_name || u.username,
+                subtitle: `User · @${u.username}`,
+                image: u.avatar_url || '/images/echos_logo.svg',
+                username: u.username,
+            }));
+
+            const combinedSuggestions = [...userSuggestions, ...(suggestions || [])];
             if (query !== searchInput.value.trim() || document.activeElement !== searchInput) return;
-            UIRenderer.instance.renderSearchSuggestions(suggestions, selectSearchSuggestion);
+            UIRenderer.instance.renderSearchSuggestions(combinedSuggestions, selectSearchSuggestion);
         } catch (error) {
             if (error.name !== 'AbortError') console.warn('Search suggestions failed:', error);
         }

@@ -36,7 +36,16 @@ export class YouTubeMusicEngine {
             }
         }
 
-        const res = await fetch(`/api/yt/stream?id=${encodeURIComponent(cleanId)}`);
+        const title = typeof trackOrId === 'object' ? trackOrId.title || '' : '';
+        const artist =
+            typeof trackOrId === 'object'
+                ? trackOrId.artist?.name || (Array.isArray(trackOrId.artists) ? trackOrId.artists[0]?.name : '') || ''
+                : '';
+        const params = new URLSearchParams({ id: cleanId });
+        if (title) params.set('title', title);
+        if (artist) params.set('artist', artist);
+
+        const res = await fetch(`/api/yt/stream?${params.toString()}`);
         if (!res.ok) {
             const err = await res.json().catch(() => ({}));
             throw new Error(err.error || `Failed to resolve YouTube audio (${res.status})`);

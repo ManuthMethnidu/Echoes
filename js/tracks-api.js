@@ -411,17 +411,25 @@ export class TracksStreamerAPI {
     /**
      * Internal fetch with retries on transient errors (502, 503, 504).
      */
-    async fetchWithRetry(url, options = {}, retries = 2) {
+    async fetchWithRetry(url, options = {}, retries = 1) {
         let lastError = null;
         for (let attempt = 0; attempt <= retries; attempt++) {
             try {
-                const response = await fetch(url, {
+                const signal =
+                    options.signal ||
+                    (typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function'
+                        ? AbortSignal.timeout(3500)
+                        : null);
+                const fetchOptions = {
                     ...options,
                     headers: {
                         Accept: 'application/json',
                         ...(options.headers || {}),
                     },
-                });
+                };
+                if (signal) fetchOptions.signal = signal;
+
+                const response = await fetch(url, fetchOptions);
 
                 if (
                     (response.status === 502 || response.status === 503 || response.status === 504) &&
@@ -434,7 +442,7 @@ export class TracksStreamerAPI {
                 return response;
             } catch (err) {
                 lastError = err;
-                if (err.name === 'AbortError') throw err;
+                if (err.name === 'AbortError' || err.name === 'TimeoutError') throw err;
                 if (attempt < retries) {
                     await new Promise((r) => setTimeout(r, 200 * (attempt + 1)));
                     continue;
@@ -514,30 +522,34 @@ export class TracksStreamerAPI {
             return this.searchCache.get(cacheKey);
         }
 
-        const url = `${this.baseUrl}/search/tracks?q=${encodeURIComponent(cleanQuery)}&limit=${limit}`;
-        const response = await this.fetchWithRetry(url, { signal: options.signal });
-        if (!response.ok) {
-            throw new Error(`Track search failed with status: ${response.status}`);
+        try {
+            const url = `${this.baseUrl}/search/tracks?q=${encodeURIComponent(cleanQuery)}&limit=${limit}`;
+            const response = await this.fetchWithRetry(url, { signal: options.signal });
+            if (!response.ok) {
+                return { items: [] };
+            }
+
+            const data = await response.json();
+            const rawTracks = data.tracks || [];
+            const items = rawTracks.map(normalizeTracksTrack).filter(Boolean);
+
+            for (const track of items) {
+                this.trackCache.set(String(track.tracksTrackId), track);
+                this.trackCache.set(String(track.id), track);
+            }
+
+            const result = {
+                items,
+                limit: items.length,
+                offset: 0,
+                totalNumberOfItems: items.length,
+            };
+
+            this.searchCache.set(cacheKey, result);
+            return result;
+        } catch {
+            return { items: [] };
         }
-
-        const data = await response.json();
-        const rawTracks = data.tracks || [];
-        const items = rawTracks.map(normalizeTracksTrack).filter(Boolean);
-
-        for (const track of items) {
-            this.trackCache.set(String(track.tracksTrackId), track);
-            this.trackCache.set(String(track.id), track);
-        }
-
-        const result = {
-            items,
-            limit: items.length,
-            offset: 0,
-            totalNumberOfItems: items.length,
-        };
-
-        this.searchCache.set(cacheKey, result);
-        return result;
     }
 
     /**

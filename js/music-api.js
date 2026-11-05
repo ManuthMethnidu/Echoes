@@ -795,7 +795,7 @@ export class MusicAPI {
     async getStreamUrl(id, quality, options = {}) {
         let track = options?.track || this.getCachedTracksTrack(id) || this.getCachedAppleTrack(id);
 
-        if (!track && (this.isTracksId(id) || this.isAppleId(id) || this.isYouTubeId(id) || /^\d{17,20}$/.test(String(id)))) {
+        if (!track && id) {
             track = await this.getTrackMetadata(id).catch(() => null);
         }
 
@@ -838,7 +838,7 @@ export class MusicAPI {
 
                     for (const candidate of candidates.slice(0, 4)) {
                         try {
-                            const stream = await ytEngine.resolveStream(candidate.id);
+                            const stream = await ytEngine.resolveStream(candidate);
                             if (stream?.streamUrl) {
                                 return {
                                     url: stream.streamUrl,
@@ -872,8 +872,16 @@ export class MusicAPI {
             }
         } catch {}
 
-        const cleanId = this.getTracksId(id);
-        return this.tracksStreamerAPI.getStreamUrl(cleanId, quality, { track });
+        try {
+            const tidalStream = await this.tidalAPI.getStreamUrl(id, quality, { ...options, track });
+            if (tidalStream?.url) {
+                return tidalStream;
+            }
+        } catch (tidalErr) {
+            console.warn('[getStreamUrl] Tidal API fallback failed:', tidalErr);
+        }
+
+        throw new Error(`Could not resolve stream URL for track: ${track?.title || id}`);
     }
 
     usesSingleUsePlaybackUrls() {

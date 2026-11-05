@@ -2832,9 +2832,124 @@ export class LosslessAPI {
             console.debug('tracks.monochrome.st stream lookup failed in LosslessAPI:', err);
         }
 
-        if (!streamResult?.url && (String(id).startsWith('tracks:') || String(id).startsWith('mono:') || /^\d{17,20}$/.test(String(id)))) {
-            const cleanId = String(id).replace(/^(?:tracks|mono):(?:track:)?/, '');
-            streamResult = tracksStreamerAPI.getStreamUrl(cleanId, quality, { track });
+        // 1. Native TIDAL streaming fallback: getTrack manifest
+        if (!streamResult?.url && id && !isApple && !String(id).startsWith('yt:')) {
+            try {
+                const cleanId = String(id).replace(/^(?:tracks|mono|tidal):(?:track:)?/, '');
+                const lookup = await this.getTrack(cleanId, quality).catch(() => null);
+                if (lookup?.originalTrackUrl) {
+                    streamResult = {
+                        url: lookup.originalTrackUrl,
+                        provider: 'tidal',
+                        quality: quality,
+                        rgInfo: lookup.info
+                            ? {
+                                  trackReplayGain: lookup.info.trackReplayGain || lookup.info.replayGain,
+                                  trackPeakAmplitude: lookup.info.trackPeakAmplitude || lookup.info.peakAmplitude,
+                                  albumReplayGain: lookup.info.albumReplayGain,
+                                  albumPeakAmplitude: lookup.info.albumPeakAmplitude,
+                              }
+                            : null,
+                    };
+                } else if (lookup?.info?.manifest) {
+                    const manifestUrl = this.extractStreamUrlFromManifest(lookup.info.manifest);
+                    if (manifestUrl) {
+                        streamResult = {
+                            url: manifestUrl,
+                            provider: 'tidal',
+                            quality: quality,
+                            playbackType: manifestUrl.includes('.mpd') ? 'dash' : 'direct',
+                            rgInfo: lookup.info
+                                ? {
+                                      trackReplayGain: lookup.info.trackReplayGain || lookup.info.replayGain,
+                                      trackPeakAmplitude: lookup.info.trackPeakAmplitude || lookup.info.peakAmplitude,
+                                      albumReplayGain: lookup.info.albumReplayGain,
+                                      albumPeakAmplitude: lookup.info.albumPeakAmplitude,
+                                  }
+                                : null,
+                        };
+                    }
+                }
+            } catch (tidalErr) {
+                console.debug('[LosslessAPI] Native TIDAL lookup failed:', tidalErr);
+            }
+        }
+
+        // 2. Unified Playback fallback
+        if (!streamResult?.url && id && !isApple) {
+            try {
+                streamResult = await this.getUnifiedPlaybackStreamUrl(id, quality, {
+                    preferAdaptiveAuto: true,
+                    track,
+                    intent: 'stream',
+                });
+            } catch (unifiedErr) {
+                console.debug('[LosslessAPI] Unified Playback failed:', unifiedErr);
+            }
+        }
+
+        // 3. Deezer fallback by ISRC
+        if (!streamResult?.url && track?.isrc) {
+            try {
+                const deezerResult = await this.getDeezerStreamUrl(track.isrc, quality);
+                if (deezerResult?.url) {
+                    streamResult = {
+                        url: deezerResult.url,
+                        provider: 'deezer',
+                        quality: quality,
+                        deezerFormat: deezerResult.format,
+                        deezerHiRes: deriveTrackQuality(track) === 'HI_RES_LOSSLESS',
+                        rgInfo: {
+                            trackReplayGain: 0,
+                            trackPeakAmplitude: 1,
+                            albumReplayGain: 0,
+                            albumPeakAmplitude: 1,
+                        },
+                    };
+                }
+            } catch (deezerErr) {
+                console.debug('[LosslessAPI] Deezer lookup failed:', deezerErr);
+            }
+        }
+
+        // 4. YouTube Music fallback
+        if (!streamResult?.url) {
+            try {
+                const { ytEngine } = await import('./yt-music.js');
+                const artistName =
+                    track?.artist?.name ||
+                    (Array.isArray(track?.artists) ? track.artists.map((a) => a.name).join(' ') : '') ||
+                    '';
+                const query = track?.title ? `${track.title} ${artistName}`.trim() : String(id);
+                if (query) {
+                    const ytResults = await ytEngine.search(query);
+                    if (ytResults && ytResults.length > 0) {
+                        for (const candidate of ytResults.slice(0, 3)) {
+                            try {
+                                const stream = await ytEngine.resolveStream(candidate);
+                                if (stream?.streamUrl) {
+                                    streamResult = {
+                                        url: stream.streamUrl,
+                                        streamUrl: stream.streamUrl,
+                                        mimeType: stream.mimeType || 'audio/webm',
+                                        mediaMimeType: stream.mimeType || 'audio/webm',
+                                        playbackType: 'direct',
+                                        codec: stream.codec || (stream.mimeType?.includes('opus') ? 'OPUS' : 'AAC'),
+                                        quality: 'HIGH',
+                                        lossless: false,
+                                        bitrateKbps: Math.round(Number(stream.bitrate || 160000) / 1000),
+                                        duration: stream.duration || track?.duration,
+                                        provider: 'youtube',
+                                    };
+                                    break;
+                                }
+                            } catch {}
+                        }
+                    }
+                }
+            } catch (ytErr) {
+                console.debug('[LosslessAPI] YouTube fallback failed:', ytErr);
+            }
         }
 
         if (streamResult?.url) {

@@ -4,8 +4,6 @@ const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
 
 const ORDERED_INSTANCES = [
     'https://yt.chocolatemoo53.com',
-    'https://invidious.materialio.us',
-    'https://invidious.protokolla.fi',
     'https://invidious.ducks.party',
 ];
 

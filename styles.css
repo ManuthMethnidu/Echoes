@@ -1218,7 +1218,8 @@ ul {
     list-style: none;
 }
 
-.sidebar-nav .nav-item a {
+.sidebar-nav .nav-item a,
+.sidebar-nav .nav-item button {
     display: flex;
     align-items: center;
     gap: 0.75rem;
@@ -1231,6 +1232,12 @@ ul {
         color var(--transition-fast),
         transform var(--transition-fast);
     cursor: pointer;
+    background: transparent;
+    border: none;
+    font-family: inherit;
+    font-size: 0.95rem;
+    width: 100%;
+    text-align: left;
 }
 
 .search-bar svg.search-icon {
@@ -1238,7 +1245,8 @@ ul {
     height: 20px;
 }
 
-.sidebar-nav .nav-item a:hover {
+.sidebar-nav .nav-item a:hover,
+.sidebar-nav .nav-item button:hover {
     background-color: var(--secondary);
     color: var(--foreground);
     transform: translateX(4px);
@@ -1246,12 +1254,14 @@ ul {
     /* Slide effect */
 }
 
-.sidebar-nav .nav-item a.active {
+.sidebar-nav .nav-item a.active,
+.sidebar-nav .nav-item button.active {
     background-color: var(--primary);
     color: var(--primary-foreground);
 }
 
-.sidebar-nav .nav-item a svg {
+.sidebar-nav .nav-item a svg,
+.sidebar-nav .nav-item button svg {
     width: 20px;
     height: 20px;
     flex-shrink: 0;
@@ -8104,14 +8114,16 @@ img[src=''] {
 }
 
 @media (hover: none) and (pointer: coarse) {
-    /* Allow play button to float outside square cover on mobile */
+    /* Keep covers neatly clipped to prevent overlapping card text and adjacent rows */
     .card-image-wrapper {
-        overflow: visible;
+        overflow: hidden !important;
+        border-radius: var(--radius) !important;
+        position: relative;
     }
 
     .card:not(.artist) .card-image-wrapper .card-image,
     .card:not(.artist) .card-image-wrapper .card-collage {
-        clip-path: inset(0 round var(--radius));
+        border-radius: var(--radius);
     }
 
     .main-content {
@@ -8164,15 +8176,15 @@ img[src=''] {
 
     .card-like-btn {
         opacity: 1 !important;
-        top: -0.25em !important;
-        right: -0.25em !important;
+        top: 0.4rem !important;
+        right: 0.4rem !important;
         transform: none !important;
     }
 
     .card-play-btn {
         opacity: 1 !important;
-        bottom: -0.25em !important;
-        right: -0.25em !important;
+        bottom: 0.4rem !important;
+        right: 0.4rem !important;
         transform: none !important;
     }
 }
@@ -8327,9 +8339,14 @@ body:has(#fullscreen-cover-overlay:not([style*='display: none'])) .now-playing-b
         gap: 10px;
     }
 
-    body.sidebar-collapsed .sidebar-nav .nav-item a {
+    body.sidebar-collapsed .sidebar-nav .nav-item a,
+    body.sidebar-collapsed .sidebar-nav .nav-item button {
         justify-content: center;
         padding: 0.75rem 0;
+    }
+
+    body.sidebar-collapsed .sidebar-nav .nav-item button span {
+        display: none;
     }
 
     body.sidebar-collapsed .pinned-items-header {

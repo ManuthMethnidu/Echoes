@@ -1253,6 +1253,12 @@
                                     <span>Library</span>
                                 </a>
                             </li>
+                            <li class="nav-item" id="sidebar-nav-create-playlist">
+                                <button type="button" id="sidebar-create-playlist-btn" class="sidebar-action-btn" title="Create Playlist">
+                                    <use svg="!lucide/plus-circle.svg" size="24" />
+                                    <span>New Playlist</span>
+                                </button>
+                            </li>
                             <li class="nav-item" id="sidebar-nav-recent">
                                 <a href="/recent">
                                     <use svg="./images/recent.svg" size="24" />
@@ -1803,8 +1809,18 @@
 
                 <div id="page-library" class="page">
                     <section class="content-section">
-                        <div class="library-header">
+                        <div class="library-header" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem;">
                             <h2>My Playlists</h2>
+                            <button
+                                type="button"
+                                id="create-playlist-btn"
+                                class="btn-primary"
+                                style="padding: 0.4rem 0.85rem; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; cursor: pointer;"
+                                title="Create Playlist"
+                            >
+                                <use svg="!lucide/plus.svg" size="16" />
+                                <span>New Playlist</span>
+                            </button>
                         </div>
                         <div class="card-grid" id="my-folders-container"></div>
                         <div class="card-grid" id="my-playlists-container">

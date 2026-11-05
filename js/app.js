@@ -678,19 +678,22 @@ document.addEventListener('DOMContentLoaded', async () => {
             // Show/hide panels
             const ytmPanel = document.getElementById('ytm-import-panel');
             if (ytmPanel) ytmPanel.style.display = importType === 'ytm' ? 'block' : 'none';
-            document.getElementById('csv-import-panel').style.display = importType === 'csv' ? 'block' : 'none';
-            document.getElementById('jspf-import-panel').style.display = importType === 'jspf' ? 'block' : 'none';
-            document.getElementById('xspf-import-panel').style.display = importType === 'xspf' ? 'block' : 'none';
-            document.getElementById('xml-import-panel').style.display = importType === 'xml' ? 'block' : 'none';
-            document.getElementById('m3u-import-panel').style.display = importType === 'm3u' ? 'block' : 'none';
+            ['csv-import-panel', 'jspf-import-panel', 'xspf-import-panel', 'xml-import-panel', 'm3u-import-panel'].forEach((id) => {
+                const panel = document.getElementById(id);
+                if (panel) {
+                    const type = id.replace('-import-panel', '');
+                    panel.style.display = importType === type ? 'block' : 'none';
+                }
+            });
 
             // Clear all file inputs except the active one (setting a file input's
             // value to a non-empty string throws InvalidStateError)
-            if (importType !== 'csv') document.getElementById('csv-file-input').value = '';
-            if (importType !== 'jspf') document.getElementById('jspf-file-input').value = '';
-            if (importType !== 'xspf') document.getElementById('xspf-file-input').value = '';
-            if (importType !== 'xml') document.getElementById('xml-file-input').value = '';
-            if (importType !== 'm3u') document.getElementById('m3u-file-input').value = '';
+            ['csv', 'jspf', 'xspf', 'xml', 'm3u'].forEach((type) => {
+                if (importType !== type) {
+                    const input = document.getElementById(`${type}-file-input`);
+                    if (input) input.value = '';
+                }
+            });
         });
     });
 
@@ -1127,21 +1130,29 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         }
 
-        if (e.target.closest('#create-playlist-btn') || e.target.closest('#library-create-playlist-card')) {
+        if (e.target.closest('#create-playlist-btn') || e.target.closest('#library-create-playlist-card') || e.target.closest('#sidebar-create-playlist-btn')) {
             const modal = document.getElementById('playlist-modal');
-            document.getElementById('playlist-modal-title').textContent = 'Create Playlist';
-            document.getElementById('playlist-name-input').value = '';
-            document.getElementById('playlist-cover-input').value = '';
-            document.getElementById('playlist-description-input').value = '';
+            if (!modal) return;
+
+            const titleEl = document.getElementById('playlist-modal-title');
+            if (titleEl) titleEl.textContent = 'Create Playlist';
+            const nameInput = document.getElementById('playlist-name-input');
+            if (nameInput) nameInput.value = '';
+            const coverInput = document.getElementById('playlist-cover-input');
+            if (coverInput) coverInput.value = '';
+            const descInput = document.getElementById('playlist-description-input');
+            if (descInput) descInput.value = '';
             modal.dataset.editingId = '';
-            document.getElementById('import-section').style.display = 'block';
-            document.getElementById('csv-file-input').value = '';
-            document.getElementById('ytm-url-input').value = '';
-            document.getElementById('ytm-status').textContent = '';
-            document.getElementById('jspf-file-input').value = '';
-            document.getElementById('xspf-file-input').value = '';
-            document.getElementById('xml-file-input').value = '';
-            document.getElementById('m3u-file-input').value = '';
+
+            const importSection = document.getElementById('import-section');
+            if (importSection) importSection.style.display = 'block';
+
+            ['csv-file-input', 'ytm-url-input', 'jspf-file-input', 'xspf-file-input', 'xml-file-input', 'm3u-file-input'].forEach((id) => {
+                const el = document.getElementById(id);
+                if (el) el.value = '';
+            });
+            const ytmStatus = document.getElementById('ytm-status');
+            if (ytmStatus) ytmStatus.textContent = '';
 
             // Reset import tabs to YouTube & TuneMyMusic
             document.querySelectorAll('.import-tab').forEach((tab) => {
@@ -1149,11 +1160,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
             const ytmPanel = document.getElementById('ytm-import-panel');
             if (ytmPanel) ytmPanel.style.display = 'block';
-            document.getElementById('csv-import-panel').style.display = 'none';
-            document.getElementById('jspf-import-panel').style.display = 'none';
-            document.getElementById('xspf-import-panel').style.display = 'none';
-            document.getElementById('xml-import-panel').style.display = 'none';
-            document.getElementById('m3u-import-panel').style.display = 'none';
+
+            ['csv-import-panel', 'jspf-import-panel', 'xspf-import-panel', 'xml-import-panel', 'm3u-import-panel'].forEach((id) => {
+                const panel = document.getElementById(id);
+                if (panel) panel.style.display = 'none';
+            });
 
             // Reset Public Toggle
             const publicToggle = document.getElementById('playlist-public-toggle');
@@ -1161,12 +1172,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (publicToggle) publicToggle.checked = false;
             if (shareBtn) shareBtn.style.display = 'none';
 
-            // Reset cover URL input
-            const coverUrlInput = document.getElementById('playlist-cover-input');
-            if (coverUrlInput) coverUrlInput.value = '';
-
             modal.classList.add('active');
-            document.getElementById('playlist-name-input').focus();
+            nameInput?.focus();
         }
 
         if (e.target.closest('#create-folder-btn') || e.target.closest('#library-create-folder-card')) {
@@ -2599,9 +2606,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                     console.log('Service Worker registered:', swScriptUrl, registration?.scope, {
                         controlled: !!navigator.serviceWorker.controller,
                     });
-                    if (registration) {
-                        registration.update().catch(() => {});
-                    }
                 },
                 onRegisterError(error) {
                     console.warn('Service Worker registration failed:', error);
@@ -2612,15 +2616,17 @@ document.addEventListener('DOMContentLoaded', async () => {
                         return;
                     }
 
-                    if (pwaUpdateSettings.isAutoUpdateEnabled()) {
-                        // Auto-update: immediately activate the new service worker
-                        updateSW(true);
-                    } else {
-                        // Show notification with Update button and dismiss option
-                        showUpdateNotification(() => {
-                            updateSW(true);
-                        });
+                    // Avoid jarring page reloads while audio is playing
+                    const isAudioPlaying = Player.instance && !Player.instance.audio?.paused;
+                    if (isAudioPlaying) {
+                        console.log('[PWA] Update available but deferred reload while music is playing.');
+                        return;
                     }
+
+                    // Prompt the user cleanly instead of abruptly reloading the whole window
+                    showUpdateNotification(() => {
+                        updateSW(true);
+                    });
                 },
                 onOfflineReady() {
                     console.log('App ready to work offline');

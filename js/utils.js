@@ -656,19 +656,36 @@ export const getTrackTitle = (track, { fallback = 'Unknown Title' } = {}) => {
 };
 
 export const getTrackArtists = (track = {}, { fallback = 'Unknown Artist' } = {}) => {
-    if (track?.artists?.length) {
-        return track.artists.map((artist) => artist?.name).join(', ');
+    if (Array.isArray(track?.artists) && track.artists.length > 0) {
+        return track.artists
+            .map((artist) => (typeof artist === 'string' ? artist : artist?.name) || '')
+            .filter(Boolean)
+            .join(', ') || fallback;
+    }
+    if (track?.artist) {
+        if (typeof track.artist === 'string') return track.artist || fallback;
+        if (track.artist?.name) return track.artist.name || fallback;
     }
 
     return fallback;
 };
 
 export const getTrackArtistsHTML = (track = {}, { fallback = 'Unknown Artist' } = {}) => {
-    if (track?.artists?.length) {
-        return track.artists
+    let artists = [];
+    if (Array.isArray(track?.artists) && track.artists.length > 0) {
+        artists = track.artists;
+    } else if (track?.artist) {
+        artists = Array.isArray(track.artist) ? track.artist : [track.artist];
+    }
+
+    if (artists.length > 0) {
+        return artists
             .map((artist) => {
-                const escapedName = escapeHtml(artist.name || 'Unknown Artist');
-                const escapedId = escapeHtml(artist.id || '');
+                if (typeof artist === 'string') {
+                    return `<span class="artist-link">${escapeHtml(artist)}</span>`;
+                }
+                const escapedName = escapeHtml(artist?.name || fallback);
+                const escapedId = escapeHtml(artist?.id || '');
                 // Check if this is a tracker/unreleased track
                 const isTracker = track.isTracker || (track.id && String(track.id).startsWith('tracker-'));
                 if (isTracker && track.trackerInfo?.sheetId) {
@@ -676,8 +693,11 @@ export const getTrackArtistsHTML = (track = {}, { fallback = 'Unknown Artist' } 
                     // For tracker tracks, link to the tracker artist page
                     return `<span class="artist-link tracker-artist-link" data-tracker-sheet-id="${escapedSheetId}">${escapedName}</span>`;
                 }
-                // For normal tracks, use the artist ID
-                return `<span class="artist-link" data-artist-id="${escapedId}">${escapedName}</span>`;
+                // For normal tracks, use the artist ID if present, otherwise plain artist-link
+                if (escapedId) {
+                    return `<span class="artist-link" data-artist-id="${escapedId}">${escapedName}</span>`;
+                }
+                return `<span class="artist-link">${escapedName}</span>`;
             })
             .join(', ');
     }

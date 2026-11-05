@@ -2887,9 +2887,6 @@ export class UIRenderer {
         if (playlistsContainer && (!playlistsContainer.children.length || playlistsContainer.querySelector('.placeholder-text'))) {
             playlistsContainer.innerHTML = this.createSkeletonCards(6, false);
         }
-        if (myPlaylistsContainer && (!myPlaylistsContainer.children.length || myPlaylistsContainer.querySelector('.placeholder-text'))) {
-            myPlaylistsContainer.innerHTML = this.createSkeletonCards(6, false);
-        }
 
         const likedTracks = await db.getFavorites('track');
         const shuffleBtn = document.getElementById('shuffle-liked-tracks-btn');
@@ -3014,8 +3011,29 @@ export class UIRenderer {
         const visiblePlaylists = myPlaylists.filter((p) => !playlistsInFolders.has(p.id));
 
         if (myPlaylistsContainer) {
-            myPlaylistsContainer.querySelectorAll('.user-playlist').forEach((el) => el.remove());
-            myPlaylistsContainer.querySelectorAll('.placeholder-text').forEach((el) => el.remove());
+            myPlaylistsContainer.querySelectorAll('.user-playlist, .placeholder-text, .card-skeleton').forEach((el) => el.remove());
+
+            // Ensure the create playlist and folder cards are always present
+            if (!myPlaylistsContainer.querySelector('#library-create-playlist-card')) {
+                myPlaylistsContainer.insertAdjacentHTML('afterbegin', `
+                    <button type="button" class="card library-create-dashed-card" id="library-create-playlist-card">
+                        <div class="library-create-dashed-art">
+                            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 12H3"/><path d="M16 6H3"/><path d="M16 18H3"/><path d="M18 9v6"/><path d="M21 12h-6"/></svg>
+                        </div>
+                        <div class="card-info">
+                            <h4 class="card-title">Create playlist</h4>
+                        </div>
+                    </button>
+                    <button type="button" class="card library-create-dashed-card" id="library-create-folder-card">
+                        <div class="library-create-dashed-art">
+                            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 8 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg>
+                        </div>
+                        <div class="card-info">
+                            <h4 class="card-title">Create folder</h4>
+                        </div>
+                    </button>
+                `);
+            }
 
             if (visiblePlaylists.length) {
                 myPlaylistsContainer.insertAdjacentHTML(
@@ -4518,14 +4536,37 @@ export class UIRenderer {
                     }
                 }
 
-                // Fallback to trending albums
+                // Fallback to trending albums: try Tidal first, then clean YouTube albums
+                try {
+                    const searchRes = await this.api.searchAlbums('top albums');
+                    const rawAlbums = searchRes?.items || [];
+                    const topAlbums = (await this.filterUserContent(rawAlbums, 'album')).slice(0, 12);
+                    if (topAlbums.length > 0) {
+                        albumsContainer.innerHTML = topAlbums
+                            .map((a) => this.createAlbumCardHTML(a))
+                            .join('');
+                        for (const a of topAlbums) {
+                            const el = albumsContainer.querySelector(`[data-album-id="${a.id}"]`);
+                            if (el) {
+                                trackDataStore.set(el, a);
+                                await this.updateLikeState(el, 'album', a.id);
+                            }
+                        }
+                        return;
+                    }
+                } catch {}
+
                 try {
                     const { default: ytEngine } = await import('./yt-music.js');
                     const trendingSearch = await ytEngine.search('top albums');
                     const albumMap = new Map();
                     for (const t of trendingSearch) {
-                        if (t.album && !albumMap.has(t.album.id)) {
-                            albumMap.set(t.album.id, t.album);
+                        if (t.album && t.album.id && !albumMap.has(t.album.id)) {
+                            const titleLower = (t.album.title || '').toLowerCase();
+                            // Filter out long compilation videos masquerading as albums
+                            if (!titleLower.includes('top 10') && !titleLower.includes('top 50') && !titleLower.includes('top 100') && !titleLower.includes('compilation')) {
+                                albumMap.set(t.album.id, t.album);
+                            }
                         }
                     }
                     const topAlbums = Array.from(albumMap.values()).slice(0, 12);

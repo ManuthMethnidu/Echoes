@@ -97,7 +97,7 @@ export default defineConfig(({ mode }) => {
             blobAssetPlugin(),
             svgUse(),
             VitePWA({
-                registerType: 'autoUpdate',
+                registerType: 'prompt',
                 devOptions: {
                     enabled: true,
                     type: 'classic',

@@ -22,8 +22,8 @@ export function serializeTrack(track) {
             const name = typeof copy.artist === 'string' ? copy.artist : (copy.artist?.name || 'Unknown Artist');
             copy.artists = [{ id: '', name }];
         }
-        if (!copy.artist) {
-            copy.artist = copy.artists[0]?.name || 'Unknown Artist';
+        if (!copy.artist || typeof copy.artist !== 'string') {
+            copy.artist = copy.artists[0]?.name || (copy.artist?.name || 'Unknown Artist');
         }
         return copy;
     } catch (_e) {
@@ -790,7 +790,12 @@ export class ConnectManager {
 
         if (playback.track) {
             if (trackTitle) trackTitle.textContent = playback.track.title || 'Unknown Title';
-            if (trackArtist) trackArtist.textContent = playback.track.artist || 'Unknown Artist';
+            if (trackArtist) {
+                const artistName = typeof playback.track.artist === 'string'
+                    ? playback.track.artist
+                    : (playback.track.artist?.name || (Array.isArray(playback.track.artists) ? playback.track.artists.map(a => a?.name || a).join(', ') : 'Unknown Artist'));
+                trackArtist.textContent = artistName;
+            }
             if (trackCover && playback.track.cover) trackCover.src = playback.track.cover;
         }
 

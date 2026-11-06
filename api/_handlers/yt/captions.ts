@@ -1,4 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { fetchWithFailover } from '../../_lib/invidious.js';
 
 interface CaptionCue {
     startMs: number;
@@ -10,7 +11,7 @@ interface AvailableLanguage {
     code: string;
     name: string;
     kind?: string;
-    vssId?: string;
+    url?: string;
 }
 
 const ANDROID_USER_AGENT = 'com.google.android.youtube/20.10.38 (Linux; U; Android 14) gzip';
@@ -43,7 +44,8 @@ function decodeHtmlEntities(str: string): string {
  */
 function cleanSubtitleText(raw: string): string {
     return decodeHtmlEntities(raw.replace(/<[^>]+>/g, ''))
-        .replace(/[\u200B-\u200D\uFEFF]/g, '') // zero-width spaces
+        .replace(/\[[^\]]*\]/g, '') // remove [Music], [සංගීතය], etc.
+        .replace(/[\u200B-\u200D\uFEFF]/g, '')
         .replace(/\r\n|\r/g, '\n')
         .trim();
 }
@@ -71,6 +73,89 @@ function formatTtmlTime(ms: number): string {
     const frac = String(ms % 1000).padStart(3, '0');
     const pad = (n: number) => String(n).padStart(2, '0');
     return `${pad(h)}:${pad(m)}:${pad(s)}.${frac}`;
+}
+
+/**
+ * Parse time string (HH:MM:SS.mmm or MM:SS.mmm) into milliseconds
+ */
+function parseVttTime(str: string): number {
+    const parts = str.trim().split(':');
+    if (parts.length === 3) {
+        const [h, m, s] = parts;
+        return Math.round((parseFloat(h) * 3600 + parseFloat(m) * 60 + parseFloat(s)) * 1000);
+    }
+    if (parts.length === 2) {
+        const [m, s] = parts;
+        return Math.round((parseFloat(m) * 60 + parseFloat(s)) * 1000);
+    }
+    return 0;
+}
+
+/**
+ * Parse WebVTT subtitle into cues
+ */
+function parseWebVtt(vtt: string): CaptionCue[] {
+    const cues: CaptionCue[] = [];
+    const blocks = vtt.split(/\n\s*\n/);
+
+    for (const block of blocks) {
+        const lines = block
+            .trim()
+            .split('\n')
+            .map((l) => l.trim())
+            .filter(Boolean);
+
+        const timeLine = lines.find((l) => l.includes('-->'));
+        if (!timeLine) continue;
+
+        const [startStr, endStr] = timeLine.split('-->').map((s) => s.trim().split(' ')[0]);
+        const startMs = parseVttTime(startStr);
+        const endMs = parseVttTime(endStr);
+        const durMs = Math.max(1000, endMs - startMs);
+
+        const textLines = lines.slice(lines.indexOf(timeLine) + 1);
+        const text = cleanSubtitleText(textLines.join(' '));
+        if (text) {
+            cues.push({ startMs, durMs, text });
+        }
+    }
+
+    return cues;
+}
+
+/**
+ * Parse XML timedtext into cues
+ */
+function parseCaptionXml(xml: string): CaptionCue[] {
+    const cues: CaptionCue[] = [];
+
+    // Format 3: <p t="1960" d="3560">...</p>
+    const pRegex = /<p t="(\d+)"(?: d="(\d+)")?[^>]*>(.*?)<\/p>/g;
+    let match: RegExpExecArray | null;
+
+    while ((match = pRegex.exec(xml)) !== null) {
+        const startMs = parseInt(match[1], 10);
+        const durMs = parseInt(match[2] || '3000', 10);
+        const text = cleanSubtitleText(match[3]);
+        if (text) {
+            cues.push({ startMs, durMs, text });
+        }
+    }
+
+    // Format 1 fallback: <text start="1.96" dur="3.56">...</text>
+    if (cues.length === 0) {
+        const textRegex = /<text start="([\d.]+)"(?: dur="([\d.]+)")?[^>]*>(.*?)<\/text>/g;
+        while ((match = textRegex.exec(xml)) !== null) {
+            const startMs = Math.round(parseFloat(match[1]) * 1000);
+            const durMs = Math.round(parseFloat(match[2] || '3') * 1000);
+            const text = cleanSubtitleText(match[3]);
+            if (text) {
+                cues.push({ startMs, durMs, text });
+            }
+        }
+    }
+
+    return cues;
 }
 
 /**
@@ -126,7 +211,6 @@ export async function translateTexts(
                     allTranslated.push(splitLines[j].trim() || batch[j]);
                 }
             } else {
-                // Fallback: translate individually
                 const fallbackPromises = batch.map(async (line) => {
                     try {
                         const sBody = new URLSearchParams({
@@ -157,113 +241,6 @@ export async function translateTexts(
     }
 
     return { translated: allTranslated, detectedSource };
-}
-
-/**
- * Fetch video player data from InnerTube
- */
-async function fetchInnerTubePlayer(videoId: string): Promise<any> {
-    try {
-        const res = await fetch('https://www.youtube.com/youtubei/v1/player?prettyPrint=false', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'User-Agent': ANDROID_USER_AGENT,
-            },
-            body: JSON.stringify({
-                context: ANDROID_CLIENT_CONTEXT,
-                videoId,
-            }),
-        });
-        if (res.ok) {
-            return await res.json();
-        }
-    } catch (e) {
-        console.warn(`[InnerTube Player Error for ${videoId}]`, e);
-    }
-    return null;
-}
-
-/**
- * Search YouTube for candidate video IDs
- */
-async function searchYouTubeCandidates(title: string, artist: string): Promise<string[]> {
-    const videoIds: string[] = [];
-    const queries = [
-        `${artist} ${title} lyrics`.trim(),
-        `${artist} ${title} official`.trim(),
-        `${title} ${artist}`.trim(),
-    ];
-
-    for (const query of queries) {
-        if (videoIds.length >= 8) break;
-        try {
-            const searchRes = await fetch('https://www.youtube.com/youtubei/v1/search', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'User-Agent': ANDROID_USER_AGENT,
-                },
-                body: JSON.stringify({
-                    context: ANDROID_CLIENT_CONTEXT,
-                    query,
-                }),
-            });
-
-            if (searchRes.ok) {
-                const sData = await searchRes.json();
-                const sections = sData.contents?.sectionListRenderer?.contents || [];
-                for (const section of sections) {
-                    const contents = section.itemSectionRenderer?.contents || [];
-                    for (const item of contents) {
-                        const vr = item.videoRenderer || item.compactVideoRenderer;
-                        if (vr?.videoId && !videoIds.includes(vr.videoId)) {
-                            videoIds.push(vr.videoId);
-                        }
-                    }
-                }
-            }
-        } catch (sErr) {
-            console.warn('[InnerTube Search Error]', sErr);
-        }
-    }
-
-    return videoIds;
-}
-
-/**
- * Parse caption cues from YouTube XML timedtext
- */
-function parseCaptionXml(xml: string): CaptionCue[] {
-    const cues: CaptionCue[] = [];
-
-    // Format 3: <p t="1960" d="3560">...</p>
-    const pRegex = /<p t="(\d+)"(?: d="(\d+)")?[^>]*>(.*?)<\/p>/g;
-    let match: RegExpExecArray | null;
-
-    while ((match = pRegex.exec(xml)) !== null) {
-        const startMs = parseInt(match[1], 10);
-        const durMs = parseInt(match[2] || '3000', 10);
-        const text = cleanSubtitleText(match[3]);
-        if (text) {
-            cues.push({ startMs, durMs, text });
-        }
-    }
-
-    // Format 1 fallback: <text start="1.96" dur="3.56">...</text>
-    if (cues.length === 0) {
-        const textRegex = /<text start="([\d.]+)"(?: dur="([\d.]+)")?[^>]*>(.*?)<\/text>/g;
-        while ((match = textRegex.exec(xml)) !== null) {
-            const startMs = Math.round(parseFloat(match[1]) * 1000);
-            const durMs = Math.round(parseFloat(match[2] || '3') * 1000);
-            const text = cleanSubtitleText(match[3]);
-            if (text) {
-                cues.push({ startMs, durMs, text });
-            }
-        }
-    }
-
-    return cues;
 }
 
 /**
@@ -310,6 +287,47 @@ function buildTtml(
     return ttml;
 }
 
+/**
+ * Fetch video details via Invidious failover
+ */
+async function fetchInvidiousVideo(videoId: string): Promise<{ data: any; instance: string } | null> {
+    try {
+        return await fetchWithFailover((base) => `${base}/api/v1/videos/${videoId}`, 4000);
+    } catch {
+        return null;
+    }
+}
+
+/**
+ * Search candidates via Invidious failover
+ */
+async function searchInvidiousCandidates(title: string, artist: string): Promise<string[]> {
+    const videoIds: string[] = [];
+    const queries = [
+        `${artist} ${title} lyrics`.trim(),
+        `${artist} ${title}`.trim(),
+    ];
+
+    for (const q of queries) {
+        if (videoIds.length >= 15) break;
+        try {
+            const res = await fetchWithFailover(
+                (base) => `${base}/api/v1/search?q=${encodeURIComponent(q)}&type=video`,
+                4000
+            );
+            if (Array.isArray(res.data)) {
+                for (const item of res.data) {
+                    if (item.videoId && !videoIds.includes(item.videoId)) {
+                        videoIds.push(item.videoId);
+                    }
+                }
+            }
+        } catch {}
+    }
+
+    return videoIds;
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -332,7 +350,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 return res.status(400).json({ error: 'Missing text or lrc to translate' });
             }
 
-            // Translate LRC line by line preserving timestamps
             const lines = text.split('\n');
             const parsedLines: Array<{ prefix: string; text: string }> = [];
             const textsToTranslate: string[] = [];
@@ -388,7 +405,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         candidateVideoIds.push(videoId);
     }
     if (title || artist) {
-        const found = await searchYouTubeCandidates(title, artist);
+        const found = await searchInvidiousCandidates(title, artist);
         for (const f of found) {
             if (!candidateVideoIds.includes(f)) {
                 candidateVideoIds.push(f);
@@ -401,79 +418,150 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     try {
+        let cues: CaptionCue[] = [];
         let matchedVideoId = '';
-        let captionTracks: any[] = [];
+        let availableLanguages: AvailableLanguage[] = [];
+        let sourceLang = 'en';
 
-        // Check top candidate videos for caption tracks
-        for (const vId of candidateVideoIds.slice(0, 5)) {
-            const playerData = await fetchInnerTubePlayer(vId);
-            const tracks = playerData?.captions?.playerCaptionsTracklistRenderer?.captionTracks || [];
-            if (tracks.length > 0) {
+        // 1. Primary: Try Invidious instances
+        for (const vId of candidateVideoIds.slice(0, 10)) {
+            const invidiousRes = await fetchInvidiousVideo(vId);
+            const captions = invidiousRes?.data?.captions || [];
+            if (captions.length > 0) {
                 matchedVideoId = vId;
-                captionTracks = tracks;
-                break;
+                const baseInstance = invidiousRes!.instance;
+
+                availableLanguages = captions.map((c: any) => ({
+                    code: c.language_code || '',
+                    name: c.label || c.language_code || '',
+                    url: c.url,
+                }));
+
+                // Pick the best caption track
+                let selected = null;
+                if (preferredLang) {
+                    selected = captions.find(
+                        (c: any) =>
+                            c.language_code?.toLowerCase() === preferredLang ||
+                            c.language_code?.toLowerCase().startsWith(`${preferredLang}-`)
+                    );
+                }
+                if (!selected && targetLang) {
+                    selected = captions.find(
+                        (c: any) =>
+                            c.language_code?.toLowerCase() === targetLang ||
+                            c.language_code?.toLowerCase().startsWith(`${targetLang}-`)
+                    );
+                }
+                if (!selected) {
+                    // Prefer English or non-auto
+                    selected =
+                        captions.find(
+                            (c: any) =>
+                                c.language_code?.toLowerCase().startsWith('en') &&
+                                !c.label?.toLowerCase().includes('auto')
+                        ) ||
+                        captions.find((c: any) => c.language_code?.toLowerCase().startsWith('en')) ||
+                        captions.find((c: any) => !c.label?.toLowerCase().includes('auto')) ||
+                        captions[0];
+                }
+
+                if (selected?.url) {
+                    const fullCaptionUrl = selected.url.startsWith('http') ? selected.url : `${baseInstance}${selected.url}`;
+                    const captionFetch = await fetch(fullCaptionUrl, {
+                        headers: {
+                            'User-Agent':
+                                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+                        },
+                    });
+
+                    if (captionFetch.ok) {
+                        const vtt = await captionFetch.text();
+                        cues = parseWebVtt(vtt);
+                        sourceLang = selected.language_code || 'en';
+                        if (cues.length > 0) break;
+                    }
+                }
             }
         }
 
-        if (!captionTracks.length) {
+        // 2. Secondary Fallback: InnerTube Player API
+        if (!cues.length) {
+            for (const vId of candidateVideoIds.slice(0, 3)) {
+                try {
+                    const playerRes = await fetch('https://www.youtube.com/youtubei/v1/player?prettyPrint=false', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'User-Agent': ANDROID_USER_AGENT,
+                        },
+                        body: JSON.stringify({
+                            context: ANDROID_CLIENT_CONTEXT,
+                            videoId: vId,
+                        }),
+                    });
+
+                    if (playerRes.ok) {
+                        const pData = await playerRes.json();
+                        const tracks = pData.captions?.playerCaptionsTracklistRenderer?.captionTracks || [];
+                        if (tracks.length > 0) {
+                            matchedVideoId = vId;
+                            availableLanguages = tracks.map((t: any) => ({
+                                code: t.languageCode || '',
+                                name: t.name?.runs?.[0]?.text || t.languageCode || '',
+                                kind: t.kind || 'standard',
+                            }));
+
+                            let selected = null;
+                            if (preferredLang) {
+                                selected = tracks.find(
+                                    (t: any) =>
+                                        t.languageCode?.toLowerCase() === preferredLang ||
+                                        t.languageCode?.toLowerCase().startsWith(`${preferredLang}-`)
+                                );
+                            }
+                            if (!selected && targetLang) {
+                                selected = tracks.find(
+                                    (t: any) =>
+                                        t.languageCode?.toLowerCase() === targetLang ||
+                                        t.languageCode?.toLowerCase().startsWith(`${targetLang}-`)
+                                );
+                            }
+                            if (!selected) {
+                                selected =
+                                    tracks.find(
+                                        (t: any) =>
+                                            t.languageCode?.toLowerCase().startsWith('en') && t.kind !== 'asr'
+                                    ) ||
+                                    tracks.find((t: any) => t.languageCode?.toLowerCase().startsWith('en')) ||
+                                    tracks.find((t: any) => t.kind !== 'asr') ||
+                                    tracks[0];
+                            }
+
+                            if (selected?.baseUrl) {
+                                const cRes = await fetch(selected.baseUrl, {
+                                    headers: { 'User-Agent': ANDROID_USER_AGENT },
+                                });
+                                if (cRes.ok) {
+                                    const xml = await cRes.text();
+                                    cues = parseCaptionXml(xml);
+                                    sourceLang = selected.languageCode || 'en';
+                                    if (cues.length > 0) break;
+                                }
+                            }
+                        }
+                    }
+                } catch (itErr) {
+                    console.warn('[InnerTube fallback error]', itErr);
+                }
+            }
+        }
+
+        if (!cues.length) {
             return res.status(404).json({ error: 'No captions found for this track on YouTube' });
         }
 
-        // Map available languages
-        const availableLanguages: AvailableLanguage[] = captionTracks.map((t: any) => ({
-            code: t.languageCode || '',
-            name: t.name?.runs?.[0]?.text || t.languageCode || '',
-            kind: t.kind || 'standard',
-            vssId: t.vssId,
-        }));
-
-        // Select the best caption track:
-        let selectedTrack = null;
-
-        // 1. If preferred language matches directly
-        if (preferredLang) {
-            selectedTrack = captionTracks.find(
-                (t: any) => t.languageCode?.toLowerCase() === preferredLang || t.languageCode?.toLowerCase().startsWith(`${preferredLang}-`)
-            );
-        }
-
-        // 2. If target translation language matches a native track directly (no translation needed!)
-        if (!selectedTrack && targetLang) {
-            selectedTrack = captionTracks.find(
-                (t: any) => t.languageCode?.toLowerCase() === targetLang || t.languageCode?.toLowerCase().startsWith(`${targetLang}-`)
-            );
-        }
-
-        // 3. Prefer English track as source if available (most reliable base for translation)
-        if (!selectedTrack) {
-            selectedTrack =
-                captionTracks.find((t: any) => t.languageCode?.toLowerCase().startsWith('en') && t.kind !== 'asr') ||
-                captionTracks.find((t: any) => t.languageCode?.toLowerCase().startsWith('en')) ||
-                captionTracks.find((t: any) => t.kind !== 'asr') ||
-                captionTracks[0];
-        }
-
-        // Fetch caption XML from track baseUrl
-        const captionRes = await fetch(selectedTrack.baseUrl, {
-            headers: {
-                'User-Agent': ANDROID_USER_AGENT,
-            },
-        });
-
-        if (!captionRes.ok) {
-            return res.status(502).json({ error: 'Failed to retrieve caption stream from YouTube' });
-        }
-
-        const captionXml = await captionRes.text();
-        const cues = parseCaptionXml(captionXml);
-
-        if (!cues.length) {
-            return res.status(404).json({ error: 'No timed lyrics cues could be parsed from captions' });
-        }
-
-        const sourceLang = selectedTrack.languageCode || 'en';
         const needsTranslation = Boolean(targetLang && targetLang !== sourceLang && !targetLang.startsWith(sourceLang));
-
         let translatedTexts: string[] | null = null;
         let detectedSource = sourceLang;
 
@@ -516,7 +604,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         const providerLabel = needsTranslation
             ? `YouTube Captions (Translated to ${targetLang.toUpperCase()})`
-            : `YouTube Captions (${selectedTrack.name?.runs?.[0]?.text || sourceLang.toUpperCase()})`;
+            : `YouTube Captions (${sourceLang.toUpperCase()})`;
 
         return res.status(200).json({
             syncedLyrics: activeLrcLines.join('\n'),

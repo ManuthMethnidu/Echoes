@@ -492,7 +492,7 @@ export class Player {
                 const artistEl = document.querySelector('.now-playing-bar .artist');
 
                 if (coverEl) {
-                    const coverId = track.image || track.cover || track.album?.cover;
+                    const coverId = track.customCover || track.image || track.cover || track.album?.cover;
                     const coverUrl = this.api.getCoverUrl(coverId);
                     const coverSrcset = this.api.getCoverSrcset(coverId);
                     const setImgSrcset = (img) => {
@@ -1314,7 +1314,7 @@ export class Player {
         } else {
             if (coverEl) {
                 coverEl.style.display = 'block';
-                const coverId = track.image || track.cover || track.album?.cover;
+                const coverId = track.customCover || track.image || track.cover || track.album?.cover;
                 const coverUrl = this.api.getCoverUrl(coverId);
                 const coverSrcset = this.api.getCoverSrcset(coverId);
                 let imgEl = coverEl;
@@ -3194,7 +3194,7 @@ export class Player {
     }
 
     updateMediaSession(track) {
-        const coverId = track.album?.cover;
+        const coverId = track.customCover || track.cover || track.image || track.album?.cover;
         const trackTitle = getTrackTitle(track);
 
         // Force a refresh for picky Bluetooth systems by clearing metadata first

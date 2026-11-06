@@ -449,16 +449,48 @@ async function openEditTrackArtworkModal(track, _ui, player, api) {
     };
 
     const handleSave = async () => {
-        const finalCover = (pendingDataUrl || urlInput.value.trim()).trim();
-        if (!finalCover) {
-            showNotification('Please enter an image URL or choose a file.');
-            return;
-        }
+        let finalCover = (urlInput.value.trim() || '').trim();
 
         saveBtn.disabled = true;
-        saveBtn.textContent = 'Saving...';
 
         try {
+            // If the user selected a local file or has a pending base64 dataUrl, upload to CDN first
+            if (pendingDataUrl) {
+                saveBtn.textContent = 'Uploading image...';
+                const uploadRes = await fetch('/api/upload/image', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ image: pendingDataUrl }),
+                });
+
+                if (!uploadRes.ok) {
+                    const errData = await uploadRes.json().catch(() => ({}));
+                    throw new Error(errData.error || 'Failed to upload image to CDN');
+                }
+
+                const uploadJson = await uploadRes.json();
+                if (!uploadJson.ok || !uploadJson.url) {
+                    throw new Error(uploadJson.error || 'Image host did not return a valid URL');
+                }
+
+                finalCover = uploadJson.url;
+                if (urlInput) urlInput.value = finalCover;
+                pendingDataUrl = null;
+            }
+
+            if (!finalCover) {
+                showNotification('Please enter an image URL or choose a file.');
+                saveBtn.disabled = false;
+                saveBtn.textContent = 'Save Artwork';
+                return;
+            }
+
+            saveBtn.textContent = 'Saving & Syncing...';
+
+            const vid =
+                track.videoId ||
+                (typeof track.id === 'string' && track.id.startsWith('yt:') ? track.id.replace(/^yt:/, '') : null);
+
             // 1. Cache in memory and localStorage
             window._customCoversCache = window._customCoversCache || {};
             window._customCoversCache[trackId] = finalCover;
@@ -468,19 +500,26 @@ async function openEditTrackArtworkModal(track, _ui, player, api) {
                 console.warn('[LocalStorage Full for Custom Cover]', storageErr);
             }
 
+            if (vid) {
+                window._customCoversCache[`yt:${vid}`] = finalCover;
+                try {
+                    localStorage.setItem(`echos_custom_cover_yt:${vid}`, finalCover);
+                } catch {}
+            }
+
             // 2. Update track object in memory
             track.customCover = finalCover;
             track.cover = finalCover;
             track.image = finalCover;
             if (track.album) track.album.cover = finalCover;
 
-            // 3. Update all user playlists in IndexedDB
+            // 3. Update all user playlists in IndexedDB and cloud
             const playlists = await db.getPlaylists(true);
             for (const p of playlists) {
                 if (Array.isArray(p.tracks)) {
                     let changed = false;
                     for (const t of p.tracks) {
-                        if (String(t.id) === trackId || (track.videoId && t.videoId === track.videoId)) {
+                        if (String(t.id) === trackId || (vid && (t.videoId === vid || String(t.id) === `yt:${vid}`))) {
                             t.customCover = finalCover;
                             t.cover = finalCover;
                             t.image = finalCover;
@@ -495,17 +534,39 @@ async function openEditTrackArtworkModal(track, _ui, player, api) {
                 }
             }
 
-            // 4. Update DOM on current page
+            // 4. Update track in favorite tracks (library) if favorited
+            try {
+                const favTrack = await db.performTransaction('favorites_tracks', 'readonly', (store) =>
+                    store.get(track.id)
+                );
+                if (favTrack) {
+                    favTrack.customCover = finalCover;
+                    favTrack.cover = finalCover;
+                    favTrack.image = finalCover;
+                    if (favTrack.album) favTrack.album.cover = finalCover;
+                    await db.performTransaction('favorites_tracks', 'readwrite', (store) => store.put(favTrack));
+                    await syncManager.syncLibraryItem('track', favTrack, true);
+                }
+            } catch (favErr) {
+                console.warn('[Custom Artwork] Could not update favorites_tracks:', favErr);
+            }
+
+            // 5. Update DOM on current page
             document
-                .querySelectorAll(`[data-track-id="${trackId}"] .track-item-cover, [data-track-id="${trackId}"] img`)
+                .querySelectorAll(
+                    `[data-track-id="${trackId}"] .track-item-cover, [data-track-id="${trackId}"] img, [data-track-id="yt:${vid}"] .track-item-cover, [data-track-id="yt:${vid}"] img`
+                )
                 .forEach((img) => {
                     if (img.classList.contains('track-item-cover') || img.closest('.track-number')) {
                         img.src = finalCover;
                     }
                 });
 
-            // 5. Update player now-playing bar & fullscreen if currently playing
-            if (player?.currentTrack && String(player.currentTrack.id) === trackId) {
+            // 6. Update player now-playing bar & fullscreen if currently playing
+            if (
+                player?.currentTrack &&
+                (String(player.currentTrack.id) === trackId || (vid && player.currentTrack.videoId === vid))
+            ) {
                 player.currentTrack.customCover = finalCover;
                 player.currentTrack.cover = finalCover;
                 player.currentTrack.image = finalCover;
@@ -513,13 +574,17 @@ async function openEditTrackArtworkModal(track, _ui, player, api) {
 
                 const npCover = document.querySelector('.now-playing-bar .cover img');
                 if (npCover) npCover.src = finalCover;
-                const fsCover = document.getElementById('fs-cover-image');
+                const fsCover =
+                    document.getElementById('fs-cover-image') || document.getElementById('fullscreen-cover-image');
                 if (fsCover) fsCover.src = finalCover;
                 const currentImg = document.getElementById('current-image');
                 if (currentImg) currentImg.src = finalCover;
+                if (typeof player.updateMediaSession === 'function') {
+                    player.updateMediaSession(player.currentTrack);
+                }
             }
 
-            showNotification(`Updated artwork for "${trackTitle}"`);
+            showNotification(`Updated & synced artwork for "${trackTitle}"`);
             closeModal();
         } catch (err) {
             console.error('[Failed to save custom artwork]:', err);
@@ -533,18 +598,21 @@ async function openEditTrackArtworkModal(track, _ui, player, api) {
     const handleReset = async () => {
         resetBtn.disabled = true;
         try {
-            // Remove from memory and localStorage
-            if (window._customCoversCache) {
-                delete window._customCoversCache[trackId];
-            }
-            try {
-                localStorage.removeItem(`echos_custom_cover_${trackId}`);
-            } catch {}
-
-            // Determine original thumbnail
             const vid =
                 track.videoId ||
                 (typeof track.id === 'string' && track.id.startsWith('yt:') ? track.id.replace(/^yt:/, '') : null);
+
+            // Remove from memory and localStorage
+            if (window._customCoversCache) {
+                delete window._customCoversCache[trackId];
+                if (vid) delete window._customCoversCache[`yt:${vid}`];
+            }
+            try {
+                localStorage.removeItem(`echos_custom_cover_${trackId}`);
+                if (vid) localStorage.removeItem(`echos_custom_cover_yt:${vid}`);
+            } catch {}
+
+            // Determine original thumbnail
             const originalCover =
                 vid && /^[a-zA-Z0-9_-]{11}$/.test(vid)
                     ? `https://i.ytimg.com/vi/${vid}/hqdefault.jpg`
@@ -555,13 +623,13 @@ async function openEditTrackArtworkModal(track, _ui, player, api) {
             track.image = originalCover;
             if (track.album) track.album.cover = originalCover;
 
-            // Update in IndexedDB playlists
+            // Update in IndexedDB playlists and cloud
             const playlists = await db.getPlaylists(true);
             for (const p of playlists) {
                 if (Array.isArray(p.tracks)) {
                     let changed = false;
                     for (const t of p.tracks) {
-                        if (String(t.id) === trackId || (track.videoId && t.videoId === track.videoId)) {
+                        if (String(t.id) === trackId || (vid && (t.videoId === vid || String(t.id) === `yt:${vid}`))) {
                             delete t.customCover;
                             t.cover = originalCover;
                             t.image = originalCover;
@@ -576,9 +644,28 @@ async function openEditTrackArtworkModal(track, _ui, player, api) {
                 }
             }
 
+            // Also reset in favorite tracks (library) if favorited
+            try {
+                const favTrack = await db.performTransaction('favorites_tracks', 'readonly', (store) =>
+                    store.get(track.id)
+                );
+                if (favTrack) {
+                    delete favTrack.customCover;
+                    favTrack.cover = originalCover;
+                    favTrack.image = originalCover;
+                    if (favTrack.album) favTrack.album.cover = originalCover;
+                    await db.performTransaction('favorites_tracks', 'readwrite', (store) => store.put(favTrack));
+                    await syncManager.syncLibraryItem('track', favTrack, true);
+                }
+            } catch (favErr) {
+                console.warn('[Custom Artwork Reset] Could not reset favorites_tracks:', favErr);
+            }
+
             // Update DOM on current page
             document
-                .querySelectorAll(`[data-track-id="${trackId}"] .track-item-cover, [data-track-id="${trackId}"] img`)
+                .querySelectorAll(
+                    `[data-track-id="${trackId}"] .track-item-cover, [data-track-id="${trackId}"] img, [data-track-id="yt:${vid}"] .track-item-cover, [data-track-id="yt:${vid}"] img`
+                )
                 .forEach((img) => {
                     if (img.classList.contains('track-item-cover') || img.closest('.track-number')) {
                         img.src = originalCover;
@@ -586,7 +673,10 @@ async function openEditTrackArtworkModal(track, _ui, player, api) {
                 });
 
             // Update player now-playing bar & fullscreen
-            if (player?.currentTrack && String(player.currentTrack.id) === trackId) {
+            if (
+                player?.currentTrack &&
+                (String(player.currentTrack.id) === trackId || (vid && player.currentTrack.videoId === vid))
+            ) {
                 delete player.currentTrack.customCover;
                 player.currentTrack.cover = originalCover;
                 player.currentTrack.image = originalCover;
@@ -594,8 +684,14 @@ async function openEditTrackArtworkModal(track, _ui, player, api) {
 
                 const npCover = document.querySelector('.now-playing-bar .cover img');
                 if (npCover) npCover.src = originalCover;
-                const fsCover = document.getElementById('fs-cover-image');
+                const fsCover =
+                    document.getElementById('fs-cover-image') || document.getElementById('fullscreen-cover-image');
                 if (fsCover) fsCover.src = originalCover;
+                const currentImg = document.getElementById('current-image');
+                if (currentImg) currentImg.src = originalCover;
+                if (typeof player.updateMediaSession === 'function') {
+                    player.updateMediaSession(player.currentTrack);
+                }
             }
 
             showNotification(`Restored default artwork for "${trackTitle}"`);

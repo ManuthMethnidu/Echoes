@@ -6305,6 +6305,7 @@ export class UIRenderer {
                             t.videoId ||
                             (typeof t.id === 'string' && t.id.startsWith('yt:') ? t.id.replace(/^yt:/, '') : null);
                         const custom =
+                            t.customCover ||
                             window._customCoversCache?.[t.id] ||
                             (typeof localStorage !== 'undefined'
                                 ? localStorage.getItem(`echos_custom_cover_${t.id}`)
@@ -6316,7 +6317,14 @@ export class UIRenderer {
                             t.image = custom;
                             if (t.album) t.album.cover = custom;
                             healed = true;
-                        } else if (!t.customCover && vid && /^[a-zA-Z0-9_-]{11}$/.test(vid)) {
+                        }
+                        if (custom) {
+                            window._customCoversCache = window._customCoversCache || {};
+                            window._customCoversCache[t.id] = custom;
+                            try {
+                                localStorage.setItem(`echos_custom_cover_${t.id}`, custom);
+                            } catch {}
+                        } else if (!t.customCover && !custom && vid && /^[a-zA-Z0-9_-]{11}$/.test(vid)) {
                             const correctThumb = `https://i.ytimg.com/vi/${vid}/hqdefault.jpg`;
                             if (
                                 !t.cover ||

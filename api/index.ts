@@ -32,6 +32,7 @@ import importSpotifyHandler from './_handlers/import/spotify.js';
 import userProfileHandler from './_handlers/users/[username].js';
 import usersSearchHandler from './_handlers/users/search.js';
 import publicPlaylistHandler from './_handlers/public/playlists/[id].js';
+import uploadImageHandler from './_handlers/upload/image.js';
 
 type ApiHandler = (req: VercelRequest, res: VercelResponse) => Promise<any> | any;
 
@@ -69,6 +70,8 @@ const STATIC_ROUTES: Record<string, ApiHandler> = {
     'import/spotify': importSpotifyHandler,
     'users/search': usersSearchHandler,
     'search/users': usersSearchHandler,
+    'upload/image': uploadImageHandler,
+    'upload': uploadImageHandler,
 };
 
 function extractRoute(req: VercelRequest): string {

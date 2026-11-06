@@ -273,18 +273,23 @@ const syncManager = {
         };
 
         if (type === 'track') {
+            const trackCover = item.customCover || item.cover || item.image || item.album?.cover || null;
             return {
                 ...base,
                 title: item.title || null,
                 duration: item.duration || null,
                 explicit: item.explicit || false,
+                cover: trackCover,
+                image: trackCover,
+                customCover: item.customCover || null,
+                videoId: item.videoId || null,
                 artist: item.artist || (item.artists && item.artists.length > 0 ? item.artists[0] : null) || null,
                 artists: item.artists?.map((a) => ({ id: a.id, name: a.name || null })) || [],
                 album: item.album
                     ? {
                           id: item.album.id,
                           title: item.album.title || null,
-                          cover: item.album.cover || null,
+                          cover: item.customCover || item.album.cover || trackCover,
                           releaseDate: item.album.releaseDate || null,
                           vibrantColor: item.album.vibrantColor || null,
                           artist: item.album.artist || null,
@@ -305,15 +310,24 @@ const syncManager = {
         }
 
         if (type === 'video') {
+            const videoCover = item.customCover || item.image || item.cover || null;
             return {
                 ...base,
                 type: 'video',
                 title: item.title || null,
                 duration: item.duration || null,
-                image: item.image || item.cover || null,
+                cover: videoCover,
+                image: videoCover,
+                customCover: item.customCover || null,
+                videoId: item.videoId || null,
                 artist: item.artist || (item.artists && item.artists.length > 0 ? item.artists[0] : null) || null,
                 artists: item.artists?.map((a) => ({ id: a.id, name: a.name || null })) || [],
-                album: item.album || { title: 'Video', cover: item.image || item.cover },
+                album: item.album
+                    ? {
+                          ...item.album,
+                          cover: item.customCover || item.album.cover || videoCover,
+                      }
+                    : { title: 'Video', cover: videoCover },
             };
         }
 
@@ -646,7 +660,8 @@ const syncManager = {
                     localData.mixes.forEach((item) => mergeItem(library.mixes, item, 'mix'));
 
                     localData.userPlaylists.forEach((playlist) => {
-                        if (!userPlaylists[playlist.id]) {
+                        const existing = userPlaylists[playlist.id];
+                        if (!existing) {
                             userPlaylists[playlist.id] = {
                                 id: playlist.id,
                                 name: playlist.name,
@@ -659,6 +674,15 @@ const syncManager = {
                                 numberOfTracks: playlist.tracks ? playlist.tracks.length : 0,
                                 images: playlist.images || [],
                                 isPublic: playlist.isPublic || false,
+                            };
+                            needsUpdate = true;
+                        } else if ((playlist.updatedAt || 0) > (existing.updatedAt || 0)) {
+                            userPlaylists[playlist.id] = {
+                                ...existing,
+                                ...playlist,
+                                tracks: playlist.tracks
+                                    ? playlist.tracks.map((t) => this._minifyItem(t.type || 'track', t))
+                                    : [],
                             };
                             needsUpdate = true;
                         }
@@ -740,6 +764,40 @@ const syncManager = {
                         convertedData.user_playlists.length === 0 &&
                         convertedData.user_folders.length === 0;
 
+                    // Populate local cache of custom covers from cloud playlists & library
+                    try {
+                        window._customCoversCache = window._customCoversCache || {};
+                        const cacheCover = (t) => {
+                            if (!t || !t.id) return;
+                            const tId = String(t.id);
+                            const cover = t.customCover || t.cover || t.image;
+                            if (cover && typeof cover === 'string' && (cover.startsWith('http') || cover.startsWith('data:'))) {
+                                if (t.customCover) {
+                                    window._customCoversCache[tId] = t.customCover;
+                                    try {
+                                        localStorage.setItem(`echos_custom_cover_${tId}`, t.customCover);
+                                    } catch {}
+                                    const vid = t.videoId || (tId.startsWith('yt:') ? tId.replace(/^yt:/, '') : null);
+                                    if (vid) {
+                                        window._customCoversCache[`yt:${vid}`] = t.customCover;
+                                        try {
+                                            localStorage.setItem(`echos_custom_cover_yt:${vid}`, t.customCover);
+                                        } catch {}
+                                    }
+                                }
+                            }
+                        };
+
+                        Object.values(userPlaylists).forEach((p) => {
+                            if (Array.isArray(p?.tracks)) p.tracks.forEach(cacheCover);
+                        });
+                        if (library?.tracks) {
+                            Object.values(library.tracks).forEach(cacheCover);
+                        }
+                    } catch (coverErr) {
+                        console.warn('[SyncManager] Error caching custom covers:', coverErr);
+                    }
+
                     if (hadLocalData && isConvertedEmpty) {
                         console.warn(
                             '[PocketBase] Sync aborted: local data exists but merged result is empty. Preserving local data to prevent accidental wipe.'
@@ -765,10 +823,32 @@ const syncManager = {
             this._isSyncing = false;
         }
     },
+
+    async pullLatest() {
+        const user = authManager.user;
+        if (!user || this._isSyncing) return;
+        this._userRecordCache = null;
+        await this.onAuthStateChanged(user);
+    },
 };
 
 if (pb) {
     authManager.onAuthStateChanged(syncManager.onAuthStateChanged.bind(syncManager));
+}
+
+if (typeof document !== 'undefined') {
+    let lastPullTime = 0;
+    const handleResumeSync = () => {
+        const now = Date.now();
+        if (now - lastPullTime > 25000 && authManager?.user && !syncManager._isSyncing) {
+            lastPullTime = now;
+            syncManager.pullLatest().catch(console.warn);
+        }
+    };
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') handleResumeSync();
+    });
+    window.addEventListener('focus', handleResumeSync);
 }
 
 export { pb, syncManager };

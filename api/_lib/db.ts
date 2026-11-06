@@ -132,6 +132,15 @@ export async function ensureSchema(sql: ReturnType<typeof neon>) {
             CREATE INDEX IF NOT EXISTS idx_device_pairings_code ON device_pairings(code);
         `;
 
+        await sql`
+            CREATE TABLE IF NOT EXISTS custom_artworks (
+                id TEXT PRIMARY KEY,
+                mime_type TEXT NOT NULL,
+                base64 TEXT NOT NULL,
+                created_at TIMESTAMPTZ DEFAULT NOW()
+            );
+        `;
+
         schemaInitialized = true;
     } catch (err) {
         console.error('[DB] Schema initialization error:', err);

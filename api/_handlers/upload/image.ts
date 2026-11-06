@@ -1,7 +1,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { getDb, ensureSchema } from '../../_lib/db.js';
+import crypto from 'crypto';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-    // CORS headers
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
@@ -45,7 +46,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             return res.status(413).json({ error: 'Image exceeds maximum size (10MB)' });
         }
 
-        // 1. Try Catbox.moe (permanent anonymous file hosting)
+        // 1. Primary: Store in Neon Postgres custom_artworks table (hosted on echoes.mteck.tech)
+        try {
+            const sql = getDb();
+            await ensureSchema(sql);
+
+            const artId = 'art_' + crypto.randomUUID().replace(/-/g, '').slice(0, 16);
+            await sql`
+                INSERT INTO custom_artworks (id, mime_type, base64)
+                VALUES (${artId}, ${mimeType}, ${base64Data})
+                ON CONFLICT (id) DO NOTHING
+            `;
+
+            const host = (req.headers['x-forwarded-host'] || req.headers.host || 'echoes.mteck.tech') as string;
+            const proto = (req.headers['x-forwarded-proto'] || 'https') as string;
+            const artworkUrl = `${proto}://${host}/api/artwork?id=${artId}`;
+
+            return res.status(200).json({ ok: true, url: artworkUrl });
+        } catch (dbErr) {
+            console.warn('[Upload] DB storage failed, attempting external fallback:', dbErr);
+        }
+
+        // 2. Secondary: Catbox.moe
         try {
             const formData = new FormData();
             formData.append('reqtype', 'fileupload');
@@ -64,12 +86,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             if (catboxRes.ok && catboxText.startsWith('http')) {
                 return res.status(200).json({ ok: true, url: catboxText });
             }
-            console.warn('[Upload] Catbox response was not a URL:', catboxText);
         } catch (catboxErr) {
-            console.warn('[Upload] Catbox error, attempting fallback:', catboxErr);
+            console.warn('[Upload] Catbox error, attempting Litterbox:', catboxErr);
         }
 
-        // 2. Fallback to Litterbox
+        // 3. Fallback: Litterbox
         try {
             const formData = new FormData();
             formData.append('reqtype', 'fileupload');
@@ -89,12 +110,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             if (litterboxRes.ok && litterboxText.startsWith('http')) {
                 return res.status(200).json({ ok: true, url: litterboxText });
             }
-            console.warn('[Upload] Litterbox response was not a URL:', litterboxText);
         } catch (litterboxErr) {
             console.warn('[Upload] Litterbox error:', litterboxErr);
         }
 
-        return res.status(502).json({ error: 'All image hosting providers failed. Please try a direct image URL.' });
+        return res.status(500).json({ error: 'Image hosting failed. Please try providing an image URL.' });
     } catch (err: any) {
         console.error('[Upload API error]', err);
         return res.status(500).json({ error: err.message || 'Internal server error during upload' });

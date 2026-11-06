@@ -3,14 +3,14 @@ import { getDb, ensureSchema } from '../../_lib/db.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
     if (req.method === 'OPTIONS') {
         return res.status(204).end();
     }
 
-    if (req.method !== 'GET') {
+    if (req.method !== 'GET' && req.method !== 'HEAD') {
         return res.status(405).json({ error: 'Method Not Allowed' });
     }
 
@@ -47,6 +47,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         res.setHeader('Content-Type', artwork.mime_type || 'image/jpeg');
         res.setHeader('Content-Length', buffer.length.toString());
         res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+        if (req.method === 'HEAD') {
+            return res.status(200).end();
+        }
         res.status(200).end(buffer);
     } catch (err: any) {
         console.error('[Artwork API Error]', err);

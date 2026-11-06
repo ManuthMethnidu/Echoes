@@ -290,11 +290,16 @@ export class MusicDatabase {
         };
 
         if (normalizedType === 'track') {
+            const trackCover = item.customCover || item.cover || item.image || item.album?.cover || null;
             return {
                 ...base,
                 title: item.title || null,
                 duration: item.duration || null,
                 explicit: item.explicit || false,
+                cover: trackCover,
+                image: trackCover,
+                customCover: item.customCover || null,
+                videoId: item.videoId || null,
                 // Keep minimal artist info
                 artist: item.artist || (item.artists && item.artists.length > 0 ? item.artists[0] : null) || null,
                 artists: item.artists?.map((a) => ({ id: a.id, name: a.name || null })) || [],
@@ -303,7 +308,7 @@ export class MusicDatabase {
                     ? {
                           id: item.album.id,
                           title: item.album.title || null,
-                          cover: item.album.cover || null,
+                          cover: item.customCover || item.album.cover || trackCover,
                           releaseDate: item.album.releaseDate || null,
                           vibrantColor: item.album.vibrantColor || null,
                           artist: item.album.artist || null,

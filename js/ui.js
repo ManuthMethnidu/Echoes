@@ -608,7 +608,7 @@ export class UIRenderer {
                 }
             } else {
                 trackImageHTML = this.getCoverHTML(
-                    track.image || track.cover || track.album?.cover,
+                    track.customCover || track.image || track.cover || track.album?.cover,
                     'Track Cover',
                     'track-item-cover',
                     'eager'
@@ -6296,6 +6296,51 @@ export class UIRenderer {
             }
 
             if (playlistData) {
+                // Auto-heal track covers (restore unique YouTube thumbnails & apply custom covers)
+                if (ownedPlaylist && Array.isArray(playlistData.tracks)) {
+                    let healed = false;
+                    const pCover = playlistData.cover || '';
+                    for (const t of playlistData.tracks) {
+                        const vid =
+                            t.videoId ||
+                            (typeof t.id === 'string' && t.id.startsWith('yt:') ? t.id.replace(/^yt:/, '') : null);
+                        const custom =
+                            window._customCoversCache?.[t.id] ||
+                            (typeof localStorage !== 'undefined'
+                                ? localStorage.getItem(`echos_custom_cover_${t.id}`)
+                                : null);
+
+                        if (custom && t.customCover !== custom) {
+                            t.customCover = custom;
+                            t.cover = custom;
+                            t.image = custom;
+                            if (t.album) t.album.cover = custom;
+                            healed = true;
+                        } else if (!t.customCover && vid && /^[a-zA-Z0-9_-]{11}$/.test(vid)) {
+                            const correctThumb = `https://i.ytimg.com/vi/${vid}/hqdefault.jpg`;
+                            if (
+                                !t.cover ||
+                                t.cover === pCover ||
+                                t.album?.cover === pCover ||
+                                (pCover && t.cover.includes(pCover))
+                            ) {
+                                t.cover = correctThumb;
+                                t.image = correctThumb;
+                                if (t.album) {
+                                    t.album.cover = correctThumb;
+                                    t.album.id = `yt_alb_${vid}`;
+                                }
+                                healed = true;
+                            }
+                        }
+                    }
+                    if (healed) {
+                        db.performTransaction('user_playlists', 'readwrite', (store) => store.put(playlistData)).catch(
+                            console.warn
+                        );
+                    }
+                }
+
                 // ... (rest of the logic)
                 if (addPlaylistBtn) addPlaylistBtn.style.display = 'none';
 

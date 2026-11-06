@@ -181,6 +181,7 @@
                 <li data-action="open-in-new-tab">Open in new tab</li>
                 <li data-action="open-in-harmony" data-type-filter="album">Open in Harmony</li>
                 <li data-action="track-info" data-type-filter="track,video">Track info</li>
+                <li data-action="edit-track-cover" data-type-filter="track,video">Edit Track Artwork</li>
                 <li data-action="open-original-url" data-type-filter="track,video">Open original URL</li>
                 <li data-action="download">Download</li>
                 <li data-action="export-download" data-type-filter="track,video">Export Audio File</li>
@@ -445,29 +446,55 @@
                     <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem; flex-wrap: wrap; gap: 8px;">
                         <span style="font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--foreground); display: flex; align-items: center; gap: 6px;">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-                            Import YouTube Playlist
+                            Import Playlist
                         </span>
-                        <a href="https://www.tunemymusic.com/transfer" target="_blank" rel="noopener noreferrer" class="btn-primary" style="padding: 0.35rem 0.75rem; font-size: 0.76rem; text-decoration: none; display: inline-flex; align-items: center; gap: 5px; border-radius: 999px;">
+                        <a href="https://www.tunemymusic.com/transfer" target="_blank" rel="noopener noreferrer" class="btn-secondary" style="padding: 0.25rem 0.65rem; font-size: 0.72rem; text-decoration: none; display: inline-flex; align-items: center; gap: 5px; border-radius: 999px; opacity: 0.85;">
                             <span>TuneMyMusic Transfer</span>
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3"/></svg>
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3"/></svg>
                         </a>
                     </div>
 
-                    <div class="tunemymusic-card" style="margin-bottom: 0.85rem; padding: 0.85rem; background: rgba(56, 189, 248, 0.06); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 8px;">
-                        <p style="font-size: 0.8rem; color: #94a3b8; margin: 0 0 0.5rem 0; line-height: 1.45;">
-                            Transfer your playlists from Spotify, Apple Music, TIDAL, Deezer, or Amazon Music into a YouTube playlist, then paste the link below:
-                        </p>
-                        <div style="font-size: 0.74rem; color: #64748b; display: flex; flex-wrap: wrap; gap: 6px;">
-                            <span style="background: rgba(255,255,255,0.06); padding: 3px 8px; border-radius: 4px;">1. Transfer via TuneMyMusic</span>
-                            <span style="background: rgba(255,255,255,0.06); padding: 3px 8px; border-radius: 4px;">2. Copy YouTube Playlist Link</span>
-                            <span style="background: rgba(255,255,255,0.06); padding: 3px 8px; border-radius: 4px;">3. Paste below &amp; Fetch</span>
-                        </div>
+                    <!-- Import Service Tabs -->
+                    <div class="import-tabs" style="display: flex; gap: 6px; margin-bottom: 0.85rem; border-bottom: 1px solid var(--border); padding-bottom: 6px;">
+                        <button type="button" class="import-tab active" data-import-type="spotify" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 6px; background: rgba(29, 185, 84, 0.12); color: #1ed760; border: 1px solid rgba(29, 185, 84, 0.3); font-size: 0.78rem; font-weight: 600; cursor: pointer;">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/></svg>
+                            Spotify Direct
+                        </button>
+                        <button type="button" class="import-tab" data-import-type="ytm" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 6px; background: transparent; color: var(--muted-foreground); border: 1px solid transparent; font-size: 0.78rem; font-weight: 600; cursor: pointer; opacity: 0.7;">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+                            YouTube
+                        </button>
+                        <button type="button" class="import-tab" data-import-type="file" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 6px; background: transparent; color: var(--muted-foreground); border: 1px solid transparent; font-size: 0.78rem; font-weight: 600; cursor: pointer; opacity: 0.7;">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                            File Import
+                        </button>
                     </div>
 
-                    <div id="ytm-import-panel" class="import-panel active">
-                        <label for="ytm-url-input" style="display: block; font-size: 0.82rem; font-weight: 600; margin-bottom: 0.4rem;">
-                            YouTube / YouTube Music Playlist Link:
-                        </label>
+                    <!-- Spotify Panel -->
+                    <div id="spotify-import-panel" class="import-panel active" style="display: block;">
+                        <p style="font-size: 0.78rem; color: #94a3b8; margin: 0 0 0.5rem 0; line-height: 1.45;">
+                            Paste any public Spotify playlist or album link directly. No TuneMyMusic Pro account required!
+                        </p>
+                        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                            <input
+                                type="text"
+                                id="spotify-url-input"
+                                class="template-input"
+                                placeholder="https://open.spotify.com/playlist/..."
+                                style="flex: 1; min-width: 200px;"
+                            />
+                            <button type="button" id="spotify-fetch-btn" class="btn-primary" style="padding: 0 0.85rem; font-size: 0.8rem; white-space: nowrap; background: #1db954; border-color: #1ed760; color: #000; font-weight: 600;">
+                                Fetch &amp; Preview
+                            </button>
+                        </div>
+                        <p id="spotify-status" style="font-size: 0.8rem; margin: 0.4rem 0 0 0; color: #1ed760; min-height: 1.2rem;"></p>
+                    </div>
+
+                    <!-- YouTube Panel -->
+                    <div id="ytm-import-panel" class="import-panel" style="display: none;">
+                        <p style="font-size: 0.78rem; color: #94a3b8; margin: 0 0 0.5rem 0; line-height: 1.45;">
+                            Paste a YouTube or YouTube Music playlist link:
+                        </p>
                         <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
                             <input
                                 type="text"
@@ -481,6 +508,16 @@
                             </button>
                         </div>
                         <p id="ytm-status" style="font-size: 0.8rem; margin: 0.4rem 0 0 0; color: #38bdf8; min-height: 1.2rem;"></p>
+                    </div>
+
+                    <!-- File Import Panel -->
+                    <div id="file-import-panel" class="import-panel" style="display: none;">
+                        <p style="font-size: 0.78rem; color: #94a3b8; margin: 0 0 0.5rem 0; line-height: 1.45;">
+                            Upload playlist files (CSV from Exportify/Spotlistr, JSPF, XSPF, XML, or M3U):
+                        </p>
+                        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">
+                            <input type="file" id="general-file-input" accept=".csv,.jspf,.xspf,.xml,.m3u,.m3u8" class="template-input" style="font-size: 0.8rem; padding: 0.4rem;" />
+                        </div>
                     </div>
 
                     <!-- Hidden compatibility inputs -->
@@ -511,6 +548,58 @@
                     <button id="playlist-share-btn" class="btn-secondary" style="display: none">Share</button>
                     <button id="playlist-modal-cancel" class="btn-secondary">Cancel</button>
                     <button id="playlist-modal-save" class="btn-primary">Save</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="edit-artwork-modal" class="modal">
+            <div class="modal-overlay"></div>
+            <div class="modal-content medium" style="max-width: 440px; width: 92%; box-sizing: border-box; overflow-x: hidden; padding: 1.5rem; border-radius: var(--radius-md, 12px);">
+                <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.2rem;">
+                    <h3 id="edit-artwork-modal-title" style="margin: 0; font-size: 1.15rem; font-weight: 700;">Edit Track Artwork</h3>
+                    <button id="edit-artwork-modal-close" class="modal-close" type="button" style="background: none; border: none; color: var(--muted-foreground); cursor: pointer; padding: 4px;">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                    </button>
+                </div>
+                
+                <!-- Track Info & Artwork Preview -->
+                <div style="display: flex; gap: 1rem; align-items: center; margin-bottom: 1.25rem; padding: 0.75rem; background: rgba(255,255,255,0.03); border-radius: 8px; border: 1px solid var(--border);">
+                    <img id="edit-artwork-preview" src="/images/echos_logo.svg" alt="Preview" style="width: 72px; height: 72px; border-radius: 8px; object-fit: cover; flex-shrink: 0; background: #18181b;" onerror="this.src='/images/echos_logo.svg';" />
+                    <div style="overflow: hidden; flex: 1;">
+                        <h4 id="edit-artwork-track-title" style="margin: 0 0 4px 0; font-size: 0.95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600;">Track Title</h4>
+                        <p id="edit-artwork-track-artist" style="margin: 0; font-size: 0.8rem; color: var(--muted-foreground); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Artist</p>
+                    </div>
+                </div>
+
+                <!-- Artwork URL input -->
+                <div style="margin-bottom: 1rem;">
+                    <label for="edit-artwork-url-input" style="display: block; font-size: 0.82rem; font-weight: 600; margin-bottom: 0.4rem;">
+                        Image URL (ImgBB, Postimages, direct link):
+                    </label>
+                    <input type="url" id="edit-artwork-url-input" class="template-input" placeholder="https://i.ibb.co/... or https://..." style="width: 100%; box-sizing: border-box;" />
+                </div>
+
+                <!-- File upload option -->
+                <div style="margin-bottom: 1.25rem;">
+                    <label style="display: block; font-size: 0.82rem; font-weight: 600; margin-bottom: 0.4rem;">
+                        Or Choose Image File:
+                    </label>
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <input type="file" id="edit-artwork-file-input" accept="image/*" style="display: none;" />
+                        <button type="button" id="edit-artwork-browse-btn" class="btn-secondary" style="font-size: 0.8rem; padding: 0.5rem 0.9rem; white-space: nowrap;">
+                            Choose Image...
+                        </button>
+                        <span id="edit-artwork-filename" style="font-size: 0.78rem; color: var(--muted-foreground); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">No file chosen</span>
+                    </div>
+                    <p style="font-size: 0.72rem; color: #64748b; margin: 0.35rem 0 0 0;">
+                        Supported: JPG, PNG, WEBP, GIF. Saved locally to offline library &amp; cache.
+                    </p>
+                </div>
+
+                <div class="modal-actions" style="display: flex; justify-content: flex-end; gap: 0.5rem;">
+                    <button type="button" id="edit-artwork-reset-btn" class="btn-secondary" style="margin-right: auto; color: #ef4444; border-color: rgba(239, 68, 68, 0.3);">Reset to Original</button>
+                    <button type="button" id="edit-artwork-cancel-btn" class="btn-secondary">Cancel</button>
+                    <button type="button" id="edit-artwork-save-btn" class="btn-primary">Save Artwork</button>
                 </div>
             </div>
         </div>

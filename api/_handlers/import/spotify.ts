@@ -16,6 +16,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         let type: 'playlist' | 'album' = 'playlist';
         let id = input;
 
+        // Follow shortened spotify.link redirects if necessary
+        if (id.includes('spotify.link/')) {
+            try {
+                const headRes = await fetch(id, {
+                    redirect: 'follow',
+                    headers: {
+                        'User-Agent':
+                            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                    },
+                });
+                if (headRes.url) {
+                    id = headRes.url;
+                }
+            } catch {}
+        }
+
         if (id.includes('spotify:playlist:')) {
             type = 'playlist';
             id = id.split('spotify:playlist:')[1];
@@ -73,11 +89,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             isExplicit: Boolean(t.isExplicit),
         }));
 
-        const cover =
-            entity.visualIdentity?.image?.[0]?.url ||
-            entity.coverArt?.sources?.[0]?.url ||
-            entity.images?.[0]?.url ||
-            '';
+        const imageList = entity.visualIdentity?.image || entity.coverArt?.sources || entity.images || [];
+        let cover = '';
+        if (Array.isArray(imageList) && imageList.length > 0) {
+            const sortedImages = [...imageList].sort(
+                (a: any, b: any) => (b.maxWidth || b.width || b.maxHeight || 0) - (a.maxWidth || a.width || a.maxHeight || 0)
+            );
+            cover = sortedImages[0]?.url || '';
+        }
 
         return res.status(200).json({
             ok: true,

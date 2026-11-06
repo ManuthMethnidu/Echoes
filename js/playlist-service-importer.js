@@ -19,39 +19,56 @@ export async function importSpotifyTracks(spotifyData, onProgress) {
     const missingTracks = [];
     const total = rawTracks.length;
 
-    for (let i = 0; i < rawTracks.length; i++) {
-        const item = rawTracks[i];
-        if (onProgress) {
-            onProgress({
-                current: i + 1,
-                total,
-                trackTitle: item.title,
-                artist: item.artist,
-            });
-        }
-
-        try {
-            const query = `${item.title} ${item.artist}`.trim();
-            const searchRes = await fetch(`/api/yt/search?q=${encodeURIComponent(query)}`);
-            if (searchRes.ok) {
-                const searchData = await searchRes.json();
-                const results = searchData.results || [];
-                if (results.length > 0) {
-                    const top = results[0];
-                    matchedTracks.push({
-                        ...top,
-                        trackNumber: i + 1,
-                        duration: top.duration || item.duration || 0,
+    // Process in parallel batches of 4 to match tracks swiftly
+    const BATCH_SIZE = 4;
+    for (let i = 0; i < rawTracks.length; i += BATCH_SIZE) {
+        const batch = rawTracks.slice(i, i + BATCH_SIZE);
+        await Promise.all(
+            batch.map(async (item, batchIdx) => {
+                const idx = i + batchIdx;
+                if (onProgress) {
+                    onProgress({
+                        current: Math.min(idx + 1, total),
+                        total,
+                        trackTitle: item.title,
+                        artist: item.artist,
                     });
-                    continue;
                 }
-            }
-            missingTracks.push(item);
-        } catch (err) {
-            console.warn(`Failed to match track: ${item.title}`, err);
-            missingTracks.push(item);
-        }
+
+                try {
+                    const query = `${item.title} ${item.artist}`.trim();
+                    const searchRes = await fetch(`/api/yt/search?q=${encodeURIComponent(query)}`);
+                    if (searchRes.ok) {
+                        const searchData = await searchRes.json();
+                        const results = searchData.results || [];
+                        if (results.length > 0) {
+                            const top = results[0];
+                            const thumb = top.cover || top.image || (top.videoId ? `https://i.ytimg.com/vi/${top.videoId}/hqdefault.jpg` : '');
+                            matchedTracks.push({
+                                ...top,
+                                trackNumber: idx + 1,
+                                duration: top.duration || item.duration || 0,
+                                cover: thumb,
+                                image: thumb,
+                                album: {
+                                    ...(top.album || {}),
+                                    cover: thumb,
+                                },
+                            });
+                            return;
+                        }
+                    }
+                    missingTracks.push(item);
+                } catch (err) {
+                    console.warn(`Failed to match track: ${item.title}`, err);
+                    missingTracks.push(item);
+                }
+            })
+        );
     }
+
+    // Sort matched tracks back in original track order
+    matchedTracks.sort((a, b) => (a.trackNumber || 0) - (b.trackNumber || 0));
 
     return {
         name: spotifyData.name,
@@ -143,9 +160,113 @@ export function initTuneMyMusicAndYouTubeUI() {
     const ytmInput = document.getElementById('ytm-url-input');
     const fetchBtn = document.getElementById('ytm-fetch-btn');
     const statusEl = document.getElementById('ytm-status');
+
+    const spotifyInput = document.getElementById('spotify-url-input');
+    const spotifyFetchBtn = document.getElementById('spotify-fetch-btn');
+    const spotifyStatusEl = document.getElementById('spotify-status');
+
     const nameInput = document.getElementById('playlist-name-input');
     const coverInput = document.getElementById('playlist-cover-input');
     const descInput = document.getElementById('playlist-description-input');
+    const modal = document.getElementById('playlist-modal');
+
+    // Wire up Direct Spotify Playlist Import
+    if (spotifyFetchBtn && spotifyInput) {
+        spotifyFetchBtn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            const url = spotifyInput.value.trim();
+            if (!url) {
+                if (spotifyStatusEl) {
+                    spotifyStatusEl.textContent = 'Please paste a public Spotify playlist or album link.';
+                    spotifyStatusEl.style.color = '#ef4444';
+                }
+                return;
+            }
+
+            spotifyFetchBtn.disabled = true;
+            spotifyFetchBtn.textContent = 'Fetching...';
+            if (spotifyStatusEl) {
+                spotifyStatusEl.textContent = 'Fetching metadata directly from Spotify...';
+                spotifyStatusEl.style.color = '#1ed760';
+            }
+
+            try {
+                const data = await fetchSpotifyMetadata(url);
+                const count = data.tracks?.length || 0;
+                if (count === 0) {
+                    if (spotifyStatusEl) {
+                        spotifyStatusEl.textContent = 'No tracks found. Please make sure the Spotify playlist is public.';
+                        spotifyStatusEl.style.color = '#ef4444';
+                    }
+                    return;
+                }
+
+                if (nameInput && (!nameInput.value.trim() || nameInput.value === 'Create Playlist')) {
+                    nameInput.value = data.name;
+                }
+                if (coverInput && !coverInput.value.trim() && data.cover) {
+                    coverInput.value = data.cover;
+                }
+                if (descInput && !descInput.value.trim() && data.description) {
+                    descInput.value = data.description;
+                }
+
+                // Cache metadata on modal
+                if (modal) {
+                    modal._cachedSpotifyData = data;
+                }
+
+                if (spotifyStatusEl) {
+                    spotifyStatusEl.innerHTML = `<span style="color:#10b981;">Found ${count} tracks: "${escapeHtml(data.name)}". Click Save to finish importing!</span>`;
+                }
+            } catch (err) {
+                console.error('[Spotify Fetch Error]:', err);
+                if (spotifyStatusEl) {
+                    spotifyStatusEl.textContent = `Error: ${err.message || 'Failed to load Spotify playlist'}`;
+                    spotifyStatusEl.style.color = '#ef4444';
+                }
+            } finally {
+                spotifyFetchBtn.disabled = false;
+                spotifyFetchBtn.textContent = 'Fetch & Preview';
+            }
+        });
+    }
+
+    // Wire up General File Input (.csv, .jspf, .xspf, .xml, .m3u)
+    const generalFileInput = document.getElementById('general-file-input');
+    if (generalFileInput) {
+        generalFileInput.addEventListener('change', (e) => {
+            const file = e.target.files?.[0];
+            if (!file) return;
+
+            const name = file.name.toLowerCase();
+            let targetInputId = 'csv-file-input';
+            if (name.endsWith('.jspf')) targetInputId = 'jspf-file-input';
+            else if (name.endsWith('.xspf')) targetInputId = 'xspf-file-input';
+            else if (name.endsWith('.xml')) targetInputId = 'xml-file-input';
+            else if (name.endsWith('.m3u') || name.endsWith('.m3u8')) targetInputId = 'm3u-file-input';
+
+            // Clear other file inputs
+            ['csv-file-input', 'jspf-file-input', 'xspf-file-input', 'xml-file-input', 'm3u-file-input'].forEach((id) => {
+                const el = document.getElementById(id);
+                if (el && id !== targetInputId) el.value = '';
+            });
+
+            // Assign file to specific target input using DataTransfer
+            const targetInput = document.getElementById(targetInputId);
+            if (targetInput && e.target.files) {
+                const dt = new DataTransfer();
+                dt.items.add(file);
+                targetInput.files = dt.files;
+            }
+
+            // Auto-fill playlist name if empty
+            if (nameInput && (!nameInput.value.trim() || nameInput.value === 'Create Playlist')) {
+                const cleanName = file.name.replace(/\.[^/.]+$/, '');
+                nameInput.value = cleanName;
+            }
+        });
+    }
 
     if (!fetchBtn || !ytmInput) return;
 

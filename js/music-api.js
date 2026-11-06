@@ -898,6 +898,11 @@ export class MusicAPI {
             return '/images/echos_logo.svg';
         }
         if (typeof id === 'string') {
+            const custom =
+                window._customCoversCache?.[id] ||
+                (typeof localStorage !== 'undefined' ? localStorage.getItem(`echos_custom_cover_${id}`) : null);
+            if (custom) return custom;
+
             if (this.isYouTubeId(id)) {
                 const vid = this.getYouTubeId(id);
                 return `https://i.ytimg.com/vi/${vid}/hqdefault.jpg`;

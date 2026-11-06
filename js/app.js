@@ -671,29 +671,45 @@ document.addEventListener('DOMContentLoaded', async () => {
             document.querySelectorAll('.import-tab').forEach((t) => {
                 t.classList.remove('active');
                 t.style.opacity = '0.7';
+                t.style.background = 'transparent';
+                t.style.borderColor = 'transparent';
+                t.style.color = 'var(--muted-foreground)';
             });
             tab.classList.add('active');
             tab.style.opacity = '1';
 
-            // Show/hide panels
-            const ytmPanel = document.getElementById('ytm-import-panel');
-            if (ytmPanel) ytmPanel.style.display = importType === 'ytm' ? 'block' : 'none';
-            ['csv-import-panel', 'jspf-import-panel', 'xspf-import-panel', 'xml-import-panel', 'm3u-import-panel'].forEach((id) => {
-                const panel = document.getElementById(id);
-                if (panel) {
-                    const type = id.replace('-import-panel', '');
-                    panel.style.display = importType === type ? 'block' : 'none';
-                }
-            });
+            if (importType === 'spotify') {
+                tab.style.background = 'rgba(29, 185, 84, 0.12)';
+                tab.style.borderColor = 'rgba(29, 185, 84, 0.3)';
+                tab.style.color = '#1ed760';
+            } else if (importType === 'ytm') {
+                tab.style.background = 'rgba(56, 189, 248, 0.12)';
+                tab.style.borderColor = 'rgba(56, 189, 248, 0.3)';
+                tab.style.color = '#38bdf8';
+            } else {
+                tab.style.background = 'rgba(255, 255, 255, 0.1)';
+                tab.style.borderColor = 'var(--border)';
+                tab.style.color = 'var(--foreground)';
+            }
 
-            // Clear all file inputs except the active one (setting a file input's
-            // value to a non-empty string throws InvalidStateError)
-            ['csv', 'jspf', 'xspf', 'xml', 'm3u'].forEach((type) => {
-                if (importType !== type) {
+            // Show/hide panels
+            const spotifyPanel = document.getElementById('spotify-import-panel');
+            const ytmPanel = document.getElementById('ytm-import-panel');
+            const filePanel = document.getElementById('file-import-panel');
+
+            if (spotifyPanel) spotifyPanel.style.display = importType === 'spotify' ? 'block' : 'none';
+            if (ytmPanel) ytmPanel.style.display = importType === 'ytm' ? 'block' : 'none';
+            if (filePanel) filePanel.style.display = importType === 'file' ? 'block' : 'none';
+
+            // Clear file inputs if switching away from file
+            if (importType !== 'file') {
+                ['csv', 'jspf', 'xspf', 'xml', 'm3u'].forEach((type) => {
                     const input = document.getElementById(`${type}-file-input`);
                     if (input) input.value = '';
-                }
-            });
+                });
+                const generalFileInput = document.getElementById('general-file-input');
+                if (generalFileInput) generalFileInput.value = '';
+            }
         });
     });
 
@@ -1147,24 +1163,31 @@ document.addEventListener('DOMContentLoaded', async () => {
             const importSection = document.getElementById('import-section');
             if (importSection) importSection.style.display = 'block';
 
-            ['csv-file-input', 'ytm-url-input', 'jspf-file-input', 'xspf-file-input', 'xml-file-input', 'm3u-file-input'].forEach((id) => {
+            delete modal._cachedSpotifyData;
+            ['spotify-url-input', 'ytm-url-input', 'general-file-input', 'csv-file-input', 'jspf-file-input', 'xspf-file-input', 'xml-file-input', 'm3u-file-input'].forEach((id) => {
                 const el = document.getElementById(id);
                 if (el) el.value = '';
             });
             const ytmStatus = document.getElementById('ytm-status');
             if (ytmStatus) ytmStatus.textContent = '';
+            const spotifyStatus = document.getElementById('spotify-status');
+            if (spotifyStatus) spotifyStatus.textContent = '';
 
-            // Reset import tabs to YouTube & TuneMyMusic
+            // Reset import tabs to Spotify Direct by default
             document.querySelectorAll('.import-tab').forEach((tab) => {
-                tab.classList.toggle('active', tab.dataset.importType === 'ytm');
+                const isSpotify = tab.dataset.importType === 'spotify';
+                tab.classList.toggle('active', isSpotify);
+                tab.style.opacity = isSpotify ? '1' : '0.7';
+                tab.style.background = isSpotify ? 'rgba(29, 185, 84, 0.12)' : 'transparent';
+                tab.style.borderColor = isSpotify ? 'rgba(29, 185, 84, 0.3)' : 'transparent';
+                tab.style.color = isSpotify ? '#1ed760' : 'var(--muted-foreground)';
             });
+            const spotifyPanel = document.getElementById('spotify-import-panel');
+            if (spotifyPanel) spotifyPanel.style.display = 'block';
             const ytmPanel = document.getElementById('ytm-import-panel');
-            if (ytmPanel) ytmPanel.style.display = 'block';
-
-            ['csv-import-panel', 'jspf-import-panel', 'xspf-import-panel', 'xml-import-panel', 'm3u-import-panel'].forEach((id) => {
-                const panel = document.getElementById(id);
-                if (panel) panel.style.display = 'none';
-            });
+            if (ytmPanel) ytmPanel.style.display = 'none';
+            const filePanel = document.getElementById('file-import-panel');
+            if (filePanel) filePanel.style.display = 'none';
 
             // Reset Public Toggle
             const publicToggle = document.getElementById('playlist-public-toggle');
@@ -1306,11 +1329,77 @@ document.addEventListener('DOMContentLoaded', async () => {
                         };
                     };
 
-                    const activeTab = document.querySelector('.import-tab.active')?.dataset.importType;
+                    const activeTab = document.querySelector('.import-tab.active')?.dataset.importType || 'spotify';
                     const ytmUrlInput = document.getElementById('ytm-url-input');
                     const spotifyUrlInput = document.getElementById('spotify-url-input');
 
-                    if (ytmUrlInput?.value.trim() && (activeTab === 'ytm' || !activeTab || !spotifyUrlInput?.value.trim())) {
+                    if (activeTab === 'spotify' || (spotifyUrlInput?.value.trim() && activeTab !== 'ytm') || modal._cachedSpotifyData) {
+                        importSource = 'spotify_import';
+                        const url = spotifyUrlInput?.value.trim();
+                        const {
+                            progressElement,
+                            progressFill,
+                            progressCurrent,
+                            progressTotal,
+                            currentTrackElement,
+                            currentArtistElement,
+                        } = setupProgressElements();
+
+                        try {
+                            progressElement.style.display = 'block';
+                            progressFill.style.width = '0%';
+                            progressCurrent.textContent = '0';
+                            currentTrackElement.textContent = 'Loading Spotify tracks...';
+                            if (currentArtistElement) currentArtistElement.textContent = '';
+
+                            const spData = modal._cachedSpotifyData || (url ? await fetchSpotifyMetadata(url) : null);
+                            if (!spData) {
+                                alert('Please paste a Spotify playlist link or click Fetch & Preview.');
+                                progressElement.style.display = 'none';
+                                return;
+                            }
+
+                            if (!name) name = spData.name;
+                            if (!cover && spData.cover) cover = spData.cover;
+                            if (!description && spData.description) description = spData.description;
+
+                            const totalCount = spData.tracks?.length || 0;
+                            progressTotal.textContent = totalCount.toString();
+
+                            const result = await importSpotifyTracks(spData, (progress) => {
+                                const percentage = progress.total > 0 ? (progress.current / progress.total) * 100 : 0;
+                                progressFill.style.width = `${Math.min(percentage, 100)}%`;
+                                progressCurrent.textContent = progress.current.toString();
+                                currentTrackElement.textContent = progress.trackTitle;
+                                if (currentArtistElement) {
+                                    currentArtistElement.textContent = progress.artist || '';
+                                }
+                            });
+
+                            tracks = result.tracks;
+                            if (tracks.length === 0) {
+                                alert('Could not match tracks on streaming service.');
+                                progressElement.style.display = 'none';
+                                return;
+                            }
+
+                            if (result.missingTracks?.length > 0) {
+                                setTimeout(() => {
+                                    showMissingTracksNotification(result.missingTracks, name || 'Untitled');
+                                }, 500);
+                            }
+                        } catch (err) {
+                            console.error('Spotify Import Error:', err);
+                            alert(`Error importing from Spotify: ${err.message}`);
+                            progressElement.style.display = 'none';
+                            return;
+                        } finally {
+                            delete modal._cachedSpotifyData;
+                            setTimeout(() => {
+                                progressElement.style.display = 'none';
+                            }, 1000);
+                        }
+                    } else if (ytmUrlInput?.value.trim() && (activeTab === 'ytm' || !activeTab)) {
                         importSource = 'ytm_import';
                         const url = ytmUrlInput.value.trim();
                         const {
@@ -1343,65 +1432,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                         } catch (err) {
                             console.error('YTM Import Error:', err);
                             alert(`Error importing from YouTube: ${err.message}`);
-                            progressElement.style.display = 'none';
-                            return;
-                        } finally {
-                            setTimeout(() => {
-                                progressElement.style.display = 'none';
-                            }, 1000);
-                        }
-                    } else if (spotifyUrlInput?.value.trim()) {
-                        importSource = 'spotify_import';
-                        const url = spotifyUrlInput.value.trim();
-                        const {
-                            progressElement,
-                            progressFill,
-                            progressCurrent,
-                            progressTotal,
-                            currentTrackElement,
-                            currentArtistElement,
-                        } = setupProgressElements();
-
-                        try {
-                            progressElement.style.display = 'block';
-                            progressFill.style.width = '0%';
-                            progressCurrent.textContent = '0';
-                            currentTrackElement.textContent = 'Fetching Spotify metadata...';
-                            if (currentArtistElement) currentArtistElement.textContent = '';
-
-                            const spData = await fetchSpotifyMetadata(url);
-                            if (!name) name = spData.name;
-                            if (!cover && spData.cover) cover = spData.cover;
-                            if (!description && spData.description) description = spData.description;
-
-                            const totalCount = spData.tracks?.length || 0;
-                            progressTotal.textContent = totalCount.toString();
-
-                            const result = await importSpotifyTracks(spData, (progress) => {
-                                const percentage = progress.total > 0 ? (progress.current / progress.total) * 100 : 0;
-                                progressFill.style.width = `${Math.min(percentage, 100)}%`;
-                                progressCurrent.textContent = progress.current.toString();
-                                currentTrackElement.textContent = progress.trackTitle;
-                                if (currentArtistElement) {
-                                    currentArtistElement.textContent = progress.artist || '';
-                                }
-                            });
-
-                            tracks = result.tracks;
-                            if (tracks.length === 0) {
-                                alert('Could not match any tracks on YouTube Music.');
-                                progressElement.style.display = 'none';
-                                return;
-                            }
-
-                            if (result.missingTracks?.length > 0) {
-                                setTimeout(() => {
-                                    showMissingTracksNotification(result.missingTracks, name || 'Untitled');
-                                }, 500);
-                            }
-                        } catch (err) {
-                            console.error('Spotify Import Error:', err);
-                            alert(`Error importing from Spotify: ${err.message}`);
                             progressElement.style.display = 'none';
                             return;
                         } finally {

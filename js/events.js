@@ -329,6 +329,308 @@ async function showMultiSelectPlaylistModal(tracks) {
     });
 }
 
+async function openEditTrackArtworkModal(track, _ui, player, api) {
+    if (!track) return;
+
+    const modal = document.getElementById('edit-artwork-modal');
+    if (!modal) return;
+
+    const titleEl = document.getElementById('edit-artwork-track-title');
+    const artistEl = document.getElementById('edit-artwork-track-artist');
+    const previewEl = document.getElementById('edit-artwork-preview');
+    const urlInput = document.getElementById('edit-artwork-url-input');
+    const fileInput = document.getElementById('edit-artwork-file-input');
+    const browseBtn = document.getElementById('edit-artwork-browse-btn');
+    const filenameEl = document.getElementById('edit-artwork-filename');
+    const closeBtn = document.getElementById('edit-artwork-modal-close');
+    const cancelBtn = document.getElementById('edit-artwork-cancel-btn');
+    const saveBtn = document.getElementById('edit-artwork-save-btn');
+    const resetBtn = document.getElementById('edit-artwork-reset-btn');
+
+    const trackTitle = track.title || 'Unknown Title';
+    const trackArtist = getTrackArtists(track) || track.artist?.name || 'Unknown Artist';
+    if (titleEl) titleEl.textContent = trackTitle;
+    if (artistEl) artistEl.textContent = trackArtist;
+
+    // Get current artwork
+    const trackId = String(track.id || '');
+    const custom =
+        window._customCoversCache?.[trackId] ||
+        (typeof localStorage !== 'undefined' ? localStorage.getItem(`echos_custom_cover_${trackId}`) : null);
+
+    const currentCover =
+        custom ||
+        track.customCover ||
+        track.cover ||
+        track.image ||
+        track.album?.cover ||
+        (api ? api.getCoverUrl(track.id) : '/images/echos_logo.svg');
+
+    if (previewEl) {
+        previewEl.src = currentCover;
+    }
+    if (urlInput) {
+        urlInput.value =
+            custom && custom.startsWith('http')
+                ? custom
+                : currentCover.startsWith('http') && !currentCover.includes('/images/echos_logo.svg')
+                  ? currentCover
+                  : '';
+    }
+    if (fileInput) {
+        fileInput.value = '';
+    }
+    if (filenameEl) {
+        filenameEl.textContent = 'No file chosen';
+    }
+
+    let pendingDataUrl = null;
+
+    const closeModal = () => {
+        modal.classList.remove('active');
+        cleanup();
+    };
+
+    const handleBrowseClick = () => {
+        fileInput?.click();
+    };
+
+    const handleFileChange = (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        if (filenameEl) filenameEl.textContent = file.name;
+        const reader = new FileReader();
+        reader.onload = (re) => {
+            const rawDataUrl = re.target.result;
+            // Downscale image to max 800x800 for optimal IndexedDB & storage footprint
+            const img = new Image();
+            img.onload = () => {
+                let { width, height } = img;
+                const maxDim = 800;
+                if (width > maxDim || height > maxDim) {
+                    if (width > height) {
+                        height = Math.round((height * maxDim) / width);
+                        width = maxDim;
+                    } else {
+                        width = Math.round((width * maxDim) / height);
+                        height = maxDim;
+                    }
+                }
+                const canvas = document.createElement('canvas');
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                try {
+                    pendingDataUrl = canvas.toDataURL('image/webp', 0.88);
+                } catch {
+                    pendingDataUrl = canvas.toDataURL('image/jpeg', 0.88);
+                }
+                if (previewEl) previewEl.src = pendingDataUrl;
+                if (urlInput) urlInput.value = '';
+            };
+            img.onerror = () => {
+                pendingDataUrl = rawDataUrl;
+                if (previewEl) previewEl.src = pendingDataUrl;
+            };
+            img.src = rawDataUrl;
+        };
+        reader.readAsDataURL(file);
+    };
+
+    const handleUrlInput = () => {
+        const url = urlInput.value.trim();
+        pendingDataUrl = null;
+        if (filenameEl) filenameEl.textContent = 'No file chosen';
+        if (previewEl) {
+            previewEl.src = url || currentCover;
+        }
+    };
+
+    const handleSave = async () => {
+        const finalCover = (pendingDataUrl || urlInput.value.trim()).trim();
+        if (!finalCover) {
+            showNotification('Please enter an image URL or choose a file.');
+            return;
+        }
+
+        saveBtn.disabled = true;
+        saveBtn.textContent = 'Saving...';
+
+        try {
+            // 1. Cache in memory and localStorage
+            window._customCoversCache = window._customCoversCache || {};
+            window._customCoversCache[trackId] = finalCover;
+            try {
+                localStorage.setItem(`echos_custom_cover_${trackId}`, finalCover);
+            } catch (storageErr) {
+                console.warn('[LocalStorage Full for Custom Cover]', storageErr);
+            }
+
+            // 2. Update track object in memory
+            track.customCover = finalCover;
+            track.cover = finalCover;
+            track.image = finalCover;
+            if (track.album) track.album.cover = finalCover;
+
+            // 3. Update all user playlists in IndexedDB
+            const playlists = await db.getPlaylists(true);
+            for (const p of playlists) {
+                if (Array.isArray(p.tracks)) {
+                    let changed = false;
+                    for (const t of p.tracks) {
+                        if (String(t.id) === trackId || (track.videoId && t.videoId === track.videoId)) {
+                            t.customCover = finalCover;
+                            t.cover = finalCover;
+                            t.image = finalCover;
+                            if (t.album) t.album.cover = finalCover;
+                            changed = true;
+                        }
+                    }
+                    if (changed) {
+                        await db.performTransaction('user_playlists', 'readwrite', (store) => store.put(p));
+                        await syncManager.syncUserPlaylist(p, 'update');
+                    }
+                }
+            }
+
+            // 4. Update DOM on current page
+            document
+                .querySelectorAll(`[data-track-id="${trackId}"] .track-item-cover, [data-track-id="${trackId}"] img`)
+                .forEach((img) => {
+                    if (img.classList.contains('track-item-cover') || img.closest('.track-number')) {
+                        img.src = finalCover;
+                    }
+                });
+
+            // 5. Update player now-playing bar & fullscreen if currently playing
+            if (player?.currentTrack && String(player.currentTrack.id) === trackId) {
+                player.currentTrack.customCover = finalCover;
+                player.currentTrack.cover = finalCover;
+                player.currentTrack.image = finalCover;
+                if (player.currentTrack.album) player.currentTrack.album.cover = finalCover;
+
+                const npCover = document.querySelector('.now-playing-bar .cover img');
+                if (npCover) npCover.src = finalCover;
+                const fsCover = document.getElementById('fs-cover-image');
+                if (fsCover) fsCover.src = finalCover;
+                const currentImg = document.getElementById('current-image');
+                if (currentImg) currentImg.src = finalCover;
+            }
+
+            showNotification(`Updated artwork for "${trackTitle}"`);
+            closeModal();
+        } catch (err) {
+            console.error('[Failed to save custom artwork]:', err);
+            showNotification(`Failed to save artwork: ${err.message || 'Error'}`);
+        } finally {
+            saveBtn.disabled = false;
+            saveBtn.textContent = 'Save Artwork';
+        }
+    };
+
+    const handleReset = async () => {
+        resetBtn.disabled = true;
+        try {
+            // Remove from memory and localStorage
+            if (window._customCoversCache) {
+                delete window._customCoversCache[trackId];
+            }
+            try {
+                localStorage.removeItem(`echos_custom_cover_${trackId}`);
+            } catch {}
+
+            // Determine original thumbnail
+            const vid =
+                track.videoId ||
+                (typeof track.id === 'string' && track.id.startsWith('yt:') ? track.id.replace(/^yt:/, '') : null);
+            const originalCover =
+                vid && /^[a-zA-Z0-9_-]{11}$/.test(vid)
+                    ? `https://i.ytimg.com/vi/${vid}/hqdefault.jpg`
+                    : '/images/echos_logo.svg';
+
+            delete track.customCover;
+            track.cover = originalCover;
+            track.image = originalCover;
+            if (track.album) track.album.cover = originalCover;
+
+            // Update in IndexedDB playlists
+            const playlists = await db.getPlaylists(true);
+            for (const p of playlists) {
+                if (Array.isArray(p.tracks)) {
+                    let changed = false;
+                    for (const t of p.tracks) {
+                        if (String(t.id) === trackId || (track.videoId && t.videoId === track.videoId)) {
+                            delete t.customCover;
+                            t.cover = originalCover;
+                            t.image = originalCover;
+                            if (t.album) t.album.cover = originalCover;
+                            changed = true;
+                        }
+                    }
+                    if (changed) {
+                        await db.performTransaction('user_playlists', 'readwrite', (store) => store.put(p));
+                        await syncManager.syncUserPlaylist(p, 'update');
+                    }
+                }
+            }
+
+            // Update DOM on current page
+            document
+                .querySelectorAll(`[data-track-id="${trackId}"] .track-item-cover, [data-track-id="${trackId}"] img`)
+                .forEach((img) => {
+                    if (img.classList.contains('track-item-cover') || img.closest('.track-number')) {
+                        img.src = originalCover;
+                    }
+                });
+
+            // Update player now-playing bar & fullscreen
+            if (player?.currentTrack && String(player.currentTrack.id) === trackId) {
+                delete player.currentTrack.customCover;
+                player.currentTrack.cover = originalCover;
+                player.currentTrack.image = originalCover;
+                if (player.currentTrack.album) player.currentTrack.album.cover = originalCover;
+
+                const npCover = document.querySelector('.now-playing-bar .cover img');
+                if (npCover) npCover.src = originalCover;
+                const fsCover = document.getElementById('fs-cover-image');
+                if (fsCover) fsCover.src = originalCover;
+            }
+
+            showNotification(`Restored default artwork for "${trackTitle}"`);
+            closeModal();
+        } catch (err) {
+            console.error('[Failed to reset custom artwork]:', err);
+            showNotification('Failed to reset artwork');
+        } finally {
+            resetBtn.disabled = false;
+        }
+    };
+
+    const cleanup = () => {
+        closeBtn?.removeEventListener('click', closeModal);
+        cancelBtn?.removeEventListener('click', closeModal);
+        browseBtn?.removeEventListener('click', handleBrowseClick);
+        fileInput?.removeEventListener('change', handleFileChange);
+        urlInput?.removeEventListener('input', handleUrlInput);
+        saveBtn?.removeEventListener('click', handleSave);
+        resetBtn?.removeEventListener('click', handleReset);
+        modal.querySelector('.modal-overlay')?.removeEventListener('click', closeModal);
+    };
+
+    closeBtn?.addEventListener('click', closeModal);
+    cancelBtn?.addEventListener('click', closeModal);
+    browseBtn?.addEventListener('click', handleBrowseClick);
+    fileInput?.addEventListener('change', handleFileChange);
+    urlInput?.addEventListener('input', handleUrlInput);
+    saveBtn?.addEventListener('click', handleSave);
+    resetBtn?.addEventListener('click', handleReset);
+    modal.querySelector('.modal-overlay')?.addEventListener('click', closeModal);
+
+    modal.classList.add('active');
+}
+
 const playPauseBtn = document.querySelector('.now-playing-bar .play-pause-btn');
 const nextBtn = document.getElementById('next-btn');
 const prevBtn = document.getElementById('prev-btn');
@@ -2153,6 +2455,8 @@ export async function handleTrackAction(
         } else {
             showNotification('No original URL available for this track.');
         }
+    } else if (action === 'edit-track-cover') {
+        await openEditTrackArtworkModal(item, ui, player, api);
     } else if (action === 'block-track') {
         const { contentBlockingSettings } = await import('./storage.js');
         if (contentBlockingSettings.isTrackBlocked(item.id)) {

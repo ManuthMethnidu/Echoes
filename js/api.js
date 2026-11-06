@@ -3467,8 +3467,20 @@ export class LosslessAPI {
             return '/images/echos_logo.svg';
         }
 
-        if (typeof id === 'string' && (id.startsWith('http') || id.startsWith('blob:') || id.startsWith('assets/'))) {
-            return id;
+        if (typeof id === 'string') {
+            const custom =
+                window._customCoversCache?.[id] ||
+                (typeof localStorage !== 'undefined' ? localStorage.getItem(`echos_custom_cover_${id}`) : null);
+            if (custom) return custom;
+
+            if (id.startsWith('http') || id.startsWith('blob:') || id.startsWith('data:') || id.startsWith('assets/')) {
+                return id;
+            }
+
+            if (id.startsWith('yt:')) {
+                const vid = id.replace(/^yt:/, '');
+                return `https://i.ytimg.com/vi/${vid}/hqdefault.jpg`;
+            }
         }
 
         const formattedId = String(id).replace(/-/g, '/');

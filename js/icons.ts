@@ -27,6 +27,7 @@ export { default as SVG_HOUSE } from '!lucide/house.svg?svg&icon';
 export { default as SVG_INFO } from '!lucide/info.svg?svg&icon';
 export { default as SVG_INSTAGRAM } from '../images/instagram.svg?svg&icon';
 export { default as SVG_KEYBOARD } from '!lucide/keyboard.svg?svg&icon';
+export { default as SVG_LANGUAGES } from '!lucide/languages.svg?svg&icon';
 export { default as SVG_LEFT_ARROW } from '!lucide/chevron-left.svg?svg&icon';
 export { default as SVG_LIBRARY } from '!lucide/library.svg?svg&icon';
 export { default as SVG_LINK } from '!lucide/link.svg?svg&icon';

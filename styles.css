@@ -13063,6 +13063,129 @@ body.is-tv-device a:focus-visible {
     user-select: all;
 }
 
+/* Lyrics Translation Popover */
+.lyrics-translate-popover {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 16px;
+    z-index: 10005;
+    background: #141414;
+    border: 1px solid #2a2a2a;
+    border-radius: 12px;
+    padding: 12px;
+    width: 260px;
+    max-height: 380px;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    animation: fade-in 0.18s ease-out;
+}
+
+.lyrics-translate-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: 8px;
+    margin-bottom: 8px;
+    border-bottom: 1px solid #222222;
+}
+
+.lyrics-translate-header span {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #f5f5f5;
+    letter-spacing: -0.01em;
+}
+
+.lyrics-translate-header .close-btn {
+    background: transparent;
+    border: none;
+    color: #888888;
+    font-size: 1.1rem;
+    cursor: pointer;
+    line-height: 1;
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+
+.lyrics-translate-header .close-btn:hover {
+    color: #ffffff;
+    background: #222222;
+}
+
+.lyrics-translate-search {
+    width: 100%;
+    padding: 6px 10px;
+    margin-bottom: 8px;
+    background: #0a0a0a;
+    border: 1px solid #2a2a2a;
+    border-radius: 8px;
+    color: #f5f5f5;
+    font-size: 0.8rem;
+    outline: none;
+    box-sizing: border-box;
+}
+
+.lyrics-translate-search:focus {
+    border-color: #555555;
+}
+
+.lyrics-translate-options {
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    max-height: 260px;
+    padding-right: 4px;
+}
+
+.lyrics-translate-opt {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 8px 10px;
+    border-radius: 8px;
+    background: transparent;
+    border: 1px solid transparent;
+    color: #cccccc;
+    font-size: 0.82rem;
+    text-align: left;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.lyrics-translate-opt:hover {
+    background: #1f1f1f;
+    color: #ffffff;
+}
+
+.lyrics-translate-opt.active {
+    background: #252525;
+    color: #ffffff;
+    font-weight: 600;
+    border-color: #383838;
+}
+
+.lyrics-translate-opt .lang-code {
+    font-size: 0.7rem;
+    opacity: 0.6;
+    text-transform: uppercase;
+}
+
+#lyrics-translate-btn.active-translate {
+    color: var(--primary, #3b82f6) !important;
+}
+
+#lyrics-translate-btn.loading-translate {
+    opacity: 0.5;
+    pointer-events: none;
+    animation: pulse 1s infinite;
+}
+
+
 
 
 

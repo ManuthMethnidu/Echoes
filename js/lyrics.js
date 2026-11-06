@@ -8,6 +8,7 @@ import {
     SVG_PLUS,
     SVG_RESET,
     SVG_GLOBE,
+    SVG_LANGUAGES,
 } from './icons.js';
 import { sidePanelManager } from './side-panel.js';
 import { disableBlurEffectsSettings } from './storage.js';
@@ -43,6 +44,24 @@ if (document.readyState === 'complete') {
 } else {
     window.addEventListener('load', loadAmLyrics);
 }
+
+export const SUPPORTED_TRANSLATION_LANGUAGES = [
+    { code: 'en', name: 'English' },
+    { code: 'si', name: 'සිංහල (Sinhala)' },
+    { code: 'es', name: 'Español (Spanish)' },
+    { code: 'ja', name: '日本語 (Japanese)' },
+    { code: 'hi', name: 'हिन्दी (Hindi)' },
+    { code: 'fr', name: 'Français (French)' },
+    { code: 'de', name: 'Deutsch (German)' },
+    { code: 'zh-CN', name: '中文 (Simplified)' },
+    { code: 'ru', name: 'Русский (Russian)' },
+    { code: 'ko', name: '한국어 (Korean)' },
+    { code: 'it', name: 'Italiano (Italian)' },
+    { code: 'pt', name: 'Português (Portuguese)' },
+    { code: 'ar', name: 'العربية (Arabic)' },
+    { code: 'ta', name: 'தமிழ் (Tamil)' },
+    { code: 'tr', name: 'Türkçe (Turkish)' },
+];
 
 // Check if text contains Japanese, Chinese, or Korean characters
 function containsAsianText(text) {
@@ -315,6 +334,10 @@ export class LyricsManager {
         this.isGeniusMode = false;
         this.currentGeniusData = null;
         this.timingOffset = 0; // Offset in milliseconds (positive = delay lyrics, negative = advance lyrics)
+        this.targetLanguage = localStorage.getItem('echoes_lyrics_target_language') || '';
+        this.isTranslationMode = Boolean(this.targetLanguage);
+        this.translationCache = new Map();
+        this.activeTranslatePopover = null;
     }
 
     static async initialize(api) {
@@ -696,12 +719,62 @@ export class LyricsManager {
                 }
             }
 
+            // 6. Try YouTube Closed Captions fallback (synced captions in every language with translation)
+            if (!foundData || !foundData.syncedLyrics) {
+                try {
+                    const videoId =
+                        track.videoId ||
+                        track.ytId ||
+                        (track.id && String(track.id).startsWith('yt:') ? track.id.replace(/^yt:/, '') : null);
+                    const primary = candidates[0] || {};
+                    const queryParams = new URLSearchParams();
+                    if (videoId) queryParams.set('id', videoId);
+                    if (primary.title) queryParams.set('title', primary.title);
+                    if (primary.artist) queryParams.set('artist', primary.artist);
+
+                    const targetLang = this.targetLanguage || localStorage.getItem('echoes_lyrics_target_language') || '';
+                    if (targetLang) {
+                        queryParams.set('tlang', targetLang);
+                    }
+
+                    if (videoId || primary.title) {
+                        const capRes = await fetch(`/api/yt/captions?${queryParams.toString()}`);
+                        if (capRes.ok) {
+                            const capData = await capRes.json();
+                            if (capData?.syncedLyrics || capData?.plainLyrics) {
+                                foundData = {
+                                    syncedLyrics: capData.syncedLyrics || null,
+                                    plainLyrics: capData.plainLyrics || (foundData ? foundData.plainLyrics : null),
+                                    originalSyncedLyrics: capData.originalSyncedLyrics || null,
+                                    originalPlainLyrics: capData.originalPlainLyrics || null,
+                                    ttml: capData.ttml || null,
+                                    availableLanguages: capData.availableLanguages || [],
+                                    sourceLanguage: capData.sourceLanguage,
+                                    targetLanguage: capData.targetLanguage,
+                                    isTranslated: capData.isTranslated,
+                                    lyricsProvider: capData.lyricsProvider || 'YouTube Captions',
+                                };
+                            }
+                        }
+                    }
+                } catch (e) {
+                    console.warn('[Lyrics] YouTube Captions fallback failed:', e);
+                }
+            }
+
             if (foundData && (foundData.syncedLyrics || foundData.plainLyrics)) {
                 const subtitles = foundData.syncedLyrics || foundData.plainLyrics;
                 const lyricsData = {
                     subtitles,
                     plainLyrics: foundData.plainLyrics,
                     syncedLyrics: foundData.syncedLyrics,
+                    originalSyncedLyrics: foundData.originalSyncedLyrics || null,
+                    originalPlainLyrics: foundData.originalPlainLyrics || null,
+                    ttml: foundData.ttml || null,
+                    availableLanguages: foundData.availableLanguages || [],
+                    sourceLanguage: foundData.sourceLanguage || null,
+                    targetLanguage: foundData.targetLanguage || null,
+                    isTranslated: foundData.isTranslated || false,
                     lyricsProvider: foundData.lyricsProvider || 'LRCLIB',
                 };
                 this.lyricsCache.set(trackId, lyricsData);
@@ -783,7 +856,8 @@ export class LyricsManager {
     }
 
     generateTTMLContent(lyricsData, track) {
-        if (!lyricsData || (!lyricsData.subtitles && !lyricsData.plainLyrics)) return null;
+        if (!lyricsData || (!lyricsData.subtitles && !lyricsData.plainLyrics && !lyricsData.ttml)) return null;
+        if (lyricsData.ttml) return lyricsData.ttml;
         const rawContent = lyricsData.subtitles || lyricsData.plainLyrics || '';
         const lines = this.parseSyncedLyrics(rawContent);
 
@@ -1158,6 +1232,243 @@ export class LyricsManager {
             }
         });
     }
+
+    getTranslationLanguage() {
+        return this.targetLanguage || localStorage.getItem('echoes_lyrics_target_language') || '';
+    }
+
+    setTranslationLanguage(lang) {
+        this.targetLanguage = lang || '';
+        if (lang) {
+            localStorage.setItem('echoes_lyrics_target_language', lang);
+            this.isTranslationMode = true;
+        } else {
+            localStorage.removeItem('echoes_lyrics_target_language');
+            this.isTranslationMode = false;
+        }
+    }
+
+    async applyTranslationToElement(amLyrics, track, targetLang) {
+        if (!amLyrics || !track) return;
+        const trackId = track.id;
+
+        // 1. If translation is disabled (targetLang is empty)
+        if (!targetLang) {
+            const cached = this.lyricsCache.get(trackId);
+            if (cached) {
+                const origSubtitles = cached.originalSyncedLyrics || cached.syncedLyrics || cached.plainLyrics;
+                const origTtml = this.generateTTMLContent(
+                    {
+                        ...cached,
+                        subtitles: origSubtitles,
+                        ttml: null,
+                    },
+                    track
+                );
+                if (origTtml) {
+                    amLyrics.setAttribute('ttml', origTtml);
+                }
+            }
+            if ('showTranslation' in amLyrics) {
+                amLyrics.showTranslation = false;
+            }
+            if (typeof amLyrics.requestUpdate === 'function') {
+                amLyrics.requestUpdate();
+            }
+            return;
+        }
+
+        // 2. If translation is requested
+        const cacheKey = `${trackId}_${targetLang}`;
+        let translatedData = this.translationCache.get(cacheKey);
+
+        if (!translatedData) {
+            const currentLyrics = this.lyricsCache.get(trackId) || (await this.fetchLyrics(trackId, track));
+            if (!currentLyrics) return;
+
+            const videoId =
+                track.videoId ||
+                track.ytId ||
+                (track.id && String(track.id).startsWith('yt:') ? track.id.replace(/^yt:/, '') : null);
+
+            // First check if YouTube captions has native/translated subtitles for targetLang
+            try {
+                const queryParams = new URLSearchParams();
+                if (videoId) queryParams.set('id', videoId);
+                const title = getTrackTitle(track);
+                const artist = getTrackArtists(track);
+                if (title) queryParams.set('title', title);
+                if (artist) queryParams.set('artist', artist);
+                queryParams.set('tlang', targetLang);
+
+                const capRes = await fetch(`/api/yt/captions?${queryParams.toString()}`);
+                if (capRes.ok) {
+                    const capData = await capRes.json();
+                    if (capData?.ttml || capData?.syncedLyrics) {
+                        translatedData = {
+                            ttml: capData.ttml,
+                            syncedLyrics: capData.syncedLyrics,
+                            plainLyrics: capData.plainLyrics,
+                            originalSyncedLyrics: capData.originalSyncedLyrics,
+                        };
+                    }
+                }
+            } catch (capErr) {
+                console.warn('[Lyrics] Translate via YT captions failed:', capErr);
+            }
+
+            // Fallback: translate existing lyrics via POST /api/lyrics/translate
+            if (!translatedData && (currentLyrics.syncedLyrics || currentLyrics.plainLyrics || currentLyrics.subtitles)) {
+                try {
+                    const sourceText = currentLyrics.syncedLyrics || currentLyrics.plainLyrics || currentLyrics.subtitles;
+                    const trRes = await fetch('/api/lyrics/translate', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            text: sourceText,
+                            tlang: targetLang,
+                        }),
+                    });
+                    if (trRes.ok) {
+                        const trData = await trRes.json();
+                        if (trData?.translated) {
+                            const origLines = this.parseSyncedLyrics(sourceText);
+                            const transLines = this.parseSyncedLyrics(trData.translated);
+
+                            let ttml = '<?xml version="1.0" encoding="UTF-8"?>\n';
+                            ttml += `<tt xmlns="http://www.w3.org/ns/ttml" xmlns:ttm="http://www.w3.org/ns/ttml#metadata" xmlns:itunes="http://music.apple.com/lyrics" xml:lang="${trData.sourceLanguage || 'en'}">\n`;
+                            ttml += '  <head>\n    <metadata>\n';
+                            ttml += `      <ttm:title>${escapeHtml(getTrackTitle(track))}</ttm:title>\n`;
+                            ttml += `      <translation xml:lang="${targetLang}">\n`;
+                            for (let i = 0; i < transLines.length; i++) {
+                                ttml += `        <text for="cue_${i}">${escapeHtml(transLines[i].text)}</text>\n`;
+                            }
+                            ttml += '      </translation>\n    </metadata>\n  </head>\n  <body>\n    <div>\n';
+                            for (let i = 0; i < origLines.length; i++) {
+                                const cue = origLines[i];
+                                const nextBegin = i + 1 < origLines.length ? origLines[i + 1].time : cue.time + 4;
+                                ttml += `      <p itunes:key="cue_${i}" begin="${this.formatTTMLTime(cue.time)}" end="${this.formatTTMLTime(nextBegin)}"><span>${escapeHtml(cue.text)}</span></p>\n`;
+                            }
+                            ttml += '    </div>\n  </body>\n</tt>';
+
+                            translatedData = {
+                                ttml,
+                                syncedLyrics: trData.translated,
+                                plainLyrics: trData.translated,
+                                originalSyncedLyrics: sourceText,
+                            };
+                        }
+                    }
+                } catch (trErr) {
+                    console.warn('[Lyrics] Translate fallback failed:', trErr);
+                }
+            }
+
+            if (translatedData) {
+                this.translationCache.set(cacheKey, translatedData);
+            }
+        }
+
+        if (translatedData?.ttml) {
+            amLyrics.setAttribute('ttml', translatedData.ttml);
+            if ('showTranslation' in amLyrics) {
+                amLyrics.showTranslation = true;
+            }
+            if (typeof amLyrics.requestUpdate === 'function') {
+                amLyrics.requestUpdate();
+            }
+        }
+    }
+
+    showTranslationPicker(anchorBtn, track, onChange) {
+        if (this.activeTranslatePopover) {
+            this.activeTranslatePopover.remove();
+            this.activeTranslatePopover = null;
+            return;
+        }
+
+        const currentLang = this.targetLanguage || '';
+        const popover = document.createElement('div');
+        popover.className = 'lyrics-translate-popover';
+
+        popover.innerHTML = `
+            <div class="lyrics-translate-header">
+                <span>Translate Lyrics</span>
+                <button class="close-btn" type="button" aria-label="Close">&times;</button>
+            </div>
+            <input type="text" class="lyrics-translate-search" placeholder="Search language..." />
+            <div class="lyrics-translate-options">
+                <button type="button" class="lyrics-translate-opt ${!currentLang ? 'active' : ''}" data-lang="">
+                    <span>Original Language</span>
+                    <span class="lang-code">OFF</span>
+                </button>
+                ${SUPPORTED_TRANSLATION_LANGUAGES.map(
+                    (l) => `
+                    <button type="button" class="lyrics-translate-opt ${currentLang === l.code ? 'active' : ''}" data-lang="${l.code}">
+                        <span>${escapeHtml(l.name)}</span>
+                        <span class="lang-code">${l.code.toUpperCase()}</span>
+                    </button>
+                `
+                ).join('')}
+            </div>
+        `;
+
+        const parent = anchorBtn.closest('.panel-controls') || anchorBtn.parentElement;
+        if (parent) {
+            parent.style.position = 'relative';
+            parent.appendChild(popover);
+        } else {
+            document.body.appendChild(popover);
+        }
+
+        this.activeTranslatePopover = popover;
+
+        const searchInput = popover.querySelector('.lyrics-translate-search');
+        const optButtons = popover.querySelectorAll('.lyrics-translate-opt');
+        searchInput?.addEventListener('input', (e) => {
+            const query = (e.target.value || '').toLowerCase().trim();
+            optButtons.forEach((btn) => {
+                const text = btn.textContent.toLowerCase();
+                btn.style.display = text.includes(query) ? 'flex' : 'none';
+            });
+        });
+
+        popover.querySelector('.close-btn')?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            popover.remove();
+            this.activeTranslatePopover = null;
+        });
+
+        optButtons.forEach((btn) => {
+            btn.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                const selectedLang = btn.getAttribute('data-lang') || '';
+                this.setTranslationLanguage(selectedLang);
+                popover.remove();
+                this.activeTranslatePopover = null;
+
+                const amLyrics = sidePanelManager.panel.querySelector('am-lyrics');
+                if (amLyrics) {
+                    anchorBtn.classList.add('loading-translate');
+                    try {
+                        await this.applyTranslationToElement(amLyrics, track, selectedLang);
+                    } finally {
+                        anchorBtn.classList.remove('loading-translate');
+                    }
+                }
+                if (typeof onChange === 'function') onChange(selectedLang);
+            });
+        });
+
+        const onClickOutside = (e) => {
+            if (!popover.contains(e.target) && e.target !== anchorBtn && !anchorBtn.contains(e.target)) {
+                popover.remove();
+                this.activeTranslatePopover = null;
+                document.removeEventListener('click', onClickOutside);
+            }
+        };
+        setTimeout(() => document.addEventListener('click', onClickOutside), 50);
+    }
 }
 
 export function openLyricsPanel(track, audioPlayer, lyricsManager, forceOpen = false) {
@@ -1177,6 +1488,7 @@ export function openLyricsPanel(track, audioPlayer, lyricsManager, forceOpen = f
     const renderControls = (container) => {
         const isRomajiMode = manager.getRomajiMode();
         manager.isRomajiMode = isRomajiMode;
+        const isTranslationMode = Boolean(manager.targetLanguage);
         const isGeniusMode = manager.isGeniusMode;
         const offsetDisplay = manager.getOffsetDisplayString(manager.timingOffset);
 
@@ -1195,6 +1507,9 @@ export function openLyricsPanel(track, audioPlayer, lyricsManager, forceOpen = f
             </div>
             <button id="romaji-toggle-btn" class="btn-icon" title="Toggle Romaji (Japanese to Latin)" data-enabled="${isRomajiMode}" style="color: ${isRomajiMode ? 'var(--primary)' : ''}">
                 ${SVG_GLOBE(20)}
+            </button>
+            <button id="lyrics-translate-btn" class="btn-icon ${isTranslationMode ? 'active-translate' : ''}" title="Translate Lyrics (Auto-detect & Multi-language)" data-enabled="${isTranslationMode}" style="color: ${isTranslationMode ? 'var(--primary)' : ''}">
+                ${SVG_LANGUAGES(20)}
             </button>
             <button id="genius-toggle-btn" class="btn-icon ${isGeniusMode ? 'active-genius' : ''}" title="Genius Mode" style="${isGeniusMode ? 'color: #ffff64;' : ''}">
                 ${isGeniusMode ? SVG_GENIUS_ACTIVE(20) : SVG_GENIUS_INACTIVE(20)}
@@ -1251,6 +1566,28 @@ export function openLyricsPanel(track, audioPlayer, lyricsManager, forceOpen = f
                     await manager.toggleRomajiMode(amLyrics);
                     updateRomajiBtn();
                 }
+            });
+        }
+
+        // Translation button handler
+        const translateBtn = container.querySelector('#lyrics-translate-btn');
+        if (translateBtn) {
+            const updateTranslateBtn = () => {
+                const enabled = Boolean(manager.targetLanguage);
+                translateBtn.setAttribute('data-enabled', enabled);
+                translateBtn.classList.toggle('active-translate', enabled);
+                translateBtn.style.color = enabled ? 'var(--primary)' : '';
+                translateBtn.title = enabled
+                    ? `Translated to: ${manager.targetLanguage.toUpperCase()} (Click to change/disable)`
+                    : 'Translate Lyrics (Every language with synced translation)';
+            };
+            updateTranslateBtn();
+
+            translateBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                manager.showTranslationPicker(translateBtn, track, () => {
+                    updateTranslateBtn();
+                });
             });
         }
 
@@ -1542,10 +1879,13 @@ async function renderLyricsComponent(container, track, audioPlayer, lyricsManage
         if (!hasRenderedLyrics()) {
             try {
                 const lyricsData = await lyricsManager.fetchLyrics(track.id, track);
-                if (lyricsData && (lyricsData.syncedLyrics || lyricsData.plainLyrics || lyricsData.subtitles)) {
-                    const ttml = lyricsManager.generateTTMLContent(lyricsData, track);
+                if (lyricsData && (lyricsData.syncedLyrics || lyricsData.plainLyrics || lyricsData.subtitles || lyricsData.ttml)) {
+                    const ttml = lyricsData.ttml || lyricsManager.generateTTMLContent(lyricsData, track);
                     if (ttml && lyricsManager.currentTrackId === track.id) {
                         amLyrics.setAttribute('ttml', ttml);
+                        if (lyricsData.isTranslated || lyricsData.targetLanguage) {
+                            if ('showTranslation' in amLyrics) amLyrics.showTranslation = true;
+                        }
                         // Wait for am-lyrics to parse and apply the TTML
                         await new Promise((r) => setTimeout(r, 350));
                     }
@@ -1585,6 +1925,10 @@ async function renderLyricsComponent(container, track, audioPlayer, lyricsManage
 
         if (lyricsManager.isGeniusMode && lyricsManager.currentGeniusData) {
             lyricsManager.applyGeniusAnnotations(amLyrics, lyricsManager.currentGeniusData.referents);
+        }
+
+        if (lyricsManager.isTranslationMode && lyricsManager.targetLanguage) {
+            lyricsManager.applyTranslationToElement(amLyrics, track, lyricsManager.targetLanguage).catch(console.warn);
         }
 
         const cleanup = setupSync(track, audioPlayer, amLyrics, lyricsManager);

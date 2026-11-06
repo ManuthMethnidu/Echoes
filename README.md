@@ -56,15 +56,15 @@ Every star helps more music listeners discover an ad-free, high-fidelity alterna
 
 ## Hall of Fame and Contributors
 
-Echoes is developed with immense pride as a 100% free, community-powered open-source project. Immense gratitude to every engineer, designer, translator, and supporter who has contributed code, fixes, and ideas along the journey:
+Echoes is developed with immense pride as a 100% free, community-powered open-source project. Immense gratitude to the engineers and supporters directly contributing to the Echoes repository:
 
-<p align="center">
-  <a href="https://github.com/ManuthMethnidu/Echoes/graphs/contributors">
-    <img src="https://contrib.rocks/image?repo=ManuthMethnidu/Echoes" alt="Echoes Contributors" />
-  </a>
-</p>
+| Contributor | Role & Contributions | GitHub Profile |
+| :--- | :--- | :--- |
+| <a href="https://github.com/ManuthMethnidu"><img src="https://avatars.githubusercontent.com/u/106135415?v=4&s=80" width="44" height="44" style="border-radius: 50%;" /></a><br><strong>Manuth Methnidu</strong> | **Creator & Lead Architect**<br>Audio DSP engine, Neon Postgres sync, Cloudflare DO Connect, YouTube captions & lyrics translation | [@ManuthMethnidu](https://github.com/ManuthMethnidu) |
+| <a href="https://github.com/nyxv3il"><img src="https://avatars.githubusercontent.com/u/83386286?v=4&s=80" width="44" height="44" style="border-radius: 50%;" /></a><br><strong>NYX</strong> | **Security Contributor**<br>Security hardening, API input sanitization, and serverless edge fixes | [@nyxv3il](https://github.com/nyxv3il) |
 
-We welcome contributions of all forms—bug reports, pull requests, lyrics source integrations, audio DSP improvements, and documentation enhancements. Check out our [GitHub Issues](https://github.com/ManuthMethnidu/Echoes/issues) or submit a pull request!
+### Become an Echoes Contributor
+We warmly welcome contributions of all forms—bug reports, pull requests, lyrics source integrations, audio DSP improvements, and theme additions. Check out our [GitHub Issues](https://github.com/ManuthMethnidu/Echoes/issues) or submit a [Pull Request](https://github.com/ManuthMethnidu/Echoes/pulls) to join the Hall of Fame!
 
 ---
 

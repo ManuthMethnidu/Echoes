@@ -28,6 +28,7 @@ import ytUserPlaylistsHandler from './_handlers/yt/user-playlists.js';
 import ytUserPlaylistTracksHandler from './_handlers/yt/user-playlist-tracks.js';
 import ytProxyStreamHandler from './_handlers/yt/proxy-stream.js';
 import ytDownloadHandler from './_handlers/yt/download.js';
+import ytLyricsHandler from './_handlers/yt/lyrics.js';
 import importSpotifyHandler from './_handlers/import/spotify.js';
 import userProfileHandler from './_handlers/users/[username].js';
 import usersSearchHandler from './_handlers/users/search.js';
@@ -68,6 +69,7 @@ const STATIC_ROUTES: Record<string, ApiHandler> = {
     'yt/user-playlist-tracks': ytUserPlaylistTracksHandler,
     'yt/proxy-stream': ytProxyStreamHandler,
     'yt/download': ytDownloadHandler,
+    'yt/lyrics': ytLyricsHandler,
     'import/spotify': importSpotifyHandler,
     'users/search': usersSearchHandler,
     'search/users': usersSearchHandler,

@@ -10,9 +10,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     try {
-        const { token, newPassword } = req.body || {};
-        if (!token || typeof token !== 'string') {
-            return res.status(400).json({ error: { message: 'Valid token is required' } });
+        const { token, otp, email, newPassword } = req.body || {};
+        const code = otp || (typeof token === 'string' && /^\d{6}$/.test(token.trim()) ? token.trim() : null);
+
+        if (!token && !code) {
+            return res.status(400).json({ error: { message: 'Valid token or OTP code is required' } });
         }
 
         const passCheck = sanitizePassword(newPassword);
@@ -34,6 +36,48 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 },
             });
         }
+
+        // Branch A: Reset via 6-digit Email OTP from Neon Better Auth
+        if (code && email) {
+            try {
+                const neonRes = await fetch(
+                    'https://ep-small-mouse-a11jp1gr.neonauth.ap-southeast-1.aws.neon.tech/neondb/auth/email-otp/reset-password',
+                    {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            email: String(email).trim().toLowerCase(),
+                            otp: code,
+                            password: newPassword,
+                        }),
+                    }
+                );
+
+                if (!neonRes.ok) {
+                    const neonErr = await neonRes.json().catch(() => ({}));
+                    return res.status(400).json({
+                        error: { message: neonErr.message || 'Invalid or expired verification code' },
+                    });
+                }
+
+                const newPasswordHash = await hashPassword(newPassword);
+                await sql`
+                    UPDATE users
+                    SET password_hash = ${newPasswordHash}, updated_at = NOW()
+                    WHERE email = ${String(email).trim().toLowerCase()}
+                `;
+
+                return res.status(200).json({
+                    status: true,
+                    message: 'Password reset successfully. You can now sign in with your new password.',
+                });
+            } catch (err: any) {
+                console.error('[Neon Auth OTP Reset Error]', err);
+                return res.status(500).json({ error: { message: err.message || 'OTP reset failed' } });
+            }
+        }
+
+        // Branch B: Reset via signed HMAC URL token
 
         const tokenPayload = await verifyPasswordResetToken(token);
         if (!tokenPayload || !tokenPayload.id) {

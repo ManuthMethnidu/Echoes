@@ -665,6 +665,37 @@ export class LyricsManager {
                 }
             }
 
+            // 5. Try YouTube Music fallback (synced or plain from Musixmatch/LyricFind)
+            if (!foundData || (!foundData.syncedLyrics && !foundData.plainLyrics)) {
+                try {
+                    const videoId =
+                        track.videoId ||
+                        track.ytId ||
+                        (track.id && String(track.id).startsWith('yt:') ? track.id.replace(/^yt:/, '') : null);
+                    const primary = candidates[0] || {};
+                    const queryParams = new URLSearchParams();
+                    if (videoId) queryParams.set('id', videoId);
+                    if (primary.title) queryParams.set('title', primary.title);
+                    if (primary.artist) queryParams.set('artist', primary.artist);
+
+                    if (videoId || primary.title) {
+                        const ytRes = await fetch(`/api/yt/lyrics?${queryParams.toString()}`);
+                        if (ytRes.ok) {
+                            const ytData = await ytRes.json();
+                            if (ytData?.syncedLyrics || ytData?.plainLyrics) {
+                                foundData = {
+                                    syncedLyrics: ytData.syncedLyrics || null,
+                                    plainLyrics: ytData.plainLyrics || null,
+                                    lyricsProvider: ytData.lyricsProvider || 'YouTube Music',
+                                };
+                            }
+                        }
+                    }
+                } catch (e) {
+                    console.warn('[Lyrics] YouTube fallback failed:', e);
+                }
+            }
+
             if (foundData && (foundData.syncedLyrics || foundData.plainLyrics)) {
                 const subtitles = foundData.syncedLyrics || foundData.plainLyrics;
                 const lyricsData = {

@@ -2636,6 +2636,83 @@ export class UIRenderer {
 
         if (this.fullscreenUpdateInterval) cancelAnimationFrame(this.fullscreenUpdateInterval);
         this.fullscreenUpdateInterval = requestAnimationFrame(update);
+
+        // TV Remote Control D-Pad navigation for Fullscreen
+        if (!this._tvRemoteBound) {
+            this._tvRemoteBound = true;
+            window.addEventListener('keydown', (e) => {
+                const overlay = document.getElementById('fullscreen-cover-overlay');
+                if (!overlay || overlay.style.display === 'none') return;
+                if (e.target && e.target.matches('input, textarea, [contenteditable="true"]')) return;
+
+                const keyCode = e.keyCode || e.which;
+                const key = e.key;
+
+                // Tizen / webOS / Standard TV back keys
+                if (key === 'Escape' || key === 'GoBack' || keyCode === 10009 || keyCode === 461 || keyCode === 27) {
+                    e.preventDefault();
+                    this.dismissFullscreenCover();
+                    return;
+                }
+
+                // D-Pad Left: Seek back 5 seconds
+                if (key === 'ArrowLeft' || keyCode === 37) {
+                    e.preventDefault();
+                    if (this.player) {
+                        const cur = this.player.currentTime || 0;
+                        this.player.seek(Math.max(0, cur - 5));
+                    }
+                    return;
+                }
+
+                // D-Pad Right: Seek forward 5 seconds
+                if (key === 'ArrowRight' || keyCode === 39) {
+                    e.preventDefault();
+                    if (this.player) {
+                        const cur = this.player.currentTime || 0;
+                        const dur = this.player.duration || 0;
+                        this.player.seek(Math.min(dur, cur + 5));
+                    }
+                    return;
+                }
+
+                // D-Pad Up: Volume up 5%
+                if (key === 'ArrowUp' || keyCode === 38) {
+                    e.preventDefault();
+                    if (this.player) {
+                        const vol = Math.min(1, (this.player.volume ?? 1) + 0.05);
+                        this.player.setVolume(vol);
+                    }
+                    return;
+                }
+
+                // D-Pad Down: Volume down 5%
+                if (key === 'ArrowDown' || keyCode === 40) {
+                    e.preventDefault();
+                    if (this.player) {
+                        const vol = Math.max(0, (this.player.volume ?? 1) - 0.05);
+                        this.player.setVolume(vol);
+                    }
+                    return;
+                }
+
+                // OK / Enter / Space / MediaPlayPause: Toggle Play/Pause
+                if (
+                    key === 'Enter' ||
+                    key === ' ' ||
+                    key === 'MediaPlayPause' ||
+                    keyCode === 13 ||
+                    keyCode === 32 ||
+                    keyCode === 10252
+                ) {
+                    e.preventDefault();
+                    if (this.player) {
+                        this.player.togglePlay();
+                    }
+                    return;
+                }
+            });
+        }
     }
 
     async showPage(pageId) {

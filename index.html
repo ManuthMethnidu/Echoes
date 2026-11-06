@@ -656,43 +656,57 @@
                 <h3>Edit Profile</h3>
                 <div style="margin-bottom: 1rem">
                     <label style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem">Username</label>
-                    <input type="text" id="edit-profile-username" class="template-input" placeholder="username" />
+                    <input type="text" id="edit-profile-username" class="template-input" placeholder="username" maxlength="40" />
                     <p
                         id="username-error"
                         style="color: #ef4444; font-size: 0.8rem; display: none; margin-top: 0.25rem"
                     ></p>
                 </div>
                 <div style="margin-bottom: 1rem">
-                    <label style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem">Display Name</label>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem">
+                        <label style="font-size: 0.9rem">Display Name</label>
+                        <span id="edit-profile-display-name-count" style="font-size: 0.75rem; color: var(--muted-foreground)">0/60</span>
+                    </div>
                     <input
                         type="text"
                         id="edit-profile-display-name"
                         class="template-input"
                         placeholder="Display Name"
+                        maxlength="60"
                     />
                 </div>
                 <div style="margin-bottom: 1rem">
                     <label style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem">Avatar URL</label>
-                    <input
-                        type="url"
-                        id="edit-profile-avatar"
-                        class="template-input"
-                        placeholder="https://example.com/avatar.jpg"
-                    />
+                    <div style="display: flex; gap: 0.5rem">
+                        <input
+                            type="url"
+                            id="edit-profile-avatar"
+                            class="template-input"
+                            placeholder="https://example.com/avatar.jpg"
+                            style="flex: 1"
+                        />
+                        <button type="button" id="edit-profile-avatar-upload-btn" class="btn-secondary" style="white-space: nowrap; padding: 0.4rem 0.8rem; font-size: 0.85rem">Upload</button>
+                        <input type="file" id="edit-profile-avatar-file" accept="image/*" style="display: none" />
+                    </div>
                     <p style="color: var(--muted-foreground); font-size: 0.75rem; margin-top: 0.25rem">
-                        Direct HTTP or HTTPS image URL only.
+                        Direct HTTP/HTTPS image URL or upload image (auto-compressed for cloud sync).
                     </p>
                 </div>
                 <div style="margin-bottom: 1rem">
                     <label style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem">Banner URL</label>
-                    <input
-                        type="url"
-                        id="edit-profile-banner"
-                        class="template-input"
-                        placeholder="https://example.com/banner.jpg"
-                    />
+                    <div style="display: flex; gap: 0.5rem">
+                        <input
+                            type="url"
+                            id="edit-profile-banner"
+                            class="template-input"
+                            placeholder="https://example.com/banner.jpg"
+                            style="flex: 1"
+                        />
+                        <button type="button" id="edit-profile-banner-upload-btn" class="btn-secondary" style="white-space: nowrap; padding: 0.4rem 0.8rem; font-size: 0.85rem">Upload</button>
+                        <input type="file" id="edit-profile-banner-file" accept="image/*" style="display: none" />
+                    </div>
                     <p style="color: var(--muted-foreground); font-size: 0.75rem; margin-top: 0.25rem">
-                        Direct HTTP or HTTPS image URL only.
+                        Direct HTTP/HTTPS image URL or upload image (auto-compressed for cloud sync).
                     </p>
                 </div>
                 <div style="margin-bottom: 1rem">
@@ -776,21 +790,25 @@
                     </div>
                 </div>
                 <div style="margin-bottom: 1rem">
-                    <label style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem">About Me</label>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem">
+                        <label style="font-size: 0.9rem">About Me</label>
+                        <span id="edit-profile-about-count" style="font-size: 0.75rem; color: var(--muted-foreground)">0/1000</span>
+                    </div>
                     <textarea
                         id="edit-profile-about"
                         class="template-input"
                         style="resize: vertical; min-height: 80px"
                         placeholder="Tell us about yourself"
+                        maxlength="1000"
                     ></textarea>
                 </div>
                 <div style="margin-bottom: 1rem">
                     <label style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem">Website</label>
-                    <input type="url" id="edit-profile-website" class="template-input" placeholder="https://..." />
+                    <input type="url" id="edit-profile-website" class="template-input" placeholder="https://..." maxlength="150" />
                 </div>
                 <div style="margin-bottom: 1rem">
                     <label style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem">Last.fm Username</label>
-                    <input type="text" id="edit-profile-lastfm" class="template-input" placeholder="Last.fm Username" />
+                    <input type="text" id="edit-profile-lastfm" class="template-input" placeholder="Last.fm Username" maxlength="50" />
                     <p style="font-size: 0.8rem; color: var(--muted-foreground); margin-top: 0.5rem; line-height: 1.5">
                         Integrating Last.fm enables recent activity and top stats on your profile. Authorize it in
                         <strong>Settings &gt; Scrobbling</strong>. Note: Last.fm authorization is stored locally and

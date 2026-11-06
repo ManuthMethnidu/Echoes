@@ -625,6 +625,53 @@ export const fullscreenCoverNoRoundSettings = {
     },
 };
 
+export const tvModeSettings = {
+    STORAGE_KEY: 'echos-tv-mode-enabled',
+    BODY_CLASS: 'is-tv-device',
+
+    isDetected() {
+        if (typeof navigator === 'undefined') return false;
+        return /SmartTV|Smart-TV|Tizen|Web0S|NetCast|GoogleTV|AppleTV|HbbTV|BRAVIA|Viera|Roku|LargeScreen/i.test(
+            navigator.userAgent
+        );
+    },
+
+    isEnabled() {
+        try {
+            const stored = localStorage.getItem(this.STORAGE_KEY);
+            if (stored !== null) return stored === 'true';
+            return this.isDetected();
+        } catch {
+            return this.isDetected();
+        }
+    },
+
+    apply() {
+        if (typeof document === 'undefined') return;
+        const enabled = this.isEnabled();
+        document.body?.classList.toggle(this.BODY_CLASS, enabled);
+        document.documentElement?.classList.toggle(this.BODY_CLASS, enabled);
+        if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('tv-mode-changed', { detail: { enabled } }));
+        }
+    },
+
+    setEnabled(enabled) {
+        try {
+            localStorage.setItem(this.STORAGE_KEY, enabled ? 'true' : 'false');
+        } catch {}
+        this.apply();
+    },
+};
+
+if (typeof document !== 'undefined') {
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => tvModeSettings.apply());
+    } else {
+        tvModeSettings.apply();
+    }
+}
+
 export const fullscreenCoverVanillaTiltSettings = {
     STORAGE_KEY: 'fullscreen-cover-vanilla-tilt',
 

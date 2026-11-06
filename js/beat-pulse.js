@@ -18,6 +18,11 @@ export class BeatPulseManager {
     }
 
     start(cardElement, overlayElement, audioElement) {
+        // Skip audio beat pulsing on TV devices to preserve low-power CPU/GPU
+        if (typeof document !== 'undefined' && document.body?.classList.contains('is-tv-device')) {
+            return;
+        }
+
         this.card = cardElement || document.getElementById('fullscreen-artwork-card');
         this.overlay = overlayElement || document.getElementById('fullscreen-cover-overlay');
         const effectiveAudio =

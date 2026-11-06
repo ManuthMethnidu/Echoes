@@ -3,6 +3,35 @@
  * Protects against XSS, SQLi/parameter abuse, SSRF, DoS/payload bloat, Header Injection, etc.
  */
 
+// Check text for profanity, slurs, or vulgar abuse (with leetspeak normalization)
+export function containsProfanity(val: unknown): boolean {
+    if (!val || typeof val !== 'string') return false;
+    const str = val.trim();
+    if (!str) return false;
+
+    // Direct check on raw input
+    const directPattern = /\b(?:nigg[aer]|fagg?ot|cunt|kike|chink|spic|whore|slut|retard|bitch|fuck(?:er|ing)?|shit(?:head)?|pussy|dickhead|cock(?:sucker)?)\b/i;
+    if (directPattern.test(str)) return true;
+
+    // Leetspeak normalized check (strips punctuation and space bypasses)
+    const normalized = str
+        .toLowerCase()
+        .replace(/[@4]/g, 'a')
+        .replace(/[1!|]/g, 'i')
+        .replace(/[0]/g, 'o')
+        .replace(/[$5]/g, 's')
+        .replace(/[3]/g, 'e')
+        .replace(/[7+]/g, 't')
+        .replace(/[\s._\-*/\\]+/g, '');
+
+    const BAD_STEMS = [
+        'nigger', 'nigga', 'faggot', 'kike', 'chink', 'spic', 'cunt',
+        'retard', 'whore', 'slut', 'bitch', 'fuck', 'shit', 'pussy', 'dickhead'
+    ];
+
+    return BAD_STEMS.some((bad) => normalized.includes(bad));
+}
+
 // Strip null bytes and non-printable control characters (except standard whitespace \t, \n, \r)
 export function sanitizeString(val: unknown, maxLength = 255): string {
     if (val === null || val === undefined) return '';

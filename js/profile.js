@@ -33,6 +33,107 @@ const privacyLastfm = document.getElementById('privacy-lastfm-toggle');
 const saveProfileBtn = document.getElementById('edit-profile-save');
 const cancelProfileBtn = document.getElementById('edit-profile-cancel');
 const usernameError = document.getElementById('username-error');
+const displayNameCount = document.getElementById('edit-profile-display-name-count');
+const aboutCount = document.getElementById('edit-profile-about-count');
+const avatarUploadBtn = document.getElementById('edit-profile-avatar-upload-btn');
+const avatarFileInput = document.getElementById('edit-profile-avatar-file');
+const bannerUploadBtn = document.getElementById('edit-profile-banner-upload-btn');
+const bannerFileInput = document.getElementById('edit-profile-banner-file');
+
+function updateCharCounters() {
+    if (displayNameCount && editDisplayName) {
+        displayNameCount.textContent = `${editDisplayName.value.length}/60`;
+    }
+    if (aboutCount && editAbout) {
+        aboutCount.textContent = `${editAbout.value.length}/1000`;
+    }
+}
+
+if (editDisplayName) editDisplayName.addEventListener('input', updateCharCounters);
+if (editAbout) editAbout.addEventListener('input', updateCharCounters);
+
+// Downscale and compress image to lightweight WebP (~20KB-30KB) before saving to protect DB quota
+async function downscaleImage(file, maxWidth, maxHeight, quality = 0.78) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const img = new Image();
+            img.onload = () => {
+                let w = img.width;
+                let h = img.height;
+                if (w > maxWidth || h > maxHeight) {
+                    const ratio = Math.min(maxWidth / w, maxHeight / h);
+                    w = Math.round(w * ratio);
+                    h = Math.round(h * ratio);
+                }
+                const canvas = document.createElement('canvas');
+                canvas.width = w;
+                canvas.height = h;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, w, h);
+                try {
+                    resolve(canvas.toDataURL('image/webp', quality));
+                } catch {
+                    resolve(canvas.toDataURL('image/jpeg', quality));
+                }
+            };
+            img.onerror = reject;
+            img.src = e.target.result;
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+    });
+}
+
+async function uploadCompressedImage(file, maxWidth, maxHeight, targetInput, buttonEl) {
+    if (!file) return;
+    const oldText = buttonEl ? buttonEl.textContent : '';
+    if (buttonEl) {
+        buttonEl.disabled = true;
+        buttonEl.textContent = 'Uploading...';
+    }
+
+    try {
+        const compressedBase64 = await downscaleImage(file, maxWidth, maxHeight);
+        const res = await fetch('/api/upload/image', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ image: compressedBase64 }),
+        });
+        const data = await res.json();
+        if (res.ok && data.url) {
+            targetInput.value = data.url;
+        } else {
+            alert('Upload failed: ' + (data.error || 'Server error'));
+        }
+    } catch (err) {
+        console.error('Image upload failed', err);
+        alert('Failed to upload image. Please try again or use an external URL.');
+    } finally {
+        if (buttonEl) {
+            buttonEl.disabled = false;
+            buttonEl.textContent = oldText;
+        }
+    }
+}
+
+if (avatarUploadBtn && avatarFileInput) {
+    avatarUploadBtn.addEventListener('click', () => avatarFileInput.click());
+    avatarFileInput.addEventListener('change', (e) => {
+        const file = e.target.files?.[0];
+        if (file) uploadCompressedImage(file, 450, 450, editAvatar, avatarUploadBtn);
+        e.target.value = '';
+    });
+}
+
+if (bannerUploadBtn && bannerFileInput) {
+    bannerUploadBtn.addEventListener('click', () => bannerFileInput.click());
+    bannerFileInput.addEventListener('change', (e) => {
+        const file = e.target.files?.[0];
+        if (file) uploadCompressedImage(file, 900, 300, editBanner, bannerUploadBtn);
+        e.target.value = '';
+    });
+}
 
 let currentFavoriteAlbums = [];
 const api = new MusicAPI(apiSettings);
@@ -494,9 +595,30 @@ export async function openEditProfile() {
         privacyPlaylists.checked = p.privacy?.playlists !== 'private';
         privacyLastfm.checked = p.privacy?.lastfm !== 'private';
 
+        updateCharCounters();
         editProfileModal.classList.add('active');
     });
 }
+
+const checkProfanity = (str) => {
+    if (!str || typeof str !== 'string') return false;
+    const directPattern = /\b(?:nigg[aer]|fagg?ot|cunt|kike|chink|spic|whore|slut|retard|bitch|fuck(?:er|ing)?|shit(?:head)?|pussy|dickhead|cock(?:sucker)?)\b/i;
+    if (directPattern.test(str)) return true;
+    const normalized = str
+        .toLowerCase()
+        .replace(/[@4]/g, 'a')
+        .replace(/[1!|]/g, 'i')
+        .replace(/[0]/g, 'o')
+        .replace(/[$5]/g, 's')
+        .replace(/[3]/g, 'e')
+        .replace(/[7+]/g, 't')
+        .replace(/[\s._\-*/\\]+/g, '');
+    const BAD_STEMS = [
+        'nigger', 'nigga', 'faggot', 'kike', 'chink', 'spic', 'cunt',
+        'retard', 'whore', 'slut', 'bitch', 'fuck', 'shit', 'pussy', 'dickhead'
+    ];
+    return BAD_STEMS.some((bad) => normalized.includes(bad));
+};
 
 async function saveProfile() {
     const newUsername = editUsername.value.trim().replace(/^@/, '');
@@ -508,6 +630,23 @@ async function saveProfile() {
     if (!/^[a-zA-Z0-9_.-]{1,40}$/.test(newUsername)) {
         usernameError.textContent = 'Username must be 1-40 characters (letters, numbers, dots, hyphens, underscores)';
         usernameError.style.display = 'block';
+        return;
+    }
+    if (checkProfanity(newUsername)) {
+        usernameError.textContent = 'Username contains prohibited words';
+        usernameError.style.display = 'block';
+        return;
+    }
+
+    const displayNameVal = editDisplayName.value.trim();
+    if (checkProfanity(displayNameVal)) {
+        alert('Display Name contains prohibited words.');
+        return;
+    }
+
+    const aboutVal = editAbout.value.trim();
+    if (checkProfanity(aboutVal)) {
+        alert('About section contains prohibited words.');
         return;
     }
 

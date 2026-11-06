@@ -11200,7 +11200,8 @@ body:has(#side-panel.active) #close-fullscreen-cover-btn {
 }
 
 #fullscreen-cover-overlay .fullscreen-artwork-card {
-    width: min(420px, 100%);
+    width: min(420px, 44vh, 100%);
+    height: min(420px, 44vh);
     aspect-ratio: 1 / 1;
     border-radius: 20px;
     overflow: hidden;
@@ -12787,5 +12788,96 @@ body.sidebar-collapsed #sidebar-nav-donate {
         transform: scale(1) translateY(0);
     }
 }
+
+/* ==========================================================================
+   TV Mode Optimization (Zero-Lag TV Fullscreen & Performance Overrides)
+   ========================================================================== */
+
+body.is-tv-device #fullscreen-cover-overlay {
+    background: #08090b !important;
+}
+
+body.is-tv-device #fullscreen-cover-overlay::before,
+body.is-tv-device #fullscreen-cover-overlay::after {
+    display: none !important;
+}
+
+body.is-tv-device #visualizer-container {
+    display: none !important;
+}
+
+body.is-tv-device #fullscreen-cover-overlay,
+body.is-tv-device #fullscreen-cover-overlay * {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+
+/* TV Artwork Card: Explicit pixel & vh sizing prevents aspect-ratio stretching */
+body.is-tv-device #fullscreen-cover-overlay .fullscreen-artwork-card {
+    width: min(440px, 46vh) !important;
+    height: min(440px, 46vh) !important;
+    max-width: 440px !important;
+    max-height: 46vh !important;
+    aspect-ratio: 1 / 1 !important;
+    border-radius: 20px !important;
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.75) !important;
+    will-change: auto !important;
+    transition: none !important;
+}
+
+body.is-tv-device #fullscreen-cover-overlay #fullscreen-cover-image {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+    border-radius: 20px !important;
+    transition: none !important;
+}
+
+/* TV Centering when lyrics are hidden or unavailable */
+body.is-tv-device #fullscreen-cover-overlay.lyrics-unavailable .fullscreen-main-view,
+body.is-tv-device #fullscreen-cover-overlay.lyrics-hidden .fullscreen-main-view {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    text-align: center !important;
+    gap: 1.5rem !important;
+}
+
+body.is-tv-device #fullscreen-cover-overlay.lyrics-unavailable .fullscreen-lyrics-pane,
+body.is-tv-device #fullscreen-cover-overlay.lyrics-hidden .fullscreen-lyrics-pane {
+    display: none !important;
+}
+
+body.is-tv-device #fullscreen-cover-overlay.lyrics-unavailable .fullscreen-media-column,
+body.is-tv-device #fullscreen-cover-overlay.lyrics-hidden .fullscreen-media-column {
+    width: 100% !important;
+    max-width: 480px !important;
+    align-items: center !important;
+    transform: none !important;
+}
+
+body.is-tv-device #fullscreen-cover-overlay.lyrics-unavailable .fullscreen-track-info,
+body.is-tv-device #fullscreen-cover-overlay.lyrics-hidden .fullscreen-track-info {
+    text-align: center !important;
+    width: 100% !important;
+}
+
+body.is-tv-device #fullscreen-cover-overlay.lyrics-unavailable .fullscreen-controls,
+body.is-tv-device #fullscreen-cover-overlay.lyrics-hidden .fullscreen-controls {
+    justify-content: center !important;
+    margin: 0 auto !important;
+}
+
+/* High-contrast focus state for TV Remote D-Pad navigation */
+body.is-tv-device #fullscreen-cover-overlay .control-btn:focus-visible,
+body.is-tv-device #fullscreen-cover-overlay button:focus-visible,
+body.is-tv-device button:focus-visible,
+body.is-tv-device a:focus-visible {
+    outline: 3px solid #ffffff !important;
+    outline-offset: 4px !important;
+    transform: scale(1.08) !important;
+}
+
 
 

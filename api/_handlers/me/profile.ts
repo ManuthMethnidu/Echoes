@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getDb, ensureSchema } from '../../_lib/db.js';
 import { getAuthenticatedUser } from '../../_lib/auth.js';
-import { sanitizeString, sanitizeAvatarUrl, sanitizeUrl } from '../../_lib/sanitize.js';
+import { sanitizeString, sanitizeAvatarUrl, sanitizeUrl, containsProfanity } from '../../_lib/sanitize.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method !== 'PATCH' && req.method !== 'POST') {
@@ -30,6 +30,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             librefm_username,
             favorite_albums,
         } = body;
+
+        // Validate profanity/bad words
+        if (display_name && containsProfanity(display_name)) {
+            return res.status(400).json({ error: 'Display name contains prohibited language' });
+        }
+        if (about && containsProfanity(about)) {
+            return res.status(400).json({ error: 'About me contains prohibited language' });
+        }
+        if (status && containsProfanity(status)) {
+            return res.status(400).json({ error: 'Status contains prohibited language' });
+        }
 
         // Enforce URL-only avatar validation
         let cleanAvatarUrl: string | null | undefined = undefined;

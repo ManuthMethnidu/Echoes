@@ -407,7 +407,7 @@ async function openEditTrackArtworkModal(track, _ui, player, api) {
             const img = new Image();
             img.onload = () => {
                 let { width, height } = img;
-                const maxDim = 800;
+                const maxDim = 450;
                 if (width > maxDim || height > maxDim) {
                     if (width > height) {
                         height = Math.round((height * maxDim) / width);
@@ -423,9 +423,9 @@ async function openEditTrackArtworkModal(track, _ui, player, api) {
                 const ctx = canvas.getContext('2d');
                 ctx.drawImage(img, 0, 0, width, height);
                 try {
-                    pendingDataUrl = canvas.toDataURL('image/webp', 0.88);
+                    pendingDataUrl = canvas.toDataURL('image/webp', 0.78);
                 } catch {
-                    pendingDataUrl = canvas.toDataURL('image/jpeg', 0.88);
+                    pendingDataUrl = canvas.toDataURL('image/jpeg', 0.82);
                 }
                 if (previewEl) previewEl.src = pendingDataUrl;
                 if (urlInput) urlInput.value = '';

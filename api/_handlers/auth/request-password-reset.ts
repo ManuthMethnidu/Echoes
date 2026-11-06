@@ -117,12 +117,34 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 </html>
         `;
 
-        await sendEmail({
-            to: userRow.email,
-            subject: 'Reset your Echoes password',
-            html: emailHtml,
-            text: `Hi ${userRow.name || 'there'},\n\nWe received a request to reset your password. Use the link below to choose a new password:\n\n${resetUrl}\n\nThis link will expire in 1 hour. If you did not request this, you can ignore this email.`,
-        });
+        let emailSent = false;
+        if (process.env.RESEND_API_KEY) {
+            const emailResult = await sendEmail({
+                to: userRow.email,
+                subject: 'Reset your Echoes password',
+                html: emailHtml,
+                text: `Hi ${userRow.name || 'there'},\n\nWe received a request to reset your password. Use the link below to choose a new password:\n\n${resetUrl}\n\nThis link will expire in 1 hour. If you did not request this, you can ignore this email.`,
+            });
+            emailSent = Boolean(emailResult?.success);
+        }
+
+        // If no custom Resend API key configured, use Neon's Better Auth shared email service!
+        if (!emailSent) {
+            try {
+                const neonAuthUrl =
+                    'https://ep-small-mouse-a11jp1gr.neonauth.ap-southeast-1.aws.neon.tech/neondb/auth/email-otp/send-verification-otp';
+                const neonRes = await fetch(neonAuthUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: userRow.email, type: 'forget-password' }),
+                });
+                if (neonRes.ok) {
+                    emailSent = true;
+                }
+            } catch (neonErr) {
+                console.warn('[Neon Auth Email OTP Fallback Failed]', neonErr);
+            }
+        }
 
         return res.status(200).json({
             status: true,

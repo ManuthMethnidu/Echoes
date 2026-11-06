@@ -15,17 +15,36 @@ export async function sendEmail(options: SendEmailOptions): Promise<{ success: b
     if (resendApiKey) {
         try {
             const resend = new Resend(resendApiKey);
-            // Default to 'Echoes <onboarding@resend.dev>' for unverified accounts,
-            // or process.env.EMAIL_FROM (e.g. 'Echoes <notifications@mteck.tech>') once domain is verified.
-            const from = process.env.EMAIL_FROM || 'Echoes <onboarding@resend.dev>';
+            // Default to 'Echoes <noreply@mteck.tech>' since mteck.tech is configured in Resend,
+            // or use custom EMAIL_FROM environment variable if defined in Vercel.
+            let from = process.env.EMAIL_FROM || 'Echoes <noreply@mteck.tech>';
             
-            const { data, error } = await resend.emails.send({
+            let { data, error } = await resend.emails.send({
                 from,
                 to: [options.to],
                 subject: options.subject,
                 html: options.html,
                 text: options.text,
             });
+
+            // If custom domain is not yet verified in Resend, try onboarding@resend.dev fallback
+            if (error && from !== 'Echoes <onboarding@resend.dev>') {
+                const errLower = (error.message || '').toLowerCase();
+                if (errLower.includes('domain') || errLower.includes('not verified') || errLower.includes('unverified')) {
+                    console.warn(`[Resend Domain Warning] ${from} not ready yet, attempting fallback...`);
+                    const fallbackResult = await resend.emails.send({
+                        from: 'Echoes <onboarding@resend.dev>',
+                        to: [options.to],
+                        subject: options.subject,
+                        html: options.html,
+                        text: options.text,
+                    });
+                    if (!fallbackResult.error) {
+                        data = fallbackResult.data;
+                        error = null as any;
+                    }
+                }
+            }
 
             if (error) {
                 console.error('[Resend Error]', error);

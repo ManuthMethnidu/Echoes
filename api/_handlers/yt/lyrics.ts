@@ -33,7 +33,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                         },
                     },
                     query,
-                    params: 'Eg-KAQwIABAAGAAgACgAMABqChAEEAMQBBAFEAo%3D', // Songs filter
                 }),
             });
 
@@ -65,6 +64,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                             if (songId) {
                                 videoId = songId;
                                 break;
+                            }
+                        }
+                    }
+                    // 3. Check itemSectionRenderer nested contents
+                    if (section.itemSectionRenderer?.contents) {
+                        for (const sub of section.itemSectionRenderer.contents) {
+                            if (sub.musicShelfRenderer?.contents) {
+                                for (const item of sub.musicShelfRenderer.contents) {
+                                    const renderer = item.musicResponsiveListItemRenderer;
+                                    const songId =
+                                        renderer?.playlistItemData?.videoId ||
+                                        renderer?.navigationEndpoint?.watchEndpoint?.videoId;
+                                    if (songId) {
+                                        videoId = songId;
+                                        break;
+                                    }
+                                }
                             }
                         }
                     }

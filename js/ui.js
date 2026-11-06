@@ -2883,6 +2883,19 @@ export class UIRenderer {
             }
         }
 
+        // Automatic recovery if authManager previously stored the token into localStorage
+        if (!token) {
+            const stored = localStorage.getItem('echos_token') || localStorage.getItem('echos_session_token');
+            if (stored && stored.split('.').length === 3) {
+                try {
+                    const payload = JSON.parse(atob(stored.split('.')[1]));
+                    if (payload && payload.purpose === 'password_reset') {
+                        token = stored;
+                    }
+                } catch {}
+            }
+        }
+
         let tokenEmail = params.get('email') || '';
         let helperEl = document.getElementById('reset-password-helper');
         if (!helperEl) {
@@ -3011,6 +3024,8 @@ export class UIRenderer {
                 spinner.style.display = 'block';
 
                 await authManager.resetPassword(token, password, confirm, tokenEmail);
+                localStorage.removeItem('echos_token');
+                localStorage.removeItem('echos_session_token');
 
                 successEl.textContent = 'Password reset successfully. Opening login...';
                 successEl.style.display = 'block';

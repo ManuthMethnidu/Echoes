@@ -116,14 +116,17 @@ function getOAuthParams(urlString = window.location.href) {
 }
 
 function hasOAuthParams(params) {
+    if (typeof window !== 'undefined' && window.location.pathname.startsWith('/reset-password')) {
+        return false;
+    }
     return !!(
         params &&
         (params.has('oauth') ||
             params.has('userId') ||
             params.has('secret') ||
-            params.has('token') ||
             params.has('session_token') ||
-            params.has('error'))
+            params.has('error') ||
+            (params.has('token') && typeof window !== 'undefined' && !window.location.pathname.startsWith('/reset-password')))
     );
 }
 
@@ -281,6 +284,10 @@ export class AuthManager {
     }
 
     async init() {
+        if (typeof window !== 'undefined' && window.location.pathname.startsWith('/reset-password')) {
+            await this.refreshAuthState();
+            return;
+        }
         const params = getOAuthParams();
         if (this.applyOAuthParams(params)) {
             window.history.replaceState({}, '', window.location.pathname);

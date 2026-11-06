@@ -1,6 +1,30 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getDb, ensureSchema } from '../../../_lib/db.js';
 
+const ALLOWED_ORIGINS = [
+    'https://echoes.mteck.tech',
+    'https://echos.vercel.app',
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+];
+
+function getSafeOrigin(req: VercelRequest): string {
+    const defaultOrigin = 'https://echoes.mteck.tech';
+    const rawOrigin = typeof req.headers.origin === 'string' ? req.headers.origin : '';
+    if (rawOrigin && ALLOWED_ORIGINS.includes(rawOrigin)) {
+        return rawOrigin;
+    }
+    const forwardedHost = (req.headers['x-forwarded-host'] || req.headers.host || '') as string;
+    const host = forwardedHost.split(',')[0].trim();
+    if (host) {
+        const candidate = `https://${host}`;
+        if (ALLOWED_ORIGINS.includes(candidate)) {
+            return candidate;
+        }
+    }
+    return defaultOrigin;
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method !== 'POST' && req.method !== 'GET') {
         return res.status(405).json({ error: 'Method Not Allowed' });
@@ -9,9 +33,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     try {
         const payload = req.method === 'POST' ? req.body || {} : req.query || {};
         const { provider } = payload;
-        const forwardedHost = (req.headers['x-forwarded-host'] || req.headers.host || '') as string;
-        const host = forwardedHost.split(',')[0].trim();
-        const origin = (req.headers.origin as string) || (host ? `https://${host}` : 'https://echoes.mteck.tech');
+        const origin = getSafeOrigin(req);
 
         const neonAuthUrl = process.env.NEON_AUTH_BASE_URL || 'https://ep-small-mouse-a11jp1gr.neonauth.ap-southeast-1.aws.neon.tech/neondb/auth';
 

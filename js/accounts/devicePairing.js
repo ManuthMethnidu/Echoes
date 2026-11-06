@@ -1,5 +1,6 @@
 import { authManager } from './auth.js';
 import { syncManager } from './pocketbase.js';
+import { escapeHtml } from '../utils.js';
 
 let activePollingInterval = null;
 
@@ -279,7 +280,7 @@ export const devicePairing = {
                 }, 1500);
             } catch (err) {
                 approveBtn.disabled = false;
-                if (msgEl) msgEl.innerHTML = `<span style="color:#ff4d4f;">${err.message}</span>`;
+                if (msgEl) msgEl.innerHTML = `<span style="color:#ff4d4f;">${escapeHtml(err.message)}</span>`;
             }
         };
     },

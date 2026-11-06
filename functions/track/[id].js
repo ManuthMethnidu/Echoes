@@ -1,5 +1,14 @@
 // functions/track/[id].js
 
+function escapeHtml(value) {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
 function getTrackTitle(track, { fallback = 'Unknown Title' } = {}) {
     if (!track?.title) return fallback;
     return track?.version ? `${track.title} (${track.version})` : track.title;
@@ -193,11 +202,17 @@ export async function onRequest(context) {
 
         if (track) {
             try {
-                const title = getTrackTitle(track);
-                const artist = getTrackArtists(track);
-                const description = `${artist} - ${track.album.title}`;
-                const imageUrl = api.getCoverUrl(track.album.cover, '1280');
-                const trackUrl = new URL(request.url).href;
+                const rawTitle = getTrackTitle(track);
+                const rawArtist = getTrackArtists(track);
+                const rawAlbumTitle = track.album?.title || '';
+                const title = escapeHtml(rawTitle);
+                const artist = escapeHtml(rawArtist);
+                const albumTitle = escapeHtml(rawAlbumTitle);
+                const description = escapeHtml(`${rawArtist} - ${rawAlbumTitle}`);
+                const rawImageUrl = api.getCoverUrl(track.album?.cover, '1280');
+                const imageUrl = escapeHtml(rawImageUrl);
+                const trackUrl = escapeHtml(new URL(request.url).href);
+                const duration = escapeHtml(track.duration ?? '');
 
                 let audioUrl = track.previewUrl || track.previewURL;
 
@@ -209,11 +224,12 @@ export async function onRequest(context) {
                     }
                 }
 
-                const audioMeta = audioUrl
+                const safeAudioUrl = audioUrl ? escapeHtml(audioUrl) : '';
+                const audioMeta = safeAudioUrl
                     ? `
-                    <meta property="og:audio" content="${audioUrl}">
+                    <meta property="og:audio" content="${safeAudioUrl}">
                     <meta property="og:audio:type" content="audio/mp4">
-                    <meta property="og:video" content="${audioUrl}">
+                    <meta property="og:video" content="${safeAudioUrl}">
                     <meta property="og:video:type" content="audio/mp4">
                 `
                     : '';
@@ -231,8 +247,8 @@ export async function onRequest(context) {
                         <meta property="og:image" content="${imageUrl}">
                         <meta property="og:type" content="music.song">
                         <meta property="og:url" content="${trackUrl}">
-                        <meta property="music:duration" content="${track.duration}">
-                        <meta property="music:album" content="${track.album.title}">
+                        <meta property="music:duration" content="${duration}">
+                        <meta property="music:album" content="${albumTitle}">
                         <meta property="music:musician" content="${artist}">
 
                         ${audioMeta}

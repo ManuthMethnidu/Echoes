@@ -1,5 +1,14 @@
 // functions/playlist/[id].js
 
+function escapeHtml(value) {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
 class TidalAPI {
     static CLIENT_ID = 'txNoH4kkV41MfH25';
     static CLIENT_SECRET = 'dQjy0MinCEvxi1O4UmxvxWnDjt4cgHBPw8ll6nYBk98=';
@@ -147,14 +156,16 @@ export async function onRequest(context) {
 
         if (playlist && (playlist.title || playlist.name)) {
             try {
-                const title = playlist.title || playlist.name;
-                const trackCount = playlist.numberOfTracks;
-                const description = `Playlist • ${trackCount} Tracks\nListen on Echoes`;
+                const rawTitle = playlist.title || playlist.name;
+                const trackCount = playlist.numberOfTracks || 0;
+                const title = escapeHtml(rawTitle);
+                const description = escapeHtml(`Playlist • ${trackCount} Tracks\nListen on Echoes`);
                 const imageId = playlist.squareImage || playlist.image;
-                const imageUrl = imageId
+                const rawImageUrl = imageId
                     ? api.getCoverUrl(imageId, '1080')
                     : 'https://echoes.mteck.tech/images/default-cover.png';
-                const pageUrl = new URL(request.url).href;
+                const imageUrl = escapeHtml(rawImageUrl);
+                const pageUrl = escapeHtml(new URL(request.url).href);
 
                 const metaHtml = `
                     <!DOCTYPE html>

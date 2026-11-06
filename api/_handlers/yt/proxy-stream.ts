@@ -46,11 +46,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     try {
-        const parsed = new URL(validatedUrl);
-        if (!isAllowedDomain(parsed.hostname)) {
-            return res.status(403).json({ error: 'Domain not permitted for streaming proxy' });
-        }
-
         const headers: Record<string, string> = {
             'User-Agent':
                 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
@@ -59,7 +54,45 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             headers['range'] = req.headers.range;
         }
 
-        const upstream = await fetch(validatedUrl, { headers });
+        let currentUrl = validatedUrl;
+        let redirectCount = 0;
+        const maxRedirects = 3;
+        let upstream: Response | null = null;
+
+        while (redirectCount <= maxRedirects) {
+            const parsed = new URL(currentUrl);
+            if (!isAllowedDomain(parsed.hostname)) {
+                return res.status(403).json({ error: 'Domain not permitted for streaming proxy' });
+            }
+            if (isPrivateOrBlockedHost(currentUrl)) {
+                return res.status(403).json({ error: 'Access to private or internal addresses is forbidden' });
+            }
+
+            upstream = await fetch(currentUrl, {
+                headers,
+                redirect: 'manual',
+            });
+
+            if ([301, 302, 303, 307, 308].includes(upstream.status)) {
+                const loc = upstream.headers.get('location');
+                if (!loc) break;
+                const nextUrl = new URL(loc, currentUrl).toString();
+                const sanitizedNext = sanitizeUrl(nextUrl);
+                if (!sanitizedNext) {
+                    return res.status(400).json({ error: 'Invalid redirect URL format' });
+                }
+                currentUrl = sanitizedNext;
+                redirectCount++;
+                continue;
+            }
+
+            break;
+        }
+
+        if (!upstream) {
+            return res.status(502).json({ error: 'Failed to connect to streaming host' });
+        }
+
         res.status(upstream.status);
 
         for (const [k, v] of upstream.headers.entries()) {

@@ -254,9 +254,12 @@ export class AuthManager {
         // Listen for OAuth completion from popup / child window
         if (typeof window !== 'undefined') {
             window.addEventListener('message', async (event) => {
+                if (event.origin !== window.location.origin) {
+                    return;
+                }
                 if (event.data?.type === 'echos:auth-success') {
                     const token = event.data.token;
-                    if (token) {
+                    if (token && typeof token === 'string') {
                         storeAuthToken(token);
                         await this.refreshAuthState();
                     }

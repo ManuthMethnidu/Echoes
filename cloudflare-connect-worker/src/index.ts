@@ -29,6 +29,29 @@ interface PlaybackState {
   lastUpdated: number;
 }
 
+const ALLOWED_ORIGINS = [
+  'https://echoes.mteck.tech',
+  'https://echos.vercel.app',
+  'http://localhost:3000',
+  'http://127.0.0.1:3000',
+];
+
+function isOriginAllowed(request: Request): boolean {
+  const origin = request.headers.get('Origin');
+  if (!origin) return true; // Non-browser clients (native apps)
+  return ALLOWED_ORIGINS.includes(origin);
+}
+
+function getSafeCorsHeaders(request: Request): Record<string, string> {
+  const origin = request.headers.get('Origin');
+  const allowOrigin = origin && ALLOWED_ORIGINS.includes(origin) ? origin : 'https://echoes.mteck.tech';
+  return {
+    'Access-Control-Allow-Origin': allowOrigin,
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, Upgrade',
+  };
+}
+
 export class PlaybackRoom {
   private state: DurableObjectState;
   private devices: Map<WebSocket, ConnectedDevice> = new Map();
@@ -48,7 +71,12 @@ export class PlaybackRoom {
   async fetch(request: Request): Promise<Response> {
     const url = new URL(request.url);
 
-    // REST debug / health endpoint
+    // Cross-origin restriction
+    if (!isOriginAllowed(request)) {
+      return new Response('Forbidden origin', { status: 403 });
+    }
+
+    // REST debug / state endpoint
     if (url.pathname === '/state') {
       return new Response(
         JSON.stringify({
@@ -59,7 +87,7 @@ export class PlaybackRoom {
         {
           headers: {
             'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*',
+            ...getSafeCorsHeaders(request),
           },
         }
       );
@@ -69,7 +97,7 @@ export class PlaybackRoom {
     if (request.headers.get('Upgrade') !== 'websocket') {
       return new Response('Expected WebSocket upgrade', {
         status: 426,
-        headers: { 'Access-Control-Allow-Origin': '*' },
+        headers: getSafeCorsHeaders(request),
       });
     }
 
@@ -86,9 +114,7 @@ export class PlaybackRoom {
     return new Response(null, {
       status: 101,
       webSocket: clientWs,
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-      },
+      headers: getSafeCorsHeaders(request),
     });
   }
 
@@ -417,11 +443,7 @@ export default {
     if (request.method === 'OPTIONS') {
       return new Response(null, {
         status: 204,
-        headers: {
-          'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-          'Access-Control-Allow-Headers': '*',
-        },
+        headers: getSafeCorsHeaders(request),
       });
     }
 
@@ -437,7 +459,7 @@ export default {
         {
           headers: {
             'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*',
+            ...getSafeCorsHeaders(request),
           },
         }
       );

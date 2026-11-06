@@ -70,11 +70,17 @@ Echoes incorporates defensive engineering practices across its frontend, serverl
 
 ### 5. Authentication & Pairing Security
 - TV device pairing codes are generated using cryptographically strong random values (`crypto.getRandomValues()`).
-- Pairing verification and authentication endpoints are protected by rate limiters to prevent brute-force attempts.
-- Password reset flows validate host headers against an allowlist to prevent host header poisoning and open redirect attacks.
+- Pairing verification, status polling, and authentication endpoints are protected by rate limiters to prevent brute-force attempts.
+- Password reset tokens are never exposed in API responses under any circumstances, including email delivery failure.
+- OAuth redirect flows validate callback URLs and state parameters against an origin allowlist to prevent open redirect and token interception.
+- Cross-window communication (`window.postMessage`) enforces exact origin targeting and strict origin verification on event receivers.
+- Constant-time string comparison (`constantTimeEqual`) is used for credential verification to eliminate timing side-channels, and PBKDF2 iterations are balanced during sign-in to prevent email enumeration.
+- Ephemeral cryptographic keys are generated in development environments if secrets are omitted, preventing fallback to static known secrets.
 
 ### 6. HTTP Security Headers
-- The edge network enforces security headers via `vercel.json`:
+- The edge network enforces security headers via `vercel.json` and `nginx.conf`:
   - `X-Frame-Options: SAMEORIGIN` (prevents clickjacking attacks)
   - `X-Content-Type-Options: nosniff` (prevents MIME-type sniffing exploits)
   - `Referrer-Policy: strict-origin-when-cross-origin` (protects sensitive referral paths)
+  - `Strict-Transport-Security: max-age=63072000; includeSubDomains; preload` (enforces HTTPS)
+  - `Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=()` (restricts unauthorized browser APIs)

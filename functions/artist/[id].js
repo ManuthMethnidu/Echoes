@@ -1,5 +1,14 @@
 // functions/artist/[id].js
 
+function escapeHtml(value) {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
 class TidalAPI {
     static CLIENT_ID = 'txNoH4kkV41MfH25';
     static CLIENT_SECRET = 'dQjy0MinCEvxi1O4UmxvxWnDjt4cgHBPw8ll6nYBk98=';
@@ -140,12 +149,14 @@ export async function onRequest(context) {
 
         if (artist && (artist.name || artist.title)) {
             try {
-                const name = artist.name || artist.title;
-                const description = `Listen to ${name} on Echoes`;
-                const imageUrl = artist.picture
+                const rawName = artist.name || artist.title;
+                const name = escapeHtml(rawName);
+                const description = escapeHtml(`Listen to ${rawName} on Echoes`);
+                const rawImageUrl = artist.picture
                     ? api.getArtistPictureUrl(artist.picture, '750')
                     : 'https://echoes.mteck.tech/images/default-cover.png';
-                const pageUrl = new URL(request.url).href;
+                const imageUrl = escapeHtml(rawImageUrl);
+                const pageUrl = escapeHtml(new URL(request.url).href);
 
                 const metaHtml = `
                     <!DOCTYPE html>

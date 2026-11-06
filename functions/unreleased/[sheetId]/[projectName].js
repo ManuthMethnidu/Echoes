@@ -1,5 +1,14 @@
 // functions/unreleased/[sheetId]/[projectName].js
 
+function escapeHtml(value) {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
 const ARTISTS_CSV_URL = 'https://artists.artistgrid.cx/artists.csv';
 const _ASSETS_BASE_URL = 'https://assets.artistgrid.cx';
 const TRACKER_API_BASE = 'https://trackerapi.artistgrid.cx/sh/';
@@ -113,10 +122,12 @@ export async function onRequest(context) {
 
             if (artist && artist.name && trackerData && trackerData.eras) {
                 const era = trackerData.eras.find((e) => e.name === projectName);
-                const imageUrl = era && era.cover_art ? era.cover_art : 'https://echoes.mteck.tech/images/default-cover.png';
-                const pageUrl = new URL(request.url).href;
-                const title = `${projectName} - ${artist.name}`;
-                const description = `Stream ${projectName} by ${artist.name} on Echoes`;
+                const rawImageUrl = era && era.cover_art ? era.cover_art : 'https://echoes.mteck.tech/images/default-cover.png';
+                const imageUrl = escapeHtml(rawImageUrl);
+                const pageUrl = escapeHtml(new URL(request.url).href);
+                const rawTitle = `${projectName} - ${artist.name}`;
+                const title = escapeHtml(rawTitle);
+                const description = escapeHtml(`Stream ${projectName} by ${artist.name} on Echoes`);
 
                 const metaHtml = `
                     <!DOCTYPE html>

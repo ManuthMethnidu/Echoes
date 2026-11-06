@@ -96,10 +96,13 @@ export function sanitizeFilename(val: unknown, defaultName = 'audio'): string {
     return cleaned.slice(0, 100) || defaultName;
 }
 
-// Sanitize CSS for community themes (strip dangerous CSS constructs like @import, expression, behavior, script)
+// Sanitize CSS for community themes (strip dangerous CSS constructs like @import, expression, behavior, script, and external URLs)
 export function sanitizeCss(css: unknown, maxLength = 50000): string | null {
     if (!css || typeof css !== 'string') return null;
     if (css.length > maxLength) return null;
+
+    // Normalize: remove comments before checking patterns to prevent comment-based evasions
+    const uncommented = css.replace(/\/\*[\s\S]*?\*\//g, '');
 
     // Check for dangerous vectors
     const dangerousPatterns = [
@@ -111,11 +114,12 @@ export function sanitizeCss(css: unknown, maxLength = 50000): string | null {
         /<\s*script/i,
         /<\s*\/\s*style/i,
         /attr\s*\(/i,
-        /url\s*\(\s*['"]?\s*data:/i,
+        // Block external URLs and data/blob/script schemes to prevent data exfiltration
+        /url\s*\(\s*['"]?\s*(https?:|\/\/|data:|blob:|javascript:)/i,
     ];
 
     for (const pattern of dangerousPatterns) {
-        if (pattern.test(css)) {
+        if (pattern.test(uncommented)) {
             return null;
         }
     }
@@ -127,15 +131,31 @@ export function sanitizeCss(css: unknown, maxLength = 50000): string | null {
 export function isPrivateOrBlockedHost(urlStr: string): boolean {
     try {
         const parsed = new URL(urlStr);
-        const hostname = parsed.hostname.toLowerCase();
+        // Strip IPv6 bracket notation if present
+        const hostname = parsed.hostname.toLowerCase().trim().replace(/^\[|\]$/g, '');
 
-        // Localhost / Loopback
-        if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1' || hostname === '0.0.0.0') {
+        // Localhost / Loopback / Wildcard
+        if (
+            hostname === 'localhost' ||
+            hostname.endsWith('.localhost') ||
+            hostname.endsWith('.local') ||
+            hostname.endsWith('.internal') ||
+            hostname === '::1' ||
+            hostname === '::' ||
+            hostname === '0.0.0.0' ||
+            /^127\./.test(hostname) ||
+            /^0\./.test(hostname)
+        ) {
             return true;
         }
 
-        // AWS / Cloud Metadata
-        if (hostname === '169.254.169.254' || hostname === 'metadata.google.internal') {
+        // AWS / GCP / Azure Cloud Metadata & Instance Identifiers
+        if (
+            hostname === '169.254.169.254' ||
+            hostname === 'metadata.google.internal' ||
+            hostname === 'metadata.internal' ||
+            hostname === 'instance-data'
+        ) {
             return true;
         }
 
@@ -150,9 +170,25 @@ export function isPrivateOrBlockedHost(urlStr: string): boolean {
         if (/^100\.(6[4-9]|[7-9][0-9]|1[0-1][0-9]|12[0-7])\./.test(hostname)) return true;
         // 169.254.0.0/16 (Link-local)
         if (/^169\.254\./.test(hostname)) return true;
+        // TEST-NET & Multicast / Reserved
+        if (/^192\.0\.2\./.test(hostname)) return true;
+        if (/^198\.51\.100\./.test(hostname)) return true;
+        if (/^203\.0\.113\./.test(hostname)) return true;
+        if (/^(22[4-9]|23[0-9]|24[0-9]|25[0-5])\./.test(hostname)) return true;
+
+        // Decimal / Hex numeric hostnames (e.g. 2130706433 or 0x7f000001)
+        if (/^\d+$/.test(hostname) || /^0x[0-9a-f]+$/i.test(hostname)) return true;
 
         // IPv6 Link-local / Unique local (fe80::/10, fc00::/7)
         if (/^(fe8|fe9|fea|feb|fc|fd)/i.test(hostname)) return true;
+
+        // IPv4-mapped IPv6 (::ffff:127.0.0.1, etc.)
+        if (hostname.startsWith('::ffff:')) {
+            const mappedIpv4 = hostname.slice(7);
+            if (isPrivateOrBlockedHost(`http://${mappedIpv4}`)) {
+                return true;
+            }
+        }
 
         return false;
     } catch {

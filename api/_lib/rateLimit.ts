@@ -2,17 +2,30 @@ import type { VercelRequest } from '@vercel/node';
 import { getDb, ensureSchema } from './db.js';
 
 export function getClientIp(req: VercelRequest): string {
-    const forwarded = req.headers['x-forwarded-for'];
-    if (typeof forwarded === 'string') {
-        return forwarded.split(',')[0].trim();
+    // Prioritize trusted proxy headers set by edge platforms (cannot be spoofed by client)
+    const vercelIp = req.headers['x-vercel-forwarded-for'];
+    if (typeof vercelIp === 'string' && vercelIp.trim()) {
+        return vercelIp.split(',')[0].trim();
     }
-    if (Array.isArray(forwarded)) {
-        return forwarded[0].trim();
+    const cfIp = req.headers['cf-connecting-ip'];
+    if (typeof cfIp === 'string' && cfIp.trim()) {
+        return cfIp.trim();
     }
     const realIp = req.headers['x-real-ip'];
-    if (typeof realIp === 'string') {
+    if (typeof realIp === 'string' && realIp.trim()) {
         return realIp.trim();
     }
+
+    const forwarded = req.headers['x-forwarded-for'];
+    if (typeof forwarded === 'string' && forwarded.trim()) {
+        const parts = forwarded.split(',').map((p) => p.trim()).filter(Boolean);
+        // Use the last entry (closest to our proxy) if multiple exist, or the single IP
+        return parts[parts.length - 1] || '127.0.0.1';
+    }
+    if (Array.isArray(forwarded) && forwarded.length > 0) {
+        return forwarded[forwarded.length - 1].trim();
+    }
+
     return req.socket?.remoteAddress || '127.0.0.1';
 }
 

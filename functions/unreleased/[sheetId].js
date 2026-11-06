@@ -1,5 +1,14 @@
 // functions/unreleased/[sheetId].js
 
+function escapeHtml(value) {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
 const ARTISTS_CSV_URL = 'https://artists.artistgrid.cx/artists.csv';
 const ASSETS_BASE_URL = 'https://assets.artistgrid.cx';
 
@@ -99,11 +108,14 @@ export async function onRequest(context) {
 
             if (artist && artist.name) {
                 const normalizedName = normalizeArtistName(artist.name);
+                const safeNormalizedName = escapeHtml(normalizedName);
                 // Images live at assets.artistgrid.cx/{format}/{normalizedname}.{format}
-                const imageUrl = `${ASSETS_BASE_URL}/jpg/${normalizedName}.jpg`;
-                const pageUrl = new URL(request.url).href;
-                const title = `${artist.name} | Unreleased`;
-                const description = `Stream unreleased music by ${artist.name} on Echoes`;
+                const imageUrl = escapeHtml(`${ASSETS_BASE_URL}/jpg/${normalizedName}.jpg`);
+                const pageUrl = escapeHtml(new URL(request.url).href);
+                const rawName = artist.name;
+                const artistName = escapeHtml(rawName);
+                const title = escapeHtml(`${rawName} | Unreleased`);
+                const description = escapeHtml(`Stream unreleased music by ${rawName} on Echoes`);
 
                 const metaHtml = `
                     <!DOCTYPE html>
@@ -127,12 +139,12 @@ export async function onRequest(context) {
                         <meta name="twitter:image" content="${imageUrl}">
                     </head>
                     <body>
-                        <h1>${artist.name}</h1>
+                        <h1>${artistName}</h1>
                         <p>${description}</p>
                         <picture>
-                            <source srcset="${ASSETS_BASE_URL}/jxl/${normalizedName}.jxl" type="image/jxl">
-                            <source srcset="${ASSETS_BASE_URL}/webp/${normalizedName}.webp" type="image/webp">
-                            <img src="${imageUrl}" alt="${artist.name}">
+                            <source srcset="${ASSETS_BASE_URL}/jxl/${safeNormalizedName}.jxl" type="image/jxl">
+                            <source srcset="${ASSETS_BASE_URL}/webp/${safeNormalizedName}.webp" type="image/webp">
+                            <img src="${imageUrl}" alt="${artistName}">
                         </picture>
                     </body>
                     </html>

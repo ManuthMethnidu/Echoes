@@ -2,8 +2,23 @@ import { SignJWT, jwtVerify, createRemoteJWKSet } from 'jose';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getDb } from './db.js';
 
-const JWT_SECRET_STRING = process.env.AUTH_SECRET || process.env.JWT_SECRET || 'echos-vercel-jwt-fallback-secret-key-32b';
-const JWT_SECRET = new TextEncoder().encode(JWT_SECRET_STRING);
+let ephemeralSecret: Uint8Array | null = null;
+export function getJwtSecret(): Uint8Array {
+    const configured = process.env.AUTH_SECRET || process.env.JWT_SECRET;
+    if (configured) {
+        return new TextEncoder().encode(configured);
+    }
+    if (process.env.NODE_ENV === 'production') {
+        throw new Error('FATAL: AUTH_SECRET or JWT_SECRET must be configured in production');
+    }
+    if (!ephemeralSecret) {
+        console.warn('[SECURITY WARNING] AUTH_SECRET is not configured. Generating ephemeral secret key for this process.');
+        const rand = new Uint8Array(32);
+        crypto.getRandomValues(rand);
+        ephemeralSecret = rand;
+    }
+    return ephemeralSecret;
+}
 const JWT_EXPIRES_IN = '30d';
 
 const NEON_JWKS_URL =
@@ -47,6 +62,21 @@ export async function hashPassword(password: string): Promise<string> {
     return `${saltHex}:${hashHex}`;
 }
 
+function constantTimeEqual(a: string, b: string): boolean {
+    if (a.length !== b.length) return false;
+    let diff = 0;
+    for (let i = 0; i < a.length; i++) {
+        diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+    }
+    return diff === 0;
+}
+
+export async function dummyPasswordVerification(): Promise<void> {
+    try {
+        await hashPassword('dummy-password-timing-defense');
+    } catch {}
+}
+
 export async function verifyPassword(password: string, storedHash: string): Promise<boolean> {
     const parts = storedHash.split(':');
     if (parts.length !== 2) return false;
@@ -74,7 +104,7 @@ export async function verifyPassword(password: string, storedHash: string): Prom
     );
 
     const hashHex = Array.from(new Uint8Array(derivedKey)).map((b) => b.toString(16).padStart(2, '0')).join('');
-    return hashHex === originalHashHex;
+    return constantTimeEqual(hashHex, originalHashHex);
 }
 
 export interface AuthUser {
@@ -94,12 +124,12 @@ export async function createToken(user: AuthUser): Promise<string> {
         .setProtectedHeader({ alg: 'HS256' })
         .setIssuedAt()
         .setExpirationTime(JWT_EXPIRES_IN)
-        .sign(JWT_SECRET);
+        .sign(getJwtSecret());
 }
 
 export async function verifyToken(token: string): Promise<AuthUser | null> {
     try {
-        const { payload } = await jwtVerify(token, JWT_SECRET);
+        const { payload } = await jwtVerify(token, getJwtSecret());
         return {
             id: (payload.id || payload.sub) as string,
             email: (payload.email || '') as string,
@@ -177,12 +207,12 @@ export async function createPasswordResetToken(userId: string, email: string, fi
         .setProtectedHeader({ alg: 'HS256' })
         .setIssuedAt()
         .setExpirationTime('1h')
-        .sign(JWT_SECRET);
+        .sign(getJwtSecret());
 }
 
 export async function verifyPasswordResetToken(token: string): Promise<{ id: string; email: string; fingerprint: string } | null> {
     try {
-        const { payload } = await jwtVerify(token, JWT_SECRET);
+        const { payload } = await jwtVerify(token, getJwtSecret());
         if (payload.purpose !== 'password_reset') return null;
         return {
             id: (payload.id || payload.sub) as string,
@@ -225,5 +255,10 @@ export function setSessionCookie(res: VercelResponse, token: string) {
 }
 
 export function clearSessionCookie(res: VercelResponse) {
-    res.setHeader('Set-Cookie', 'mono_session=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0');
+    const isProd = process.env.NODE_ENV === 'production';
+    const secureFlag = isProd ? '; Secure' : '';
+    res.setHeader('Set-Cookie', [
+        `mono_session=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${secureFlag}`,
+        `better-auth.session_token=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${secureFlag}`,
+    ]);
 }

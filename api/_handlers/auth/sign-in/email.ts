@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getDb, ensureSchema } from '../../../_lib/db.js';
-import { verifyPassword, createToken, setSessionCookie } from '../../../_lib/auth.js';
+import { verifyPassword, createToken, setSessionCookie, dummyPasswordVerification } from '../../../_lib/auth.js';
 import { getClientIp, consumeRateLimit, clearRateLimit } from '../../../_lib/rateLimit.js';
 import { sanitizeEmail } from '../../../_lib/sanitize.js';
 
@@ -48,6 +48,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         `;
 
         if (users.length === 0 || !users[0].password_hash) {
+            await dummyPasswordVerification();
             return res.status(401).json({ error: { message: 'Invalid email or password' } });
         }
 

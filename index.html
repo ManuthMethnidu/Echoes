@@ -3157,6 +3157,102 @@
                                     <span class="slider"></span>
                                 </label>
                             </div>
+
+                            <div class="settings-group">
+                                <div class="setting-item" id="tv-mode-setting">
+                                    <div class="info">
+                                        <span class="label">TV Mode</span>
+                                        <span class="description"
+                                            >Optimize UI &amp; playback for Smart TVs (LG webOS, Samsung Tizen, Android TV, Fire TV, Chromecast). Locks 1:1 artwork ratio, disables heavy GPU blur effects for smooth 60fps, and enables D-pad remote navigation.</span
+                                        >
+                                    </div>
+                                    <label class="toggle-switch">
+                                        <input type="checkbox" id="tv-mode-toggle" />
+                                        <span class="slider"></span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="settings-group custom-css-settings-group">
+                                <div class="setting-item">
+                                    <div class="info">
+                                        <span class="label">Custom CSS</span>
+                                        <span class="description"
+                                            >Personalize backgrounds, panels, typography, and styling with custom CSS. Updates live in real-time.</span
+                                        >
+                                    </div>
+                                </div>
+                                <div class="custom-css-box">
+                                    <div class="custom-css-toolbar">
+                                        <span class="toolbar-label">Quick Presets:</span>
+                                        <button type="button" class="css-preset-chip" data-preset="wallpaper">Wallpaper Background</button>
+                                        <button type="button" class="css-preset-chip" data-preset="oled">Pure OLED Black</button>
+                                        <button type="button" class="css-preset-chip" data-preset="glass">Frosted Glass</button>
+                                        <button type="button" class="css-preset-chip" data-preset="neon">Neon Accent</button>
+                                        <button type="button" class="css-preset-chip chip-clear" data-preset="clear">Reset</button>
+                                    </div>
+                                    <textarea
+                                        id="custom-css-textarea"
+                                        class="custom-css-editor"
+                                        rows="7"
+                                        spellcheck="false"
+                                        placeholder="/* Type or paste your custom CSS here... */&#10;body {&#10;  /* background-image: url('https://images.unsplash.com/...'); */&#10;}"
+                                    ></textarea>
+                                    <div class="custom-css-footer">
+                                        <span class="custom-css-status" id="custom-css-status"></span>
+                                        <div class="custom-css-actions">
+                                            <button type="button" class="btn-secondary" id="custom-css-toggle-guide-btn">
+                                                AI Prompts &amp; Guide
+                                            </button>
+                                            <button type="button" class="btn-primary" id="custom-css-save-btn">
+                                                Save &amp; Apply
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <!-- Expandable AI Prompts & Examples Guide -->
+                                    <div class="custom-css-guide-drawer" id="custom-css-guide-drawer" style="display: none;">
+                                        <div class="guide-header">
+                                            <h5 style="margin: 0 0 4px 0; font-size: 14px; font-weight: 600; color: var(--foreground);">AI Prompts &amp; CSS Recipes</h5>
+                                            <p class="guide-subtitle" style="margin: 0; font-size: 12px; color: var(--muted-foreground);">Copy any prompt below into ChatGPT, Claude, or DeepSeek to generate custom CSS for Echoes:</p>
+                                        </div>
+
+                                        <div class="guide-cards">
+                                            <div class="guide-card">
+                                                <div class="guide-card-top">
+                                                    <span class="guide-card-title">Prompt: Custom Background Image</span>
+                                                    <button type="button" class="copy-prompt-btn" data-copy-target="prompt-bg">Copy Prompt</button>
+                                                </div>
+                                                <div class="guide-code" id="prompt-bg">Write custom CSS for the Echoes music player to add a custom background image from a URL. Make the background fixed, cover the entire viewport, add a semi-transparent dark overlay (e.g. rgba(0, 0, 0, 0.75)) and a subtle blur so text and track titles remain crisp and readable. Use selectors like body, .app-container, and #app.</div>
+                                            </div>
+
+                                            <div class="guide-card">
+                                                <div class="guide-card-top">
+                                                    <span class="guide-card-title">Prompt: OLED Pitch Black Theme</span>
+                                                    <button type="button" class="copy-prompt-btn" data-copy-target="prompt-oled">Copy Prompt</button>
+                                                </div>
+                                                <div class="guide-code" id="prompt-oled">Write custom CSS for the Echoes web music player to turn the interface into pure OLED pitch black (#000000). Set all main surfaces, sidebars, player bars, modal backgrounds, and popups to #000000, with subtle 1px border lines (#18181b) and high-contrast white text (#ffffff) to maximize OLED power savings and contrast.</div>
+                                            </div>
+
+                                            <div class="guide-card">
+                                                <div class="guide-card-top">
+                                                    <span class="guide-card-title">Prompt: Frosted Glassmorphism</span>
+                                                    <button type="button" class="copy-prompt-btn" data-copy-target="prompt-glass">Copy Prompt</button>
+                                                </div>
+                                                <div class="guide-code" id="prompt-glass">Write custom CSS for Echoes music player to give all cards, player controls, and navigation bars an ultra-modern frosted glassmorphism effect using backdrop-filter: blur(20px), translucent background rgba(20, 22, 30, 0.65), and soft border highlight rgba(255, 255, 255, 0.1).</div>
+                                            </div>
+
+                                            <div class="guide-card">
+                                                <div class="guide-card-top">
+                                                    <span class="guide-card-title">Prompt: Cyberpunk Neon Aesthetic</span>
+                                                    <button type="button" class="copy-prompt-btn" data-copy-target="prompt-neon">Copy Prompt</button>
+                                                </div>
+                                                <div class="guide-code" id="prompt-neon">Write custom CSS for Echoes music player to create a cyberpunk neon aesthetic with vibrant glowing cyan (#00f0ff) and magenta (#ff007f) accents, glowing neon box-shadows on buttons and play controls, and dark futuristic backgrounds.</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                     <div class="settings-tab-content" id="settings-tab-interface">

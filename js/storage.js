@@ -664,11 +664,78 @@ export const tvModeSettings = {
     },
 };
 
+export const customCssSettings = {
+    STORAGE_KEY: 'echos-custom-css',
+    STYLE_ELEMENT_ID: 'echoes-user-custom-css',
+
+    sanitize(css) {
+        if (!css || typeof css !== 'string') return '';
+        // 1. Strip </style> and <script> tags to prevent DOM breakout
+        let clean = css.replace(/<\s*\/?\s*(style|script)[^>]*>/gi, '');
+        // 2. Strip dangerous javascript: schemes
+        clean = clean.replace(/javascript\s*:/gi, '');
+        // 3. Strip legacy expressions and behaviors
+        clean = clean.replace(/expression\s*\(/gi, '');
+        clean = clean.replace(/behavior\s*:/gi, '');
+        clean = clean.replace(/-moz-binding\s*:/gi, '');
+        // 4. Strip @import to prevent loading arbitrary remote sheets
+        clean = clean.replace(/@import[^;]*;/gi, '');
+        return clean.trim();
+    },
+
+    get() {
+        try {
+            return localStorage.getItem(this.STORAGE_KEY) || '';
+        } catch {
+            return '';
+        }
+    },
+
+    apply(css) {
+        if (typeof document === 'undefined') return;
+        const raw = css !== undefined ? css : this.get();
+        const safeCss = this.sanitize(raw);
+        let styleEl = document.getElementById(this.STYLE_ELEMENT_ID);
+        if (!styleEl) {
+            styleEl = document.createElement('style');
+            styleEl.id = this.STYLE_ELEMENT_ID;
+            document.head.appendChild(styleEl);
+        }
+        styleEl.textContent = safeCss;
+    },
+
+    set(css) {
+        const safeCss = this.sanitize(css);
+        try {
+            localStorage.setItem(this.STORAGE_KEY, safeCss);
+        } catch {}
+        this.apply(safeCss);
+        if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('custom-css-changed', { detail: { css: safeCss } }));
+        }
+        return safeCss;
+    },
+
+    reset() {
+        try {
+            localStorage.removeItem(this.STORAGE_KEY);
+        } catch {}
+        this.apply('');
+        if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('custom-css-changed', { detail: { css: '' } }));
+        }
+    },
+};
+
 if (typeof document !== 'undefined') {
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', () => tvModeSettings.apply());
+        document.addEventListener('DOMContentLoaded', () => {
+            tvModeSettings.apply();
+            customCssSettings.apply();
+        });
     } else {
         tvModeSettings.apply();
+        customCssSettings.apply();
     }
 }
 

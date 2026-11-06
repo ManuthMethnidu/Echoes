@@ -97,6 +97,7 @@
         "mime": "^4.1.0",
         "pocketbase": "^0.26.8",
         "qrcode": "^1.5.4",
+        "resend": "^6.37.0",
         "shaka-player": "^5.0.7",
         "simple-icons": "^16.12.0",
         "svgo": "^4.0.1",

@@ -49,6 +49,8 @@ import {
     fullscreenCoverTiltSpeedSettings,
     devModeSettings,
     serverDisruptionSettings,
+    tvModeSettings,
+    customCssSettings,
 } from './storage.js';
 import { audioContextManager, getPresetsForBandCount } from './audio-context.js';
 import { calculateBiquadResponse, interpolate, getNormalizationOffset, runAutoEqAlgorithm } from './autoeq-engine.js';
@@ -6363,6 +6365,174 @@ export async function initializeSettings(scrobbler, player, api, ui) {
         cdAlbumCoverToggle.addEventListener('change', (e) => {
             visualizerSettings.setBeatPulseEnabled(e.target.checked);
             window.dispatchEvent(new CustomEvent('fullscreen-cover-settings-changed'));
+        });
+    }
+
+    // TV Mode Toggle
+    const tvModeToggle = document.getElementById('tv-mode-toggle');
+    if (tvModeToggle) {
+        tvModeToggle.checked = tvModeSettings.isEnabled();
+        tvModeToggle.addEventListener('change', (e) => {
+            tvModeSettings.setEnabled(e.target.checked);
+        });
+        window.addEventListener('tv-mode-changed', (e) => {
+            if (e.detail && typeof e.detail.enabled === 'boolean') {
+                tvModeToggle.checked = e.detail.enabled;
+            }
+        });
+    }
+
+    // Custom CSS Setting & Presets
+    const customCssTextarea = document.getElementById('custom-css-textarea');
+    const customCssSaveBtn = document.getElementById('custom-css-save-btn');
+    const customCssStatus = document.getElementById('custom-css-status');
+    const customCssToggleGuideBtn = document.getElementById('custom-css-toggle-guide-btn');
+    const customCssGuideDrawer = document.getElementById('custom-css-guide-drawer');
+
+    const CSS_PRESETS = {
+        wallpaper: `/* Custom Background Wallpaper with Blur & Overlay */
+body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-image: url('https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=1920&q=80');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    opacity: 0.35;
+    filter: blur(8px);
+    z-index: -1;
+    pointer-events: none;
+}`,
+        oled: `/* Pure OLED Pitch Black (#000000) */
+body,
+#app,
+.app-container,
+.main-content,
+.sidebar,
+.player-bar,
+.navigation-bar,
+.card,
+.modal-content,
+.settings-modal {
+    background-color: #000000 !important;
+    background-image: none !important;
+}
+
+* {
+    border-color: #1a1a1e !important;
+}`,
+        glass: `/* Modern Frosted Glassmorphism UI */
+.sidebar,
+.player-bar,
+.header,
+.top-nav,
+.modal-content,
+.card {
+    background: rgba(18, 19, 26, 0.72) !important;
+    backdrop-filter: blur(24px) saturate(160%) !important;
+    -webkit-backdrop-filter: blur(24px) saturate(160%) !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+}`,
+        neon: `/* Cyberpunk Neon Glow Accent */
+:root {
+    --primary: #00f0ff !important;
+    --primary-foreground: #000000 !important;
+    --primary-hover: #00d2e0 !important;
+}
+
+.player-bar .play-btn,
+.sidebar .nav-item.active,
+.btn-primary {
+    box-shadow: 0 0 18px rgba(0, 240, 255, 0.55) !important;
+}
+
+#fullscreen-cover-overlay .track-title {
+    text-shadow: 0 0 12px rgba(0, 240, 255, 0.6) !important;
+}`,
+    };
+
+    if (customCssTextarea) {
+        customCssTextarea.value = customCssSettings.get();
+
+        // Preset chips
+        document.querySelectorAll('.css-preset-chip').forEach((chip) => {
+            chip.addEventListener('click', () => {
+                const presetKey = chip.getAttribute('data-preset');
+                if (presetKey === 'clear') {
+                    customCssTextarea.value = '';
+                    customCssSettings.reset();
+                    if (customCssStatus) {
+                        customCssStatus.textContent = 'Custom CSS cleared.';
+                        customCssStatus.className = 'custom-css-status';
+                        setTimeout(() => {
+                            if (customCssStatus) customCssStatus.textContent = '';
+                        }, 3000);
+                    }
+                } else if (presetKey && CSS_PRESETS[presetKey]) {
+                    customCssTextarea.value = CSS_PRESETS[presetKey];
+                    customCssSettings.set(customCssTextarea.value);
+                    if (customCssStatus) {
+                        customCssStatus.textContent = 'Preset applied and saved!';
+                        customCssStatus.className = 'custom-css-status success';
+                        setTimeout(() => {
+                            if (customCssStatus) customCssStatus.textContent = '';
+                        }, 3000);
+                    }
+                }
+            });
+        });
+
+        // Save & Apply button
+        if (customCssSaveBtn) {
+            customCssSaveBtn.addEventListener('click', () => {
+                const saved = customCssSettings.set(customCssTextarea.value);
+                if (customCssStatus) {
+                    customCssStatus.textContent = saved ? 'Saved & applied successfully!' : 'Styles reset.';
+                    customCssStatus.className = 'custom-css-status success';
+                    setTimeout(() => {
+                        if (customCssStatus) customCssStatus.textContent = '';
+                    }, 3000);
+                }
+            });
+        }
+
+        // Guide toggle
+        if (customCssToggleGuideBtn && customCssGuideDrawer) {
+            customCssToggleGuideBtn.addEventListener('click', () => {
+                const isHidden = customCssGuideDrawer.style.display === 'none';
+                customCssGuideDrawer.style.display = isHidden ? 'block' : 'none';
+                customCssToggleGuideBtn.textContent = isHidden ? 'Hide AI Prompts' : 'AI Prompts & Guide';
+            });
+        }
+
+        // Copy prompt buttons
+        document.querySelectorAll('.copy-prompt-btn').forEach((btn) => {
+            btn.addEventListener('click', async () => {
+                const targetId = btn.getAttribute('data-copy-target');
+                const targetEl = targetId ? document.getElementById(targetId) : null;
+                if (targetEl && targetEl.textContent) {
+                    try {
+                        await navigator.clipboard.writeText(targetEl.textContent.trim());
+                        const prev = btn.textContent;
+                        btn.textContent = 'Copied!';
+                        btn.classList.add('copied');
+                        setTimeout(() => {
+                            btn.textContent = prev;
+                            btn.classList.remove('copied');
+                        }, 2000);
+                    } catch {
+                        const range = document.createRange();
+                        range.selectNodeContents(targetEl);
+                        const sel = window.getSelection();
+                        sel?.removeAllRanges();
+                        sel?.addRange(range);
+                    }
+                }
+            });
         });
     }
 

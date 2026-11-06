@@ -72,37 +72,95 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         const emailHtml = `
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="utf-8">
-  <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #0c0d0e; color: #ededed; margin: 0; padding: 24px; }
-    .card { max-width: 480px; margin: 0 auto; background-color: #17181c; border: 1px solid #27282d; border-radius: 12px; padding: 32px; box-shadow: 0 8px 24px rgba(0,0,0,0.5); }
-    .logo { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; color: #ffffff; margin-bottom: 24px; display: inline-block; }
-    h2 { font-size: 20px; font-weight: 600; margin-top: 0; margin-bottom: 16px; color: #ffffff; }
-    p { font-size: 14px; line-height: 1.6; color: #a1a1aa; margin-bottom: 24px; }
-    .btn-container { text-align: center; margin: 32px 0; }
-    .btn { display: inline-block; background-color: #ffffff; color: #000000; font-weight: 600; font-size: 14px; text-decoration: none; padding: 12px 28px; border-radius: 8px; }
-    .link-box { word-break: break-all; font-size: 12px; color: #71717a; background: #0c0d0e; padding: 12px; border-radius: 6px; border: 1px solid #27282d; }
-    .footer { font-size: 12px; color: #52525b; margin-top: 32px; border-top: 1px solid #27282d; padding-top: 16px; text-align: center; }
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reset Your Echoes Password</title>
+  <!--[if mso]>
+  <style type="text/css">
+    body, table, td, a { font-family: Arial, sans-serif !important; }
   </style>
+  <![endif]-->
 </head>
-<body>
-  <div class="card">
-    <div class="logo">Echoes</div>
-    <h2>Reset Your Password</h2>
-    <p>Hi ${userRow.name || 'there'},</p>
-    <p>We received a request to reset your Echoes account password. Click the button below to choose a new password. This link will expire in 1 hour.</p>
-    <div class="btn-container">
-      <a href="${resetUrl}" class="btn">Reset Password</a>
-    </div>
-    <p>If the button doesn't work, copy and paste this link into your browser:</p>
-    <div class="link-box">${resetUrl}</div>
-    <p style="margin-top:24px;">If you didn't request a password reset, you can safely ignore this email.</p>
-    <div class="footer">
-      Echoes Music Player &bull; Open-source audio streaming
-    </div>
-  </div>
+<body style="margin: 0; padding: 0; background-color: #090a0f; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; -webkit-font-smoothing: antialiased; color: #f4f4f5;">
+  <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #090a0f; min-height: 100vh; padding: 40px 16px;">
+    <tr>
+      <td align="center" valign="top">
+        <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="max-width: 520px; background-color: #12131a; border-radius: 16px; border: 1px solid #232533; overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.6);">
+          <!-- Top Accent Gradient -->
+          <tr>
+            <td height="4" style="background: linear-gradient(90deg, #6366f1 0%, #a855f7 50%, #ec4899 100%); font-size: 1px; line-height: 1px;">&nbsp;</td>
+          </tr>
+          <!-- Body Container -->
+          <tr>
+            <td style="padding: 36px 36px 32px 36px;">
+              <!-- Header / Brand -->
+              <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="margin-bottom: 28px;">
+                <tr>
+                  <td>
+                    <div style="display: inline-flex; align-items: center; gap: 10px;">
+                      <span style="display: inline-block; width: 32px; height: 32px; background: linear-gradient(135deg, #6366f1, #a855f7); border-radius: 8px; text-align: center; line-height: 32px; font-size: 18px; color: #ffffff; font-weight: bold;">&#9835;</span>
+                      <span style="font-size: 20px; font-weight: 700; letter-spacing: 2px; color: #ffffff; text-transform: uppercase;">Echoes</span>
+                    </div>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Title -->
+              <h1 style="margin: 0 0 16px 0; font-size: 24px; font-weight: 700; color: #ffffff; letter-spacing: -0.5px;">Password Reset Request</h1>
+              
+              <p style="margin: 0 0 20px 0; font-size: 15px; line-height: 1.6; color: #a1a1aa;">
+                Hi <strong style="color: #f4f4f5;">${userRow.name || 'there'}</strong>,
+              </p>
+              
+              <p style="margin: 0 0 28px 0; font-size: 15px; line-height: 1.6; color: #a1a1aa;">
+                We received a request to reset the password for your Echoes account. To set a new password, click the button below:
+              </p>
+
+              <!-- CTA Button -->
+              <table role="presentation" border="0" cellspacing="0" cellpadding="0" style="margin: 0 auto 32px auto; width: 100%;">
+                <tr>
+                  <td align="center">
+                    <a href="${resetUrl}" target="_blank" style="display: inline-block; width: 100%; box-sizing: border-box; text-align: center; background: #ffffff; color: #0a0a0c; font-size: 15px; font-weight: 600; text-decoration: none; padding: 14px 28px; border-radius: 10px; box-shadow: 0 4px 14px rgba(255, 255, 255, 0.12); transition: all 0.2s ease;">
+                      Reset Password &rarr;
+                    </a>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Expiry Callout -->
+              <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #181924; border-radius: 8px; border: 1px solid #282a3a; margin-bottom: 24px;">
+                <tr>
+                  <td style="padding: 14px 16px; font-size: 13px; color: #9496a8; line-height: 1.5;">
+                    <strong style="color: #cbd5e1;">Notice:</strong> This single-use reset link expires in <strong>60 minutes</strong>. If you did not make this request, you can safely ignore this email &mdash; your account and password remain completely secure.
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Alternative Link -->
+              <p style="margin: 0 0 8px 0; font-size: 12px; color: #71717a;">
+                Button not working? Copy and paste this URL into your browser:
+              </p>
+              <div style="background-color: #0d0e14; border: 1px solid #1f212d; border-radius: 8px; padding: 12px; word-break: break-all; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 11px; line-height: 1.5; color: #818cf8;">
+                ${resetUrl}
+              </div>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="background-color: #0d0e14; border-top: 1px solid #1f212d; padding: 20px 36px; text-align: center;">
+              <p style="margin: 0; font-size: 12px; color: #52525b; line-height: 1.5;">
+                &copy; ${new Date().getFullYear()} Echoes Music &bull; Ad-free, high fidelity streaming<br>
+                <a href="${TRUSTED_APP_DOMAIN}" style="color: #71717a; text-decoration: underline;">echoes.mteck.tech</a>
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
 </body>
 </html>
         `;

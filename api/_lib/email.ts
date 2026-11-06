@@ -1,3 +1,5 @@
+import { Resend } from 'resend';
+
 export interface SendEmailOptions {
     to: string;
     subject: string;
@@ -9,42 +11,39 @@ export async function sendEmail(options: SendEmailOptions): Promise<{ success: b
     const resendApiKey = process.env.RESEND_API_KEY;
     const brevoApiKey = process.env.BREVO_API_KEY;
 
-    // 1. Send via Resend if RESEND_API_KEY is configured
+    // 1. Send via Resend (Primary provider)
     if (resendApiKey) {
         try {
-            const from = process.env.EMAIL_FROM || 'Echoes <notifications@mteck.tech>';
-            const res = await fetch('https://api.resend.com/emails', {
-                method: 'POST',
-                headers: {
-                    Authorization: `Bearer ${resendApiKey}`,
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    from,
-                    to: [options.to],
-                    subject: options.subject,
-                    html: options.html,
-                    text: options.text,
-                }),
+            const resend = new Resend(resendApiKey);
+            // Default to 'Echoes <onboarding@resend.dev>' for unverified accounts,
+            // or process.env.EMAIL_FROM (e.g. 'Echoes <notifications@mteck.tech>') once domain is verified.
+            const from = process.env.EMAIL_FROM || 'Echoes <onboarding@resend.dev>';
+            
+            const { data, error } = await resend.emails.send({
+                from,
+                to: [options.to],
+                subject: options.subject,
+                html: options.html,
+                text: options.text,
             });
 
-            const data = await res.json().catch(() => null);
-            if (!res.ok) {
-                console.error('[Resend Email Error]', data);
+            if (error) {
+                console.error('[Resend Error]', error);
                 return {
                     success: false,
-                    error: data?.message || data?.error || `Email delivery failed (${res.status})`,
+                    error: error.message || 'Resend delivery failed',
                 };
             }
 
+            console.log(`[Resend Success] Email sent to ${options.to}, id=${data?.id}`);
             return { success: true, id: data?.id };
         } catch (err: any) {
             console.error('[Resend Exception]', err);
-            return { success: false, error: err.message || 'Failed to dispatch email' };
+            return { success: false, error: err.message || 'Failed to dispatch email via Resend' };
         }
     }
 
-    // 2. Send via Brevo (Sendinblue) if BREVO_API_KEY is configured
+    // 2. Send via Brevo (Sendinblue) as secondary fallback if BREVO_API_KEY is configured
     if (brevoApiKey) {
         try {
             const fromEmail = process.env.EMAIL_FROM_ADDRESS || 'notifications@mteck.tech';
@@ -80,5 +79,5 @@ export async function sendEmail(options: SendEmailOptions): Promise<{ success: b
         }
     }
 
-    return { success: false, error: 'No email provider configured (set RESEND_API_KEY or BREVO_API_KEY in Vercel)' };
+    return { success: false, error: 'No email provider configured (set RESEND_API_KEY in Vercel)' };
 }

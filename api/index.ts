@@ -138,9 +138,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             delete req.query.__route;
         }
 
-        // If req.url has query params not in req.query (e.g. in test environments), populate them
-        if (req.url && req.url.includes('?')) {
-            const search = req.url.split('?')[1];
+        // If req.url or routing headers have query params not in req.query, populate them
+        const rawUri =
+            (req.headers['x-forwarded-uri'] as string) ||
+            (req.headers['x-rewrite-url'] as string) ||
+            (req.headers['x-matched-path'] as string) ||
+            req.url ||
+            '';
+        if (rawUri && rawUri.includes('?')) {
+            const search = rawUri.split('?')[1];
             const sp = new URLSearchParams(search);
             for (const [k, v] of sp.entries()) {
                 if (req.query[k] === undefined && k !== '__route') {

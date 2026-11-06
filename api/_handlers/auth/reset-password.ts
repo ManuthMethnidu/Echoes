@@ -55,8 +55,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
                 if (!neonRes.ok) {
                     const neonErr = await neonRes.json().catch(() => ({}));
+                    const rawMsg = (neonErr.message || '').toLowerCase();
+                    const isGoogleErr =
+                        rawMsg.includes('credential') ||
+                        rawMsg.includes('provider') ||
+                        rawMsg.includes('password') ||
+                        rawMsg.includes('not found');
+
                     return res.status(400).json({
-                        error: { message: neonErr.message || 'Invalid or expired verification code' },
+                        error: {
+                            message: isGoogleErr
+                                ? 'This account was created with Google Sign-In and does not use a password. Please sign in directly with Google.'
+                                : neonErr.message || 'Invalid or expired verification code',
+                        },
                     });
                 }
 
@@ -100,6 +111,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
 
         const userRow = users[0];
+
+        // Google OAuth Check
+        if (!userRow.password_hash) {
+            return res.status(400).json({
+                error: {
+                    message:
+                        'This account was created with Google Sign-In and does not use a password. Please sign in directly with Google.',
+                },
+            });
+        }
+
         const currentFingerprint = (userRow.password_hash || '').slice(0, 16);
         if (tokenPayload.fingerprint !== currentFingerprint) {
             return res.status(400).json({

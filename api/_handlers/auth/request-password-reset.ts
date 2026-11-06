@@ -53,6 +53,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         `;
 
         if (users.length === 0) {
+            // Check if this email exists as a Google OAuth account in neon_auth
+            let isGoogleOnly = false;
+            try {
+                const neonUser = await sql`
+                    SELECT u.id 
+                    FROM neon_auth.user u
+                    JOIN neon_auth.account a ON a."userId" = u.id
+                    WHERE LOWER(u.email) = ${normalizedEmail} AND a."providerId" = 'google'
+                    LIMIT 1
+                `;
+                if (neonUser.length > 0) {
+                    isGoogleOnly = true;
+                }
+            } catch {}
+
+            if (isGoogleOnly) {
+                return res.status(400).json({
+                    error: {
+                        message: 'This account was created with Google Sign-In and does not have a separate password. Please sign in directly using "Sign in with Google".',
+                        isGoogleAccount: true,
+                    },
+                });
+            }
+
             // Constant-time style response to prevent email enumeration
             return res.status(200).json({
                 status: true,
@@ -61,6 +85,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
 
         const userRow = users[0];
+
+        // Google OAuth Check: Accounts created via Google Sign-In do NOT have an Echoes password
+        if (!userRow.password_hash) {
+            return res.status(400).json({
+                error: {
+                    message: 'This account was created with Google Sign-In and does not have a separate password. Please sign in directly using "Sign in with Google".',
+                    isGoogleAccount: true,
+                },
+            });
+        }
+
         const fingerprint = (userRow.password_hash || '').slice(0, 16);
         const token = await createPasswordResetToken(userRow.id, userRow.email, fingerprint);
 
@@ -192,9 +227,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             }
         }
 
+        if (!emailSent) {
+            console.error('[Password Reset Delivery Failed] Neither Resend nor Neon Auth could deliver the email.');
+            return res.status(503).json({
+                error: {
+                    message:
+                        'Unable to dispatch password reset email. Please ensure RESEND_API_KEY is configured in your Vercel project environment variables.',
+                },
+            });
+        }
+
         return res.status(200).json({
             status: true,
-            message: 'If an account exists with this email, password reset instructions have been sent.',
+            message: 'Password reset instructions have been sent to your email address.',
         });
     } catch (err: any) {
         console.error('[Request Password Reset Error]', err);

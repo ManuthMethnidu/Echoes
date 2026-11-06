@@ -5633,6 +5633,86 @@ input.skeleton {
     margin-top: 0.5rem;
 }
 
+/* Hall of Fame / Community Contributors Card */
+.hall-of-fame-card {
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.hall-of-fame-card:hover {
+    border-color: rgba(255, 255, 255, 0.16);
+}
+
+.hof-contributor-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 4px 10px 4px 4px;
+    border-radius: 9999px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--border);
+    text-decoration: none;
+    color: var(--foreground);
+    font-size: 0.82rem;
+    font-weight: 500;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.hof-contributor-pill:hover {
+    background: rgba(255, 255, 255, 0.09);
+    border-color: rgba(255, 255, 255, 0.25);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.hof-contributor-pill img {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.hof-contributor-pill .hof-commit-count {
+    color: var(--muted-foreground);
+    font-size: 0.72rem;
+    background: rgba(255, 255, 255, 0.06);
+    padding: 1px 6px;
+    border-radius: 9999px;
+    margin-left: 2px;
+}
+
+.hof-avatar-wall {
+    max-height: 220px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+}
+
+.hof-avatar-bubble {
+    display: inline-block;
+    position: relative;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease, border-color 0.2s ease;
+    border: 1.5px solid var(--border);
+    overflow: hidden;
+    background: #181818;
+}
+
+.hof-avatar-bubble img {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    object-fit: cover;
+    display: block;
+}
+
+.hof-avatar-bubble:hover {
+    transform: scale(1.22) translateY(-2px);
+    border-color: #fff;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5), 0 0 10px rgba(255, 255, 255, 0.2);
+    z-index: 5;
+}
+
 .about-features,
 .about-tech {
     margin-bottom: 2rem;

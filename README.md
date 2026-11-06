@@ -15,6 +15,7 @@
 <p align="center">
   <a href="https://echoes.mteck.tech">Live Web App</a> |
   <a href="#support-by-starring">Star Repository</a> |
+  <a href="#hall-of-fame-and-contributors">Contributors</a> |
   <a href="#donations-and-sponsorship">Donations</a> |
   <a href="#bug-reports-and-feature-requests">Report Issue &amp; Feature Requests</a> |
   <a href="#security-and-responsible-disclosure">Security Policy</a> |
@@ -50,6 +51,20 @@ If you enjoy using Echoes, the single greatest way you can support our continued
 **Star the repository:** https://github.com/ManuthMethnidu/Echoes
 
 Every star helps more music listeners discover an ad-free, high-fidelity alternative.
+
+---
+
+## Hall of Fame and Contributors
+
+Echoes is developed with immense pride as a 100% free, community-powered open-source project. Immense gratitude to every engineer, designer, translator, and supporter who has contributed code, fixes, and ideas along the journey:
+
+<p align="center">
+  <a href="https://github.com/ManuthMethnidu/Echoes/graphs/contributors">
+    <img src="https://contrib.rocks/image?repo=ManuthMethnidu/Echoes" alt="Echoes Contributors" />
+  </a>
+</p>
+
+We welcome contributions of all forms—bug reports, pull requests, lyrics source integrations, audio DSP improvements, and documentation enhancements. Check out our [GitHub Issues](https://github.com/ManuthMethnidu/Echoes/issues) or submit a pull request!
 
 ---
 
@@ -111,7 +126,14 @@ Echoes combines high-bitrate audio streaming with a serverless edge architecture
 - Parametric and Graphic Equalizer: Up to 32-band equalizer with AutoEQ headphone profile import support.
 - Audio Processing: Gapless playback, ReplayGain loudness normalization, binaural DSP crossfeed, and pitch/speed control.
 - Hardware-Accelerated Visualizers: Milkdrop/Butterchurn WebGL shader engine, beat-reactive artwork pulse, and real-time spectrum analysers.
-- Multi-Source Lyrics: Synchronized word-by-word and line-by-line lyrics with multi-provider fallbacks.
+
+### Universal Lyrics & Multi-Language Translation
+- Apple Music Kinetic Typography: Powered by `@uimaxbai/am-lyrics` with fluid kinetic scaling, blur transitions, and synchronized autoscroll.
+- Multi-Source Fallback Pipeline: Automated resolution cascading across Musixmatch, LRCLIB, Apple Music TTML, and YouTube Closed Captions.
+- Universal YouTube Closed Captions Engine: Automatically retrieves synchronized video captions via serverless edge failover (`/api/yt/captions`) when lyrics providers lack data.
+- Real-Time Multi-Language Translation: Translate synchronized lyrics on the fly into 130+ languages (`/api/lyrics/translate`) with dual-subtitles rendered directly beneath active lines.
+- Romanized Romaji Mode: One-click transliteration of Japanese kanji/kana lyrics into Romanized Romaji.
+- Genius Community Annotations: Interactive deep-dive annotations providing behind-the-scenes song meanings directly from Genius.
 
 ### Echoes Connect (Cross-Device Remote Playback)
 - Real-Time Edge WebSocket Sync: Backed by Cloudflare Workers and Durable Objects for instantaneous device switching.
@@ -175,9 +197,9 @@ Echoes is engineered with an edge-first, decoupled architecture:
 
 ```
 ├── api/                           # Vercel Serverless API handlers
-│   ├── _lib/                      # Database client, auth tokens, input sanitizer, rate limiting
-│   ├── _handlers/                 # Modular API request handlers (auth, sync, pair, yt)
-│   └── index.ts                   # Unified API router
+│   ├── _lib/                      # Database client, auth tokens, input sanitizer, Invidious failover
+│   ├── _handlers/                 # Modular API request handlers (auth, sync, pair, yt, lyrics)
+│   └── index.ts                   # Unified API router (/api/auth, /api/sync, /api/yt/captions, etc.)
 ├── cloudflare-connect-worker/     # Cloudflare Worker and Durable Objects backend
 │   ├── src/index.ts               # PlaybackRoom DO class and WebSocket server
 │   └── wrangler.toml              # Cloudflare Worker configuration

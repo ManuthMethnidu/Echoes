@@ -113,11 +113,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const userRow = users[0];
 
         // Google OAuth Check
-        if (!userRow.password_hash) {
+        let isGoogleAccount = !userRow.password_hash;
+        if (!isGoogleAccount && userRow.email) {
+            try {
+                const googleAccounts = await sql`
+                    SELECT a.id 
+                    FROM neon_auth.account a
+                    JOIN neon_auth.user u ON u.id = a."userId"
+                    WHERE LOWER(u.email) = ${userRow.email.toLowerCase()} AND a."providerId" = 'google'
+                    LIMIT 1
+                `;
+                if (googleAccounts.length > 0) {
+                    isGoogleAccount = true;
+                }
+            } catch (e) {
+                console.warn('[Check Google Account Error in Reset]', e);
+            }
+        }
+
+        if (isGoogleAccount) {
             return res.status(400).json({
                 error: {
                     message:
-                        'This account was created with Google Sign-In and does not use a password. Please sign in directly with Google.',
+                        'This account was created with Google Sign-In and cannot have a password set. Please sign in directly with Google.',
                 },
             });
         }

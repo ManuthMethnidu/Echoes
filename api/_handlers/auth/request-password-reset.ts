@@ -45,6 +45,32 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             });
         }
 
+        // Check if this email exists as a Google OAuth account in neon_auth
+        let isGoogleAccount = false;
+        try {
+            const googleAccounts = await sql`
+                SELECT a.id 
+                FROM neon_auth.account a
+                JOIN neon_auth.user u ON u.id = a."userId"
+                WHERE LOWER(u.email) = ${normalizedEmail} AND a."providerId" = 'google'
+                LIMIT 1
+            `;
+            if (googleAccounts.length > 0) {
+                isGoogleAccount = true;
+            }
+        } catch (e) {
+            console.warn('[Check Google Account Error]', e);
+        }
+
+        if (isGoogleAccount) {
+            return res.status(400).json({
+                error: {
+                    message: 'This account was created with Google Sign-In and does not have a separate password. Please sign in directly using "Sign in with Google".',
+                    isGoogleAccount: true,
+                },
+            });
+        }
+
         const users = await sql`
             SELECT id, email, password_hash, name
             FROM users
@@ -53,30 +79,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         `;
 
         if (users.length === 0) {
-            // Check if this email exists as a Google OAuth account in neon_auth
-            let isGoogleOnly = false;
-            try {
-                const neonUser = await sql`
-                    SELECT u.id 
-                    FROM neon_auth.user u
-                    JOIN neon_auth.account a ON a."userId" = u.id
-                    WHERE LOWER(u.email) = ${normalizedEmail} AND a."providerId" = 'google'
-                    LIMIT 1
-                `;
-                if (neonUser.length > 0) {
-                    isGoogleOnly = true;
-                }
-            } catch {}
-
-            if (isGoogleOnly) {
-                return res.status(400).json({
-                    error: {
-                        message: 'This account was created with Google Sign-In and does not have a separate password. Please sign in directly using "Sign in with Google".',
-                        isGoogleAccount: true,
-                    },
-                });
-            }
-
             // Constant-time style response to prevent email enumeration
             return res.status(200).json({
                 status: true,
@@ -228,11 +230,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
 
         if (!emailSent) {
-            console.error('[Password Reset Delivery Failed] Neither Resend nor Neon Auth could deliver the email.');
+            const errorReason = emailResult?.error || 'Email delivery service could not dispatch message.';
+            console.error('[Password Reset Delivery Failed]', errorReason);
             return res.status(503).json({
                 error: {
-                    message:
-                        'Unable to dispatch password reset email. Please ensure RESEND_API_KEY is configured in your Vercel project environment variables.',
+                    message: `Unable to dispatch password reset email: ${errorReason}`,
                 },
             });
         }

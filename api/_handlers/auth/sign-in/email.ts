@@ -40,6 +40,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             });
         }
 
+        // Check if this account was created with or linked to Google OAuth
+        let isGoogleAccount = false;
+        try {
+            const googleAccounts = await sql`
+                SELECT a.id 
+                FROM neon_auth.account a
+                JOIN neon_auth.user u ON u.id = a."userId"
+                WHERE LOWER(u.email) = ${normalizedEmail} AND a."providerId" = 'google'
+                LIMIT 1
+            `;
+            if (googleAccounts.length > 0) {
+                isGoogleAccount = true;
+            }
+        } catch {}
+
+        if (isGoogleAccount) {
+            return res.status(400).json({
+                error: {
+                    message: 'This account was created with Google Sign-In. Please sign in directly using "Sign in with Google".',
+                    isGoogleAccount: true,
+                },
+            });
+        }
+
         const users = await sql`
             SELECT id, email, password_hash, name, avatar_url
             FROM users

@@ -653,21 +653,25 @@ export class AuthManager {
         }
     }
 
-    async resetPassword(token, password, confirmPassword) {
+    async resetPassword(token, password, confirmPassword, email = '') {
         if (password !== confirmPassword) {
             throw new Error('Passwords do not match');
         }
-        if (password.length < 6) {
-            throw new Error('Password must be at least 6 characters');
+        if (password.length < 8) {
+            throw new Error('Password must be at least 8 characters');
         }
         try {
+            const bodyPayload = {
+                token: typeof token === 'string' ? token.trim() : token,
+                newPassword: password,
+            };
+            if (email) {
+                bodyPayload.email = email.trim();
+            }
             const res = await fetch(`${AUTH_BASE_URL}/api/auth/reset-password`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    token,
-                    newPassword: password,
-                }),
+                body: JSON.stringify(bodyPayload),
                 credentials: 'include',
             });
             const data = await res.json().catch(() => null);

@@ -798,14 +798,22 @@ export class LyricsManager {
                 .filter((l) => l && !l.startsWith('['));
             if (!plainLines.length) return null;
 
+            const durationSec =
+                Number.isFinite(track?.duration) && track.duration > 10
+                    ? Number(track.duration)
+                    : plainLines.length * 4;
+            const lineDuration = Math.max(2.5, durationSec / plainLines.length);
+
             let ttml = '<?xml version="1.0" encoding="UTF-8"?>\n';
             ttml += '<tt xmlns="http://www.w3.org/ns/ttml" xmlns:ttm="http://www.w3.org/ns/ttml#metadata">\n';
             ttml += '<head>\n<metadata>\n';
             ttml += `<ttm:title>${escapeHtml(trackTitle)}</ttm:title>\n`;
             if (trackArtist) ttml += `<ttm:copyright>${escapeHtml(trackArtist)}</ttm:copyright>\n`;
             ttml += '</metadata>\n</head>\n<body>\n<div>\n';
-            for (const line of plainLines) {
-                ttml += `<p begin="00:00:00.000" end="00:00:00.000"><span>${escapeHtml(line)}</span></p>\n`;
+            for (let i = 0; i < plainLines.length; i++) {
+                const beginSec = i * lineDuration;
+                const endSec = Math.min((i + 1) * lineDuration, durationSec);
+                ttml += `<p begin="${this.formatTTMLTime(beginSec)}" end="${this.formatTTMLTime(endSec)}"><span>${escapeHtml(plainLines[i])}</span></p>\n`;
             }
             ttml += '</div>\n</body>\n</tt>';
             return ttml;

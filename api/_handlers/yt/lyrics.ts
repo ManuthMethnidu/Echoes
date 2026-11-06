@@ -39,11 +39,35 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
             if (searchRes.ok) {
                 const sData = await searchRes.json();
-                const shelf = sData.contents?.tabbedSearchResultsRenderer?.tabs?.[0]?.tabRenderer?.content?.sectionListRenderer?.contents?.[0]?.musicShelfRenderer;
-                const firstSong = shelf?.contents?.[0]?.musicResponsiveListItemRenderer;
-                const foundId = firstSong?.playlistItemData?.videoId;
-                if (foundId) {
-                    videoId = foundId;
+                const sections =
+                    sData.contents?.tabbedSearchResultsRenderer?.tabs?.[0]?.tabRenderer?.content?.sectionListRenderer?.contents ||
+                    [];
+                for (const section of sections) {
+                    if (videoId) break;
+                    // 1. Check musicCardShelfRenderer (standard for specific artist + title matches)
+                    if (section.musicCardShelfRenderer) {
+                        const card = section.musicCardShelfRenderer;
+                        const cardId =
+                            card.title?.runs?.[0]?.navigationEndpoint?.watchEndpoint?.videoId ||
+                            card.buttons?.[0]?.buttonRenderer?.command?.watchEndpoint?.videoId;
+                        if (cardId) {
+                            videoId = cardId;
+                            break;
+                        }
+                    }
+                    // 2. Check musicShelfRenderer (song lists / shelves)
+                    if (section.musicShelfRenderer?.contents) {
+                        for (const item of section.musicShelfRenderer.contents) {
+                            const renderer = item.musicResponsiveListItemRenderer;
+                            const songId =
+                                renderer?.playlistItemData?.videoId ||
+                                renderer?.navigationEndpoint?.watchEndpoint?.videoId;
+                            if (songId) {
+                                videoId = songId;
+                                break;
+                            }
+                        }
+                    }
                 }
             }
         } catch (sErr) {

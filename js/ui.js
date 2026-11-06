@@ -2883,11 +2883,112 @@ export class UIRenderer {
             }
         }
 
+        let tokenEmail = params.get('email') || '';
+        let helperEl = document.getElementById('reset-password-helper');
+        if (!helperEl) {
+            helperEl = document.createElement('div');
+            helperEl.id = 'reset-password-helper';
+            helperEl.style.cssText = 'text-align: left; margin-top: var(--space-4);';
+            form.parentNode.insertBefore(helperEl, form);
+        }
+
+        const showFormForToken = (t, email = '') => {
+            token = t;
+            if (email) tokenEmail = email;
+            helperEl.style.display = 'none';
+            form.style.display = 'block';
+            errorEl.style.display = 'none';
+            passwordInput.focus();
+        };
+
         if (!token) {
-            errorEl.textContent = 'Invalid or missing password reset link.';
-            errorEl.style.display = 'block';
             form.style.display = 'none';
-            return;
+            helperEl.style.display = 'block';
+            helperEl.innerHTML = `
+                <p style="color: var(--muted-foreground); font-size: 0.875rem; line-height: 1.5; margin-bottom: var(--space-4);">
+                    No password reset link was detected. You can request a fresh link below, or paste your token/code if you already have one:
+                </p>
+                <div style="margin-bottom: var(--space-4);">
+                    <label style="display: block; font-size: 0.75rem; color: var(--muted-foreground); margin-bottom: 6px; text-transform: uppercase; font-weight: 600;">Request New Reset Link</label>
+                    <input
+                        type="email"
+                        id="reset-req-email-input"
+                        placeholder="Enter your email address"
+                        style="width: 100%; padding: var(--space-3) var(--space-4); border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--card); color: var(--foreground); font-size: 0.925rem; outline: none; margin-bottom: 8px;"
+                    />
+                    <button
+                        type="button"
+                        id="reset-req-email-btn"
+                        class="btn-primary"
+                        style="width: 100%; justify-content: center;"
+                    >
+                        Send Reset Link
+                    </button>
+                </div>
+                <div style="position: relative; text-align: center; margin: var(--space-5) 0;">
+                    <hr style="border: 0; border-top: 1px solid var(--border);" />
+                    <span style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: var(--background, #12131a); padding: 0 10px; color: var(--muted-foreground); font-size: 0.75rem; font-weight: 500;">OR ENTER CODE</span>
+                </div>
+                <div>
+                    <label style="display: block; font-size: 0.75rem; color: var(--muted-foreground); margin-bottom: 6px; text-transform: uppercase; font-weight: 600;">Have an OTP or Reset Token?</label>
+                    <input
+                        type="text"
+                        id="reset-manual-token-input"
+                        placeholder="Paste reset token or 6-digit OTP"
+                        style="width: 100%; padding: var(--space-3) var(--space-4); border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--card); color: var(--foreground); font-size: 0.925rem; outline: none; margin-bottom: 8px;"
+                    />
+                    <button
+                        type="button"
+                        id="reset-manual-token-btn"
+                        class="btn-secondary"
+                        style="width: 100%; justify-content: center;"
+                    >
+                        Continue with Token / Code &rarr;
+                    </button>
+                </div>
+            `;
+
+            const reqEmailBtn = document.getElementById('reset-req-email-btn');
+            const reqEmailInput = document.getElementById('reset-req-email-input');
+            const manualTokenBtn = document.getElementById('reset-manual-token-btn');
+            const manualTokenInput = document.getElementById('reset-manual-token-input');
+
+            if (reqEmailBtn && reqEmailInput) {
+                reqEmailBtn.onclick = async () => {
+                    const em = reqEmailInput.value.trim();
+                    if (!em) {
+                        alert('Please enter your account email address.');
+                        reqEmailInput.focus();
+                        return;
+                    }
+                    try {
+                        reqEmailBtn.disabled = true;
+                        reqEmailBtn.textContent = 'Sending...';
+                        await authManager.sendPasswordReset(em);
+                        tokenEmail = em;
+                    } catch (err) {
+                        /* handled by sendPasswordReset alert */
+                    } finally {
+                        reqEmailBtn.disabled = false;
+                        reqEmailBtn.textContent = 'Send Reset Link';
+                    }
+                };
+            }
+
+            if (manualTokenBtn && manualTokenInput) {
+                manualTokenBtn.onclick = () => {
+                    const t = manualTokenInput.value.trim();
+                    if (!t) {
+                        alert('Please enter your reset token or 6-digit OTP code.');
+                        manualTokenInput.focus();
+                        return;
+                    }
+                    showFormForToken(t, reqEmailInput?.value?.trim() || '');
+                };
+            }
+        } else {
+            helperEl.style.display = 'none';
+            form.style.display = 'block';
         }
 
         form.onsubmit = async (e) => {
@@ -2909,7 +3010,7 @@ export class UIRenderer {
                 btnText.style.display = 'none';
                 spinner.style.display = 'block';
 
-                await authManager.resetPassword(token, password, confirm);
+                await authManager.resetPassword(token, password, confirm, tokenEmail);
 
                 successEl.textContent = 'Password reset successfully. Opening login...';
                 successEl.style.display = 'block';

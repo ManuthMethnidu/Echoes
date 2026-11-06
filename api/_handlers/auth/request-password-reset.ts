@@ -64,21 +64,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const fingerprint = (userRow.password_hash || '').slice(0, 16);
         const token = await createPasswordResetToken(userRow.id, userRow.email, fingerprint);
 
-        let baseUrl = 'https://echoes.mteck.tech';
-        if (redirectTo && typeof redirectTo === 'string') {
-            try {
-                const u = new URL(redirectTo);
-                if (ALLOWED_RESET_ORIGINS.includes(u.origin)) {
-                    baseUrl = u.origin;
-                }
-            } catch {}
-        } else if (req.headers.origin && typeof req.headers.origin === 'string') {
-            if (ALLOWED_RESET_ORIGINS.includes(req.headers.origin)) {
-                baseUrl = req.headers.origin;
-            }
-        }
-
-        const resetUrl = `${baseUrl.replace(/\/+$/, '')}/reset-password?token=${encodeURIComponent(token)}`;
+        // Strict Defense against Host Header Injection:
+        // NEVER read req.headers.host, x-forwarded-host, origin, or client parameters to build links.
+        // Fixed trusted application URL prevents attackers from poisoning reset links via Burp Suite.
+        const TRUSTED_APP_DOMAIN = (process.env.APP_URL || 'https://echoes.mteck.tech').replace(/\/+$/, '');
+        const resetUrl = `${TRUSTED_APP_DOMAIN}/reset-password?token=${encodeURIComponent(token)}`;
 
         const emailHtml = `
 <!DOCTYPE html>
@@ -118,17 +108,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         `;
 
         let emailSent = false;
-        if (process.env.RESEND_API_KEY) {
-            const emailResult = await sendEmail({
-                to: userRow.email,
-                subject: 'Reset your Echoes password',
-                html: emailHtml,
-                text: `Hi ${userRow.name || 'there'},\n\nWe received a request to reset your password. Use the link below to choose a new password:\n\n${resetUrl}\n\nThis link will expire in 1 hour. If you did not request this, you can ignore this email.`,
-            });
-            emailSent = Boolean(emailResult?.success);
-        }
+        const emailResult = await sendEmail({
+            to: userRow.email,
+            subject: 'Reset your Echoes password',
+            html: emailHtml,
+            text: `Hi ${userRow.name || 'there'},\n\nWe received a request to reset your password. Use the link below to choose a new password:\n\n${resetUrl}\n\nThis link will expire in 1 hour. If you did not request this, you can ignore this email.`,
+        });
+        emailSent = Boolean(emailResult?.success);
 
-        // If no custom Resend API key configured, use Neon's Better Auth shared email service!
+        // If no custom email API key configured in Vercel, use Neon's Better Auth shared email service!
         if (!emailSent) {
             try {
                 const neonAuthUrl =

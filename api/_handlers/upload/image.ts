@@ -58,9 +58,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 ON CONFLICT (id) DO NOTHING
             `;
 
-            const host = (req.headers['x-forwarded-host'] || req.headers.host || 'echoes.mteck.tech') as string;
-            const proto = (req.headers['x-forwarded-proto'] || 'https') as string;
-            const artworkUrl = `${proto}://${host}/api/artwork?id=${artId}`;
+            const appUrl = (process.env.APP_URL || 'https://echoes.mteck.tech').replace(/\/+$/, '');
+            const artworkUrl = `${appUrl}/api/artwork?id=${artId}`;
 
             return res.status(200).json({ ok: true, url: artworkUrl });
         } catch (dbErr) {

@@ -15,14 +15,6 @@ function getSafeOrigin(req: VercelRequest): string {
     if (rawOrigin && ALLOWED_ORIGINS.includes(rawOrigin)) {
         return rawOrigin;
     }
-    const forwardedHost = (req.headers['x-forwarded-host'] || req.headers.host || '') as string;
-    const host = forwardedHost.split(',')[0].trim();
-    if (host) {
-        const candidate = `https://${host}`;
-        if (ALLOWED_ORIGINS.includes(candidate)) {
-            return candidate;
-        }
-    }
     return defaultOrigin;
 }
 

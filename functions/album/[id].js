@@ -1,5 +1,14 @@
 // functions/album/[id].js
 
+function escapeHtml(value) {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
 class TidalAPI {
     static CLIENT_ID = 'txNoH4kkV41MfH25';
     static CLIENT_SECRET = 'dQjy0MinCEvxi1O4UmxvxWnDjt4cgHBPw8ll6nYBk98=';
@@ -167,16 +176,20 @@ export async function onRequest(context) {
 
         if (album && (album.title || album.name)) {
             try {
-                const title = album.title || album.name;
-                const artist = album.artist?.name || 'Unknown Artist';
+                const rawTitle = album.title || album.name;
+                const rawArtist = album.artist?.name || 'Unknown Artist';
                 const year = album.releaseDate ? new Date(album.releaseDate).getFullYear() : '';
                 const trackCount = album.numberOfTracks || tracks.length;
 
-                const description = `Album by ${artist} • ${year} • ${trackCount} Tracks\nListen on Echoes`;
-                const imageUrl = album.cover
+                const title = escapeHtml(rawTitle);
+                const artist = escapeHtml(rawArtist);
+                const description = escapeHtml(`Album by ${rawArtist} • ${year} • ${trackCount} Tracks\nListen on Echoes`);
+                const rawImageUrl = album.cover
                     ? api.getCoverUrl(album.cover, '1280')
                     : 'https://echoes.mteck.tech/images/default-cover.png';
-                const pageUrl = new URL(request.url).href;
+                const imageUrl = escapeHtml(rawImageUrl);
+                const pageUrl = escapeHtml(new URL(request.url).href);
+                const releaseDate = escapeHtml(album.releaseDate || '');
 
                 const metaHtml = `
                     <!DOCTYPE html>
@@ -194,7 +207,7 @@ export async function onRequest(context) {
                         <meta property="og:type" content="music.album">
                         <meta property="og:url" content="${pageUrl}">
                         <meta property="music:musician" content="${artist}">
-                        <meta property="music:release_date" content="${album.releaseDate}">
+                        <meta property="music:release_date" content="${releaseDate}">
 
                         <meta name="twitter:card" content="summary_large_image">
                         <meta name="twitter:title" content="${title}">

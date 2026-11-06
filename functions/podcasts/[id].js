@@ -1,5 +1,14 @@
 // functions/podcasts/[id].js
 
+function escapeHtml(value) {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
 const PODCASTINDEX_API_BASE = 'https://api.podcastindex.org/api/1.0';
 const PODCAST_API_KEY = 'YU5HMSDYBQQVYDF6QN4P';
 const PODCAST_API_SECRET = '8hCvpjSL7T$S7^5ftnf5MhqQwYUYVjM^fmUL3Ld$';
@@ -47,15 +56,16 @@ export async function onRequest(context) {
             const feed = data.status === 'true' && data.feed ? data.feed : null;
 
             if (feed && feed.title) {
-                const title = feed.title;
+                const title = escapeHtml(feed.title);
                 const author = feed.author || feed.ownerName || '';
                 const episodeCount = feed.episodeCount || 0;
-                const _rawDescription = feed.description || '';
-                const description = author
+                const rawDescription = author
                     ? `Podcast by ${author} • ${episodeCount} Episodes\nListen on Echoes`
                     : `Podcast • ${episodeCount} Episodes\nListen on Echoes`;
-                const imageUrl = feed.image || feed.artwork || 'https://echoes.mteck.tech/images/default-cover.png';
-                const pageUrl = new URL(request.url).href;
+                const description = escapeHtml(rawDescription);
+                const rawImageUrl = feed.image || feed.artwork || 'https://echoes.mteck.tech/images/default-cover.png';
+                const imageUrl = escapeHtml(rawImageUrl);
+                const pageUrl = escapeHtml(new URL(request.url).href);
 
                 const metaHtml = `
                     <!DOCTYPE html>

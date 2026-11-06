@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getDb, ensureSchema } from '../../_lib/db.js';
+import { getClientIp, consumeRateLimit } from '../../_lib/rateLimit.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method !== 'GET') {
@@ -9,6 +10,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { code } = req.query;
     if (!code || typeof code !== 'string') {
         return res.status(400).json({ error: 'Missing code' });
+    }
+
+    const clientIp = getClientIp(req);
+    const limit = await consumeRateLimit(`pair_verify:${clientIp}`, 20, 60);
+    if (!limit.allowed) {
+        res.setHeader('Retry-After', String(limit.retryAfterSeconds));
+        return res.status(429).json({ error: 'Too many verification attempts. Please wait.' });
     }
 
     const normalizedCode = code.toUpperCase().replace(/[\s-]/g, '').trim();

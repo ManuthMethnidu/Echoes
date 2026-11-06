@@ -44,16 +44,44 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         await ensureSchema(sql);
 
         const flowId = req.query.flow ? String(req.query.flow) : null;
+        if (flowId) {
+            const flowRows = await sql`
+                SELECT flow_id FROM oauth_flows
+                WHERE flow_id = ${flowId} AND expires_at > NOW()
+                LIMIT 1
+            `.catch(() => []);
+            if (!flowRows || flowRows.length === 0) {
+                res.setHeader('Content-Type', 'text/html; charset=utf-8');
+                res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+                return res.status(400).send(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Invalid Flow</title></head><body style="background:#0c0d0e;color:#fff;font-family:sans-serif;text-align:center;padding:2rem;"><h2>Invalid or expired authentication flow.</h2><p><a href="/index.html" style="color:#fff;">Return to Echoes</a></p></body></html>`);
+            }
+        }
 
-        // Query the latest session created in Neon Auth
-        const sessions = await sql`
-            SELECT s."userId", s.token, u.email, u.name, u.image, s."createdAt"
-            FROM neon_auth.session s
-            JOIN neon_auth."user" u ON s."userId" = u.id
-            WHERE s."createdAt" >= NOW() - INTERVAL '15 minutes'
-            ORDER BY s."createdAt" DESC
-            LIMIT 1;
-        `;
+        const cookieHeader = req.headers.cookie || '';
+        const cookieMatch = cookieHeader.match(/(?:^|;\s*)better-auth\.session_token=([^;]+)/);
+        const queryToken = typeof req.query.token === 'string' ? req.query.token : typeof req.query.session_token === 'string' ? req.query.session_token : null;
+        const candidateToken = cookieMatch ? decodeURIComponent(cookieMatch[1]) : queryToken;
+
+        let sessions: any[] = [];
+        if (candidateToken) {
+            sessions = await sql`
+                SELECT s."userId", s.token, u.email, u.name, u.image, s."createdAt"
+                FROM neon_auth.session s
+                JOIN neon_auth."user" u ON s."userId" = u.id
+                WHERE s.token = ${candidateToken} AND s."expiresAt" > NOW()
+                LIMIT 1;
+            `;
+        }
+        if (sessions.length === 0) {
+            sessions = await sql`
+                SELECT s."userId", s.token, u.email, u.name, u.image, s."createdAt"
+                FROM neon_auth.session s
+                JOIN neon_auth."user" u ON s."userId" = u.id
+                WHERE s."createdAt" >= NOW() - INTERVAL '15 minutes'
+                ORDER BY s."createdAt" DESC
+                LIMIT 1;
+            `;
+        }
 
         if (!sessions || sessions.length === 0) {
             console.warn('[Neon Callback] No recent session found in neon_auth.session');
@@ -221,7 +249,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     type: 'echos:auth-success',
                     token: token,
                     user: user
-                }, '*');
+                }, window.location.origin);
                 notified = true;
             } catch (e) {}
         }

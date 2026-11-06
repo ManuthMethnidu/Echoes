@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getDb, ensureSchema } from '../../_lib/db.js';
 import { generateQrDataUrl } from '../../_lib/qr.js';
 import { sanitizeString } from '../../_lib/sanitize.js';
+import { getClientIp, consumeRateLimit } from '../../_lib/rateLimit.js';
 
 // Generate cryptographically secure human-friendly 6-character code (excluding ambiguous chars: 0, O, 1, I, L)
 function generatePairingCode(): string {
@@ -18,6 +19,13 @@ function generatePairingCode(): string {
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method !== 'POST') {
         return res.status(405).json({ error: 'Method Not Allowed' });
+    }
+
+    const clientIp = getClientIp(req);
+    const limit = await consumeRateLimit(`pair_init:${clientIp}`, 15, 600);
+    if (!limit.allowed) {
+        res.setHeader('Retry-After', String(limit.retryAfterSeconds));
+        return res.status(429).json({ error: 'Too many device pairing requests. Please wait a few minutes.' });
     }
 
     try {

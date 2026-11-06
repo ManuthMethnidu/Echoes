@@ -1,5 +1,14 @@
 // functions/userplaylist/[id].js
 
+function escapeHtml(value) {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
 function safeParseTracks(tracksData) {
     if (!tracksData) return [];
     if (Array.isArray(tracksData)) return tracksData;
@@ -71,7 +80,8 @@ export async function onRequest(context) {
             const record = await response.json();
 
             if (record) {
-                const title = record.name || 'Untitled Playlist';
+                const rawTitle = record.name || 'Untitled Playlist';
+                const title = escapeHtml(rawTitle);
 
                 let tracks = safeParseTracks(record.tracks).map((track) => ({
                     ...(track.metadata || {}),
@@ -82,22 +92,23 @@ export async function onRequest(context) {
                 const totalDuration = calculatePlaylistDuration(tracks);
                 const durationStr = formatDuration(totalDuration);
 
-                let imageUrl = record.cover_url || '';
+                let rawImageUrl = record.cover_url || '';
 
-                if (!imageUrl && tracks.length > 0) {
+                if (!rawImageUrl && tracks.length > 0) {
                     const firstCover = tracks.find((t) => t.album?.cover)?.album?.cover;
                     if (firstCover) {
                         const formattedId = String(firstCover).replace(/-/g, '/');
-                        imageUrl = `https://resources.tidal.com/images/${formattedId}/1080x1080.jpg`;
+                        rawImageUrl = `https://resources.tidal.com/images/${formattedId}/1080x1080.jpg`;
                     }
                 }
 
-                if (!imageUrl) {
-                    imageUrl = 'https://echoes.mteck.tech/images/default-cover.png';
+                if (!rawImageUrl) {
+                    rawImageUrl = 'https://echoes.mteck.tech/images/default-cover.png';
                 }
 
-                const description = `Playlist • ${trackCount} Tracks • ${durationStr}\nListen on Echoes`;
-                const pageUrl = new URL(request.url).href;
+                const imageUrl = escapeHtml(rawImageUrl);
+                const description = escapeHtml(`Playlist • ${trackCount} Tracks • ${durationStr}\nListen on Echoes`);
+                const pageUrl = escapeHtml(new URL(request.url).href);
 
                 const metaHtml = `
                     <!DOCTYPE html>

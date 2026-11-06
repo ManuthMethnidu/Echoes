@@ -2,11 +2,47 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getDb, ensureSchema } from '../../_lib/db.js';
 import { createToken, setSessionCookie } from '../../_lib/auth.js';
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-    const { code, state, error } = req.query;
+const ALLOWED_ORIGINS = [
+    'https://echoes.mteck.tech',
+    'https://echos.vercel.app',
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+];
+
+function getSafeOrigin(req: VercelRequest): string {
+    const defaultOrigin = 'https://echoes.mteck.tech';
+    const rawOrigin = typeof req.headers.origin === 'string' ? req.headers.origin : '';
+    if (rawOrigin && ALLOWED_ORIGINS.includes(rawOrigin)) {
+        return rawOrigin;
+    }
     const forwardedHost = (req.headers['x-forwarded-host'] || req.headers.host || '') as string;
     const host = forwardedHost.split(',')[0].trim();
-    const origin = (req.headers.origin as string) || (host ? `https://${host}` : 'https://echoes.mteck.tech');
+    if (host) {
+        const candidate = `https://${host}`;
+        if (ALLOWED_ORIGINS.includes(candidate)) {
+            return candidate;
+        }
+    }
+    return defaultOrigin;
+}
+
+function sanitizeCallbackUrl(rawUrl: string, defaultOrigin: string): string {
+    if (!rawUrl || typeof rawUrl !== 'string') return `${defaultOrigin}/index.html`;
+    try {
+        if (rawUrl.startsWith('/') && !rawUrl.startsWith('//') && !rawUrl.startsWith('/\\')) {
+            return `${defaultOrigin}${rawUrl}`;
+        }
+        const parsed = new URL(rawUrl);
+        if (ALLOWED_ORIGINS.includes(parsed.origin)) {
+            return rawUrl;
+        }
+    } catch {}
+    return `${defaultOrigin}/index.html`;
+}
+
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+    const { code, state, error } = req.query;
+    const origin = getSafeOrigin(req);
 
     let callbackURL = `${origin}/index.html`;
     let provider = 'google';
@@ -15,9 +51,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (state && typeof state === 'string') {
         try {
             const parsed = JSON.parse(Buffer.from(state, 'base64').toString('utf-8'));
-            if (parsed.callbackURL) callbackURL = parsed.callbackURL;
+            if (parsed.callbackURL) callbackURL = sanitizeCallbackUrl(parsed.callbackURL, origin);
             if (parsed.provider) provider = parsed.provider;
-            if (parsed.redirectUri) redirectUri = parsed.redirectUri;
+            if (parsed.redirectUri) redirectUri = sanitizeCallbackUrl(parsed.redirectUri, origin);
         } catch {}
     }
 

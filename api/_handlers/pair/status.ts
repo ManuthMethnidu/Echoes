@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getDb, ensureSchema } from '../../_lib/db.js';
+import { getClientIp, consumeRateLimit } from '../../_lib/rateLimit.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method !== 'GET') {
@@ -9,6 +10,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { token } = req.query;
     if (!token || typeof token !== 'string') {
         return res.status(400).json({ error: 'Missing pairing token' });
+    }
+
+    const clientIp = getClientIp(req);
+    const limit = await consumeRateLimit(`pair_status:${clientIp}`, 60, 60);
+    if (!limit.allowed) {
+        res.setHeader('Retry-After', String(limit.retryAfterSeconds));
+        return res.status(429).json({ error: 'Too many status check requests' });
     }
 
     try {

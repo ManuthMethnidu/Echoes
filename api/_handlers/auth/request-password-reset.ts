@@ -117,7 +117,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 </html>
         `;
 
-        const emailResult = await sendEmail({
+        await sendEmail({
             to: userRow.email,
             subject: 'Reset your Echoes password',
             html: emailHtml,
@@ -126,11 +126,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         return res.status(200).json({
             status: true,
-            emailSent: emailResult.success,
-            resetUrl: !emailResult.success ? resetUrl : undefined,
-            message: emailResult.success
-                ? 'Password reset email sent. Please check your inbox.'
-                : 'Password reset link generated successfully.',
+            message: 'If an account exists with this email, password reset instructions have been sent.',
         });
     } catch (err: any) {
         console.error('[Request Password Reset Error]', err);

@@ -79,7 +79,7 @@ export const getTrackYearDisplay = (track) => {
 };
 
 export const createPlaceholder = (text, isLoading = false) => {
-    return `<div class="placeholder-text ${isLoading ? 'loading' : ''}">${text}</div>`;
+    return `<div class="placeholder-text ${isLoading ? 'loading' : ''}">${escapeHtml(text)}</div>`;
 };
 
 export const trackDataStore = new WeakMap();

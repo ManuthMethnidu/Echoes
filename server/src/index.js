@@ -3,6 +3,7 @@ import express from 'express';
 import cors from 'cors';
 import { WebSocketServer, WebSocket } from 'ws';
 import { URL } from 'url';
+import { Readable } from 'stream';
 
 const PORT = process.env.PORT || 4000;
 const ALLOWED_ORIGINS = [
@@ -134,13 +135,17 @@ app.get('/stream', async (req, res) => {
 
     res.status(upstream.status);
 
-    const bodyReader = upstream.body.getReader();
-    while (true) {
-      const { done, value } = await bodyReader.read();
-      if (done) break;
-      res.write(value);
+    if (upstream.body) {
+      const nodeStream = Readable.fromWeb(upstream.body);
+      nodeStream.on('error', (err) => {
+        if (err.name !== 'AbortError') {
+          console.error('[Stream Error]:', err.message);
+        }
+      });
+      nodeStream.pipe(res);
+    } else {
+      res.end();
     }
-    res.end();
   } catch (err) {
     if (err.name === 'AbortError') {
       return;

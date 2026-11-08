@@ -52,6 +52,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(403).json({ error: 'Access to private or internal addresses is forbidden' });
     }
 
+    // Offload heavy continuous audio streaming directly to the dedicated VPS backend
+    // This avoids Vercel serverless function timeouts (10s-60s) and monthly transfer caps
+    if (req.query.direct !== '1') {
+        const vpsStreamUrl = `https://stream.mteck.tech/stream?url=${encodeURIComponent(validatedUrl)}`;
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
+        res.setHeader('Access-Control-Allow-Headers', 'Range, Content-Type');
+        res.setHeader('Location', vpsStreamUrl);
+        return res.status(307).end();
+    }
+
     try {
         const headers: Record<string, string> = {
             'User-Agent':

@@ -43,6 +43,7 @@ import { Visualizer } from './visualizer.js';
 import { audioContextManager } from './audio-context.js';
 import { navigate } from './router.js';
 import { sidePanelManager } from './side-panel.js';
+import { homeFeed } from './home-feed.js';
 import { searchCommunityPlaylists } from './community-playlists.js';
 import { resizeScroll, scrollTo } from './smooth-scroll.js';
 import {
@@ -3391,31 +3392,7 @@ export class UIRenderer {
             if (welcomeEl) welcomeEl.style.display = 'none';
             if (contentEl) contentEl.style.display = 'block';
 
-            const refreshSongsBtn = document.getElementById('refresh-songs-btn');
-            const refreshAlbumsBtn = document.getElementById('refresh-albums-btn');
-            const refreshArtistsBtn = document.getElementById('refresh-artists-btn');
-            const clearRecentBtn = document.getElementById('clear-recent-btn');
-
-            if (refreshSongsBtn) refreshSongsBtn.onclick = () => this.renderHomeSongs(true);
-            if (refreshAlbumsBtn) refreshAlbumsBtn.onclick = () => this.renderHomeAlbums(true);
-            if (refreshArtistsBtn) refreshArtistsBtn.onclick = () => this.renderHomeArtists(true);
-            if (clearRecentBtn)
-                clearRecentBtn.onclick = async () => {
-                    if (confirm('Clear recent activity?')) {
-                        recentActivityManager.clear();
-                        await this.renderHomeRecent();
-                    }
-                };
-
-            await this.renderHomeRecent();
-
-            // Load dynamic sections in parallel with pre-fetched seeds
-            const seeds = await this.getSeeds();
-            await Promise.all([
-                this.renderHomeSongs(false, seeds),
-                this.renderHomeAlbums(false, seeds),
-                this.renderHomeArtists(false, seeds),
-            ]);
+            await homeFeed.render(this);
         } finally {
             this.renderLock = false;
         }

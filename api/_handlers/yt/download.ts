@@ -50,11 +50,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             return res.status(404).json({ error: 'Audio stream not found' });
         }
 
-        if (streamUrl && instance) {
-            if (streamUrl.startsWith('/')) {
-                streamUrl = `${instance}${streamUrl}`;
-            } else {
-                streamUrl = streamUrl.replace(/^https:\/\/[^\/]+/, instance);
+        if (streamUrl) {
+            try {
+                const parsed = new URL(streamUrl);
+                const issuer = parsed.searchParams.get('issuer');
+                if (issuer && issuer.trim().length > 3) {
+                    streamUrl = streamUrl.replace(/^https:\/\/[^\/]+/, `https://${issuer.trim()}`);
+                } else if (instance) {
+                    if (streamUrl.startsWith('/')) {
+                        streamUrl = `${instance}${streamUrl}`;
+                    } else {
+                        streamUrl = streamUrl.replace(/^https:\/\/[^\/]+/, instance);
+                    }
+                }
+            } catch {
+                if (instance) {
+                    if (streamUrl.startsWith('/')) {
+                        streamUrl = `${instance}${streamUrl}`;
+                    } else {
+                        streamUrl = streamUrl.replace(/^https:\/\/[^\/]+/, instance);
+                    }
+                }
             }
         }
 

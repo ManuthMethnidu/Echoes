@@ -7,6 +7,9 @@ import { isIos, isSafari } from './platform-detection.js';
 export class YouTubeMusicEngine {
     constructor() {
         this.cache = new Map();
+        if (typeof window !== 'undefined') {
+            window.ytEngine = this;
+        }
     }
 
     async search(query) {
@@ -25,6 +28,13 @@ export class YouTubeMusicEngine {
         }
     }
 
+    invalidateStream(trackOrId) {
+        const id = typeof trackOrId === 'string' ? trackOrId : trackOrId?.id || trackOrId?.videoId;
+        if (!id) return;
+        const cleanId = String(id).replace(/^yt:/, '');
+        this.cache.delete(cleanId);
+    }
+
     async resolveStream(trackOrId) {
         const id = typeof trackOrId === 'string' ? trackOrId : trackOrId?.id || trackOrId?.videoId;
         if (!id) throw new Error('Invalid track ID');
@@ -33,9 +43,22 @@ export class YouTubeMusicEngine {
 
         if (this.cache.has(cleanId)) {
             const cached = this.cache.get(cleanId);
-            if (Date.now() - cached.timestamp < 30 * 60 * 1000) {
+            let isExpired = false;
+            try {
+                const sUrl = cached?.data?.streamUrl;
+                if (sUrl) {
+                    const u = new URL(sUrl);
+                    const exp = parseInt(u.searchParams.get('expire'), 10);
+                    if (!isNaN(exp) && exp <= Math.floor(Date.now() / 1000) + 60) {
+                        isExpired = true;
+                    }
+                }
+            } catch (_) {}
+
+            if (!isExpired && Date.now() - cached.timestamp < 15 * 60 * 1000) {
                 return cached.data;
             }
+            this.cache.delete(cleanId);
         }
 
         const title = typeof trackOrId === 'object' ? trackOrId.title || '' : '';

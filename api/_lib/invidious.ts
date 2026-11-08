@@ -1,10 +1,32 @@
 // In-memory LRU-like cache for video info and search results
 const cache = new Map<string, { data: any; instance: string; timestamp: number }>();
-const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
+const CACHE_TTL_MS = 15 * 60 * 1000; // 15 mins
 
 const ORDERED_INSTANCES = [
     'https://yt.chocolatemoo53.com',
 ];
+
+export function isFormatExpired(url: string, bufferSeconds = 60): boolean {
+    if (!url) return true;
+    try {
+        const u = new URL(url);
+        const expStr = u.searchParams.get('expire');
+        if (expStr) {
+            const exp = parseInt(expStr, 10);
+            if (!isNaN(exp) && exp <= Math.floor(Date.now() / 1000) + bufferSeconds) {
+                return true;
+            }
+        }
+    } catch {}
+    return false;
+}
+
+function hasExpiredAudio(data: any): boolean {
+    if (!data || typeof data !== 'object') return false;
+    const af = data.adaptiveFormats?.filter((f: any) => f.type && f.type.startsWith('audio') && f.url);
+    if (!af || af.length === 0) return false;
+    return af.every((f: any) => isFormatExpired(f.url, 60));
+}
 
 export async function fetchWithFailover(
     pathBuilder: (base: string) => string,
@@ -15,7 +37,10 @@ export async function fetchWithFailover(
     // Check in-memory cache
     const cached = cache.get(sampleKey);
     if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
-        return { data: cached.data, instance: cached.instance };
+        if (!hasExpiredAudio(cached.data)) {
+            return { data: cached.data, instance: cached.instance };
+        }
+        cache.delete(sampleKey);
     }
 
     const abortControllers: AbortController[] = [];

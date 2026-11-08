@@ -1210,8 +1210,16 @@ export class MusicAPI {
         };
 
         const title = track?.title || track?.name || filename || 'track';
+        const artist =
+            track?.artist?.name ||
+            track?.artist ||
+            (Array.isArray(track?.artists) ? track?.artists[0]?.name : '') ||
+            track?.author ||
+            '';
         const safeTitle = sanitizeForFilename(title);
-        const downloadUrl = `/api/yt/download?id=${encodeURIComponent(videoId)}&filename=${encodeURIComponent(safeTitle)}`;
+        const downloadUrl = `/api/yt/download?id=${encodeURIComponent(videoId)}&filename=${encodeURIComponent(
+            safeTitle
+        )}&title=${encodeURIComponent(title)}&artist=${encodeURIComponent(artist)}`;
 
         let response;
         try {

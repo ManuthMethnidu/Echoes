@@ -1098,6 +1098,21 @@ export async function initializePlayerEvents(player, audioPlayer, scrobbler, ui)
                 if (player.isFallbackInProgress || canFallback) {
                     return;
                 }
+                if (!player.isStreamRetry) {
+                    player.isStreamRetry = true;
+                    console.warn(`[Player] Audio playback encountered error (${errorMsg}). Invalidating cache and retrying fresh stream...`);
+                    if (window.ytEngine?.invalidateStream) {
+                        window.ytEngine.invalidateStream(player.currentTrack);
+                    }
+                    player.playTrackFromQueue(element.currentTime || 0, 0, true)
+                        .catch((retryErr) => console.error('[Player] Playback recovery failed:', retryErr))
+                        .finally(() => {
+                            setTimeout(() => {
+                                player.isStreamRetry = false;
+                            }, 3000);
+                        });
+                    return;
+                }
             }
         });
 
@@ -2053,7 +2068,9 @@ export async function handleTrackAction(
         const filename = `${artist ? artist + ' - ' : ''}${title}`;
         showNotification(`Exporting "${title}"...`);
         if (/^[a-zA-Z0-9_-]{11}$/.test(cleanId)) {
-            const dlUrl = `/api/yt/download?id=${encodeURIComponent(cleanId)}&filename=${encodeURIComponent(filename)}`;
+            const dlUrl = `/api/yt/download?id=${encodeURIComponent(cleanId)}&filename=${encodeURIComponent(
+                filename
+            )}&title=${encodeURIComponent(title)}&artist=${encodeURIComponent(artist)}`;
             const a = document.createElement('a');
             a.href = dlUrl;
             a.download = `${filename}.opus`;

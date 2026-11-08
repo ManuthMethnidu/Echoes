@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { fetchWithFailover } from '../../_lib/invidious.js';
+import { fetchWithFailover, isFormatExpired } from '../../_lib/invidious.js';
 
 const HEALTHY_COMPANIONS = [
     'yt-comp1.chocolatemoo53.com',
@@ -7,6 +7,7 @@ const HEALTHY_COMPANIONS = [
     'yt-comp3.chocolatemoo53.com',
     'yt-comp4.chocolatemoo53.com',
     'yt-comp5.chocolatemoo53.com',
+    'yt-comp6.chocolatemoo53.com',
 ];
 
 function resolveStreamUrl(rawUrl: string, videoId?: string): string {
@@ -113,9 +114,9 @@ function findPlayableAudio(
 
     const vId = videoId || videoData.videoId || videoData.id;
 
-    // Check adaptive formats (audio-only formats)
+    // Check adaptive formats (audio-only formats) that are not expired
     const adaptiveFormats = (videoData.adaptiveFormats || []).filter(
-        (f: any) => f.type && f.type.startsWith('audio') && f.url
+        (f: any) => f.type && f.type.startsWith('audio') && f.url && !isFormatExpired(f.url)
     );
 
     if (preferM4a) {
@@ -139,8 +140,8 @@ function findPlayableAudio(
         };
     }
 
-    // Check progressive format streams
-    const formatStreams = (videoData.formatStreams || []).filter((f: any) => f.url);
+    // Check progressive format streams that are not expired
+    const formatStreams = (videoData.formatStreams || []).filter((f: any) => f.url && !isFormatExpired(f.url));
     if (formatStreams.length > 0) {
         const best = formatStreams[0];
         return {
@@ -354,10 +355,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
     }
 
-    // 3. Fallback: If no candidate had an active companion issuer, but direct video had audio formats, provide best format
+    // 3. Fallback: If no candidate had an active companion issuer, but direct video had unexpired audio formats, provide best format
     if (data) {
         const audioFormats = (data.adaptiveFormats || []).filter(
-            (f: any) => f.type && f.type.startsWith('audio') && f.url
+            (f: any) => f.type && f.type.startsWith('audio') && f.url && !isFormatExpired(f.url)
         );
         if (audioFormats.length > 0) {
             if (preferM4a) {

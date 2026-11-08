@@ -1179,10 +1179,12 @@ ul {
 .sidebar-logo {
     display: flex;
     align-items: center;
-    gap: 6px;
-    font-size: 1.1rem;
-    font-weight: 600;
+    justify-content: space-between;
+    min-height: 40px;
+    height: 40px;
     margin-bottom: 1rem;
+    position: relative;
+    box-sizing: border-box;
 }
 
 .sidebar-logo-link {
@@ -1191,6 +1193,12 @@ ul {
     gap: 6px;
     color: inherit;
     text-decoration: none;
+    white-space: nowrap;
+    overflow: hidden;
+    min-width: 0;
+    max-width: 160px;
+    opacity: 1;
+    transition: opacity 0.22s cubic-bezier(0.2, 0, 0, 1), max-width 0.3s cubic-bezier(0.2, 0, 0, 1), transform 0.22s ease;
 }
 
 .sidebar-logo .app-logo {
@@ -1238,7 +1246,22 @@ ul {
 #sidebar-toggle {
     padding: 0;
     flex-shrink: 0;
-    transition: transform 0.3s cubic-bezier(0.2, 0, 0, 1), margin 0.3s ease;
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: var(--radius-sm);
+    color: var(--muted-foreground);
+    background: transparent;
+    cursor: pointer;
+    transition: color var(--transition-fast), background-color var(--transition-fast), transform 0.3s cubic-bezier(0.2, 0, 0, 1), margin 0.3s cubic-bezier(0.2, 0, 0, 1);
+}
+
+#sidebar-toggle svg {
+    display: block;
+    transition: transform 0.3s cubic-bezier(0.2, 0, 0, 1);
 }
 
 .sidebar-nav ul {
@@ -1255,6 +1278,8 @@ ul {
     color: var(--muted-foreground);
     font-weight: 500;
     transition:
+        padding 0.3s cubic-bezier(0.2, 0, 0, 1),
+        gap 0.3s cubic-bezier(0.2, 0, 0, 1),
         background-color var(--transition-fast),
         color var(--transition-fast),
         transform var(--transition-fast);
@@ -1265,6 +1290,7 @@ ul {
     font-size: 0.95rem;
     width: 100%;
     text-align: left;
+    box-sizing: border-box;
 }
 
 .search-bar svg.search-icon {
@@ -1304,6 +1330,12 @@ ul {
     gap: 0.5rem;
     font-size: 0.8125rem;
     font-weight: 500;
+    transition:
+        padding 0.3s cubic-bezier(0.2, 0, 0, 1),
+        gap 0.3s cubic-bezier(0.2, 0, 0, 1),
+        background-color var(--transition-fast),
+        color var(--transition-fast);
+    box-sizing: border-box;
 }
 
 .sidebar-nav.bottom .nav-item a svg {
@@ -1334,6 +1366,12 @@ ul {
     gap: 0.75rem;
     padding: 0.5rem 0.75rem;
     font-size: 0.9rem;
+    transition:
+        padding 0.3s cubic-bezier(0.2, 0, 0, 1),
+        gap 0.3s cubic-bezier(0.2, 0, 0, 1),
+        background-color var(--transition-fast),
+        color var(--transition-fast);
+    box-sizing: border-box;
 }
 
 #pinned-items-list .nav-item a .pinned-item-cover {
@@ -8716,6 +8754,7 @@ body:has(#fullscreen-cover-overlay:not([style*='display: none'])) .now-playing-b
         padding: 1.25rem 0.5rem;
     }
 
+    body.sidebar-collapsed .sidebar-logo-link,
     body.sidebar-collapsed .sidebar-logo span,
     body.sidebar-collapsed .sidebar-nav span,
     body.sidebar-collapsed .pinned-items-header,
@@ -8730,31 +8769,34 @@ body:has(#fullscreen-cover-overlay:not([style*='display: none'])) .now-playing-b
         transform: translateX(-8px);
     }
 
-    body.sidebar-collapsed .sidebar-logo {
-        justify-content: center;
-        flex-direction: column;
-        gap: 10px;
+    body.sidebar-collapsed #sidebar-toggle {
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    body.sidebar-collapsed #sidebar-toggle svg {
+        transform: rotate(180deg);
     }
 
     body.sidebar-collapsed .sidebar-nav .nav-item a,
     body.sidebar-collapsed .sidebar-nav .nav-item button {
-        justify-content: center;
-        padding: 0.75rem 0;
+        padding: 0.75rem calc((100% - 20px) / 2);
         gap: 0;
     }
 
     body.sidebar-collapsed #pinned-items-list .nav-item a {
-        justify-content: center;
+        padding: 0.5rem calc((100% - 24px) / 2);
+        gap: 0;
+    }
+
+    body.sidebar-collapsed .sidebar-nav.bottom .nav-item a {
+        padding: 0.5rem calc((100% - 17px) / 2);
         gap: 0;
     }
 
     body.sidebar-collapsed .now-playing-bar {
         width: calc(96% - 80px) !important;
         left: calc(80px + 2%) !important;
-    }
-
-    body.sidebar-collapsed #sidebar-toggle {
-        margin-left: 0 !important;
     }
 }
 

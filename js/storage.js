@@ -2376,7 +2376,8 @@ export const sidebarSettings = {
             document.body.classList.add('sidebar-collapsed');
             const toggleBtn = document.getElementById('sidebar-toggle');
             if (toggleBtn) {
-                toggleBtn.innerHTML = SVG_RIGHT_ARROW(20);
+                toggleBtn.setAttribute('title', 'Expand Sidebar');
+                toggleBtn.setAttribute('aria-expanded', 'false');
             }
         }
     },

@@ -680,10 +680,21 @@ document.addEventListener('DOMContentLoaded', async () => {
         const isCollapsed = document.body.classList.contains('sidebar-collapsed');
         const toggleBtn = document.getElementById('sidebar-toggle');
         if (toggleBtn) {
-            toggleBtn.innerHTML = isCollapsed ? SVG_RIGHT_ARROW(20) : SVG_LEFT_ARROW(20);
+            toggleBtn.setAttribute('title', isCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar');
+            toggleBtn.setAttribute('aria-expanded', isCollapsed ? 'false' : 'true');
         }
         // Save sidebar state to localStorage
         sidebarSettings.setCollapsed(isCollapsed);
+
+        // Smoothly reflow Lenis and layout without sudden jumps
+        setTimeout(() => {
+            window.__lenis?.resize();
+            window.dispatchEvent(new Event('resize'));
+        }, 150);
+        setTimeout(() => {
+            window.__lenis?.resize();
+            window.dispatchEvent(new Event('resize'));
+        }, 320);
     });
 
     // Import tab switching in playlist modal

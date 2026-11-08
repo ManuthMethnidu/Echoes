@@ -170,13 +170,10 @@ function formatResponse(
     const rawDuration = videoData?.lengthSeconds || fallbackDuration || 0;
     const duration = typeof rawDuration === 'number' ? rawDuration : parseInt(rawDuration) || 0;
 
-    // Route through our CORS-enabled Vercel proxy stream to guarantee seamless browser playback and Web Audio compatibility
-    const proxyUrl = `/api/yt/proxy-stream?url=${encodeURIComponent(streamUrl)}`;
-
     return {
         id: videoId,
-        streamUrl: proxyUrl,
-        url: proxyUrl,
+        streamUrl,
+        url: streamUrl,
         directUrl: streamUrl,
         mimeType: audioFormat.type || 'audio/webm',
         codec: audioFormat.type?.includes('opus') ? 'OPUS' : 'AAC',

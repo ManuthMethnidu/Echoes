@@ -1050,7 +1050,7 @@ ul {
     overflow-y: auto;
     overflow-x: hidden;
     padding: var(--spacing-xl);
-    scroll-behavior: smooth;
+    scroll-behavior: auto;
     position: relative;
 
     /* Context for background */

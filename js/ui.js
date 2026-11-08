@@ -2731,7 +2731,11 @@ export class UIRenderer {
 
         const mainContent = document.querySelector('.main-content');
         if (mainContent && previousPage !== pageId) {
-            mainContent.scrollTop = 0;
+            if (window.lenis) {
+                window.lenis.scrollTo(0, { immediate: true });
+            } else {
+                mainContent.scrollTop = 0;
+            }
         }
 
         // Clear artist context when navigating away from artist page

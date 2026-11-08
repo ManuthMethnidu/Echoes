@@ -33,6 +33,7 @@ import { registerSW } from 'virtual:pwa-register';
 import { openEditProfile } from './profile.js';
 import { discordRPC } from './discord-rpc.js';
 import './commandPalette.js';
+import { initSmoothScroll, resizeScroll } from './smooth-scroll.js';
 import { initTracker } from './tracker.js';
 import { initAnalytics } from './analytics.js';
 import {
@@ -297,6 +298,9 @@ async function clearDevPwaRuntimeCaches() {
 
 document.addEventListener('DOMContentLoaded', async () => {
     await modernSettings.waitPending();
+
+    // Initialize Lenis smooth scrolling and motion
+    initSmoothScroll();
 
     // Request persistent storage to reduce risk of browser wiping data on updates or cleanup
     if (navigator.storage && navigator.storage.persist) {
@@ -2579,6 +2583,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         await router();
+        resizeScroll();
         if (window.location.pathname.replace(/\/+$/, '') === '/about') {
             fetchcontributors();
         }

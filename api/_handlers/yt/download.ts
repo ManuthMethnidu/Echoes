@@ -1,4 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import https from 'https';
 import { fetchWithFailover, isFormatExpired } from '../../_lib/invidious.js';
 import { Readable } from 'stream';
 import { sanitizeFilename } from '../../_lib/sanitize.js';
@@ -11,6 +12,64 @@ const HEALTHY_COMPANIONS = [
     'yt-comp5.chocolatemoo53.com',
     'yt-comp6.chocolatemoo53.com',
 ];
+
+// Early-resolving helper: returns first truthy candidate
+async function findFirstValid<T>(promises: Promise<T | null>[]): Promise<T | null> {
+    return new Promise((resolve) => {
+        let remaining = promises.length;
+        if (remaining === 0) return resolve(null);
+        let resolved = false;
+
+        promises.forEach((p) => {
+            p.then((val) => {
+                if (resolved) return;
+                if (val) {
+                    resolved = true;
+                    resolve(val);
+                } else {
+                    remaining--;
+                    if (remaining === 0) resolve(null);
+                }
+            }).catch(() => {
+                if (resolved) return;
+                remaining--;
+                if (remaining === 0) resolve(null);
+            });
+        });
+    });
+}
+
+function getCompanionRedirect(comp: string, videoId: string, itag: number): Promise<string | null> {
+    return new Promise((resolve) => {
+        const req = https.request(
+            {
+                protocol: 'https:',
+                hostname: comp,
+                path: `/companion/latest_version?id=${encodeURIComponent(videoId)}&itag=${itag}`,
+                method: 'GET',
+                headers: {
+                    'User-Agent':
+                        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+                },
+                timeout: 3000,
+            },
+            (res) => {
+                const loc = res.headers.location;
+                res.destroy();
+                if ((res.statusCode === 302 || res.statusCode === 301 || res.statusCode === 307) && loc) {
+                    return resolve(loc);
+                }
+                resolve(null);
+            }
+        );
+        req.on('timeout', () => {
+            req.destroy();
+            resolve(null);
+        });
+        req.on('error', () => resolve(null));
+        req.end();
+    });
+}
 
 async function fetchCompanionDirectStream(
     videoId: string,
@@ -27,23 +86,10 @@ async function fetchCompanionDirectStream(
         ...HEALTHY_COMPANIONS.slice(0, startIndex),
     ];
 
-    for (const comp of companionsToTry) {
-        try {
-            const controller = new AbortController();
-            const timer = setTimeout(() => controller.abort(), 2500);
-            const res = await fetch(`https://${comp}/companion/latest_version?id=${videoId}&itag=${itag}`, {
-                method: 'GET',
-                redirect: 'manual',
-                signal: controller.signal,
-                headers: {
-                    'User-Agent':
-                        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
-                },
-            });
-            clearTimeout(timer);
-
-            const location = res.headers.get('location');
-            if (res.status === 302 && location) {
+    const checkCompanion = async (comp: string) => {
+        const location = await getCompanionRedirect(comp, videoId, itag);
+        if (location) {
+            try {
                 const u = new URL(location);
                 const origHost = u.hostname;
                 u.hostname = comp;
@@ -54,10 +100,16 @@ async function fetchCompanionDirectStream(
                     mimeType: preferM4a ? 'audio/mp4; codecs="mp4a.40.2"' : 'audio/webm; codecs="opus"',
                     companion: comp,
                 };
-            }
-        } catch (_) {}
-    }
-    return null;
+            } catch (_) {}
+        }
+        return null;
+    };
+
+    // Parallel check top 3 candidates with early exit (< 900ms)
+    const fastMatch = await findFirstValid(companionsToTry.slice(0, 3).map(checkCompanion));
+    if (fastMatch) return fastMatch;
+
+    return await findFirstValid(companionsToTry.slice(3).map(checkCompanion));
 }
 
 async function fetchStreamFromUrl(
@@ -147,32 +199,6 @@ async function fetchCompanionWithFailover(
         } catch (_) {}
     }
     return null;
-}
-
-// Early-resolving helper: returns first truthy candidate
-async function findFirstValid<T>(promises: Promise<T | null>[]): Promise<T | null> {
-    return new Promise((resolve) => {
-        let remaining = promises.length;
-        if (remaining === 0) return resolve(null);
-        let resolved = false;
-
-        promises.forEach((p) => {
-            p.then((val) => {
-                if (resolved) return;
-                if (val) {
-                    resolved = true;
-                    resolve(val);
-                } else {
-                    remaining--;
-                    if (remaining === 0) resolve(null);
-                }
-            }).catch(() => {
-                if (resolved) return;
-                remaining--;
-                if (remaining === 0) resolve(null);
-            });
-        });
-    });
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -324,7 +350,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             // (Client residential/browser IPs are not subject to datacenter IP blocks)
             if (fallbackStreamUrl) {
                 res.setHeader('Access-Control-Allow-Origin', '*');
-                return res.redirect(302, fallbackStreamUrl);
+                if (typeof res.redirect === 'function') {
+                    return res.redirect(302, fallbackStreamUrl);
+                }
+                res.writeHead(302, {
+                    'Location': fallbackStreamUrl,
+                    'Access-Control-Allow-Origin': '*',
+                });
+                return res.end();
             }
             const status = audioRes ? audioRes.status : 404;
             return res.status(status).json({ error: `Failed to download audio stream (HTTP ${status})` });

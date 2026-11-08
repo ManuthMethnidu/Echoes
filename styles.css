@@ -1009,11 +1009,13 @@ ul {
         'sidebar main'
         'player player';
     transition: grid-template-columns 0.3s cubic-bezier(0.2, 0, 0, 1);
+    will-change: grid-template-columns;
 }
 
 .sidebar {
     grid-area: sidebar;
     min-height: 0;
+    width: 210px;
     background-color: var(--background);
     border-right: 1px solid var(--border);
     padding: 1.25rem 0.75rem;
@@ -1022,6 +1024,8 @@ ul {
     gap: 2rem;
     overflow-x: hidden;
     box-sizing: border-box;
+    contain: layout paint;
+    transition: width 0.3s cubic-bezier(0.2, 0, 0, 1);
 }
 
 .sidebar-content {
@@ -1197,7 +1201,8 @@ ul {
     min-width: 0;
     max-width: 160px;
     opacity: 1;
-    transition: opacity 0.22s cubic-bezier(0.2, 0, 0, 1), max-width 0.3s cubic-bezier(0.2, 0, 0, 1), transform 0.22s ease;
+    transform: translateX(0);
+    transition: opacity 0.22s cubic-bezier(0.2, 0, 0, 1) 0.08s, max-width 0.3s cubic-bezier(0.2, 0, 0, 1), transform 0.22s ease 0.08s;
 }
 
 .sidebar-logo .app-logo {
@@ -1239,7 +1244,7 @@ ul {
     max-width: 160px;
     opacity: 1;
     transform: translateX(0);
-    transition: opacity 0.22s cubic-bezier(0.2, 0, 0, 1), transform 0.22s ease;
+    transition: opacity 0.22s cubic-bezier(0.2, 0, 0, 1) 0.08s, transform 0.22s ease 0.08s;
 }
 
 #sidebar-toggle {
@@ -1327,20 +1332,20 @@ ul {
 
 .sidebar-nav.bottom .nav-item a {
     padding: 0.5rem 0.75rem;
-    gap: 0.5rem;
+    gap: 0.75rem;
     font-size: 0.8125rem;
     font-weight: 500;
     transition:
-        padding 0.3s cubic-bezier(0.2, 0, 0, 1),
-        gap 0.3s cubic-bezier(0.2, 0, 0, 1),
         background-color var(--transition-fast),
         color var(--transition-fast);
     box-sizing: border-box;
 }
 
 .sidebar-nav.bottom .nav-item a svg {
-    width: 17px;
-    height: 17px;
+    width: 24px;
+    height: 24px;
+    min-width: 24px;
+    flex-shrink: 0;
 }
 
 .pinned-items-header {
@@ -1367,8 +1372,6 @@ ul {
     padding: 0.5rem 0.75rem;
     font-size: 0.9rem;
     transition:
-        padding 0.3s cubic-bezier(0.2, 0, 0, 1),
-        gap 0.3s cubic-bezier(0.2, 0, 0, 1),
         background-color var(--transition-fast),
         color var(--transition-fast);
     box-sizing: border-box;
@@ -8751,6 +8754,7 @@ body:has(#fullscreen-cover-overlay:not([style*='display: none'])) .now-playing-b
     }
 
     body.sidebar-collapsed .sidebar {
+        width: 72px;
         padding: 1.25rem 0.75rem;
     }
 
@@ -8758,7 +8762,8 @@ body:has(#fullscreen-cover-overlay:not([style*='display: none'])) .now-playing-b
         max-width: 0;
         opacity: 0;
         pointer-events: none;
-        transform: translateX(-8px);
+        transform: translateX(-6px);
+        transition: opacity 0.12s ease-out, max-width 0.3s cubic-bezier(0.2, 0, 0, 1), transform 0.12s ease-out;
     }
 
     body.sidebar-collapsed .sidebar-logo span,
@@ -8768,7 +8773,8 @@ body:has(#fullscreen-cover-overlay:not([style*='display: none'])) .now-playing-b
     body.sidebar-collapsed .sidebar-donate-goal {
         opacity: 0;
         pointer-events: none;
-        transform: translateX(-8px);
+        transform: translateX(-6px);
+        transition: opacity 0.12s ease-out, transform 0.12s ease-out;
     }
 
     body.sidebar-collapsed #sidebar-toggle {

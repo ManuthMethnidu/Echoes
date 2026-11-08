@@ -41,9 +41,14 @@ export class YouTubeMusicEngine {
             typeof trackOrId === 'object'
                 ? trackOrId.artist?.name || (Array.isArray(trackOrId.artists) ? trackOrId.artists[0]?.name : '') || ''
                 : '';
+        const album =
+            typeof trackOrId === 'object'
+                ? trackOrId.album?.title || (typeof trackOrId.album === 'string' ? trackOrId.album : '') || ''
+                : '';
         const params = new URLSearchParams({ id: cleanId });
         if (title) params.set('title', title);
         if (artist) params.set('artist', artist);
+        if (album) params.set('album', album);
 
         const res = await fetch(`/api/yt/stream?${params.toString()}`);
         if (!res.ok) {

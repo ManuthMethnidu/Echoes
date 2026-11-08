@@ -8,6 +8,7 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=4000
+      - NODE_OPTIONS=--dns-result-order=ipv4first --no-network-family-autoselection
     ulimits:
       nofile:
         soft: 65536

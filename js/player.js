@@ -1227,11 +1227,11 @@ export class Player {
 
         const isVideoTrack = track.type === 'video';
         const activeElement = preparedPlayback?.element || (isVideoTrack ? this.video : this.audio);
-        if (preparedPlayback && !isVideoTrack) {
+        if (!isVideoTrack) {
             this.audio = activeElement;
             this.syncDurationUI(
                 activeElement,
-                track.duration ?? preparedPlayback.streamInfo?.waveform?.duration_ms ?? null
+                track.duration ?? preparedPlayback?.streamInfo?.waveform?.duration_ms ?? null
             );
         }
         const inactiveElement = isVideoTrack ? this.audio : this.video;
@@ -1623,6 +1623,10 @@ export class Player {
 
                 this.updateNowPlayingTitle(track);
                 this.updateAdaptiveQualityBadge();
+                this.syncDurationUI(
+                    activeElement,
+                    resolvedStreamInfo.duration || track.duration || resolvedStreamInfo.waveform?.duration_ms || null
+                );
 
                 this.currentWaveform = resolvedStreamInfo.waveform || null;
                 this.currentSilenceBoundaries = null;

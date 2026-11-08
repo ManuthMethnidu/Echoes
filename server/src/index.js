@@ -4,6 +4,11 @@ import cors from 'cors';
 import { WebSocketServer, WebSocket } from 'ws';
 import { URL } from 'url';
 import { Readable } from 'stream';
+import dns from 'dns';
+
+try {
+  dns.setDefaultResultOrder('ipv4first');
+} catch {}
 
 const PORT = process.env.PORT || 4000;
 const ALLOWED_ORIGINS = [

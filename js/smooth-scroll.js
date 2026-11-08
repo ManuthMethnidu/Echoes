@@ -47,9 +47,23 @@ export function initSmoothScroll(customOptions = {}) {
         prevent: (node) => {
             // Let inner scrollable panels (lyrics, queue drawer, modals, sidebars) scroll natively without interference
             if (!node || typeof node.closest !== 'function') return false;
+
+            // Never prevent scrolling on regular controls inside the settings page
+            if (node.closest('#page-settings')) {
+                const textarea = node.closest('textarea');
+                if (textarea && textarea.scrollHeight > textarea.clientHeight) {
+                    return true;
+                }
+                const autoeqList = node.closest('#autoeq-database-list');
+                if (autoeqList && autoeqList.scrollHeight > autoeqList.clientHeight) {
+                    return true;
+                }
+                return false;
+            }
+
             return Boolean(
                 node.closest(
-                    '[data-lenis-prevent], .sidebar, .sidebar-content, .modal, .dialog, .queue-panel, .queue-content, .lyrics-panel, .lyrics-container, .panel-content, select, textarea, .overflow-y-auto'
+                    '[data-lenis-prevent], .sidebar, .sidebar-content, .modal, .dialog, .queue-panel, .queue-content, .lyrics-panel, .lyrics-container, .panel-content'
                 )
             );
         },
@@ -72,6 +86,21 @@ export function initSmoothScroll(customOptions = {}) {
             }
         });
         resizeObserver.observe(mainContent);
+        document.querySelectorAll('.page').forEach((p) => resizeObserver.observe(p));
+    }
+
+    if (typeof MutationObserver !== 'undefined') {
+        const mutationObserver = new MutationObserver(() => {
+            if (lenisInstance) {
+                lenisInstance.resize();
+            }
+        });
+        mutationObserver.observe(mainContent, {
+            childList: true,
+            subtree: true,
+            attributes: true,
+            attributeFilter: ['class', 'style'],
+        });
     }
 
     // Expose lenis and motion globally for ease of use across modules

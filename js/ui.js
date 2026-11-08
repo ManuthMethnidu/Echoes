@@ -44,6 +44,7 @@ import { audioContextManager } from './audio-context.js';
 import { navigate } from './router.js';
 import { sidePanelManager } from './side-panel.js';
 import { searchCommunityPlaylists } from './community-playlists.js';
+import { resizeScroll } from './smooth-scroll.js';
 import {
     renderUnreleasedPage as renderUnreleasedTrackerPage,
     renderTrackerArtistPage as renderTrackerArtistContent,
@@ -2775,14 +2776,19 @@ export class UIRenderer {
         }
         if (pageId === 'settings') {
             this.renderApiSettings();
-            const savedTabName = settingsUiState.getActiveTab();
-            const savedTab = document.querySelector(`.settings-tab[data-tab="${savedTabName}"]`);
+            const savedTabName = settingsUiState.getActiveTab() || 'appearance';
+            const savedTab =
+                document.querySelector(`.settings-tab[data-tab="${savedTabName}"]`) ||
+                document.querySelector('.settings-tab[data-tab="appearance"]');
             if (savedTab) {
                 document.querySelectorAll('.settings-tab').forEach((t) => t.classList.remove('active'));
                 document.querySelectorAll('.settings-tab-content').forEach((c) => c.classList.remove('active'));
                 savedTab.classList.add('active');
-                document.getElementById(`settings-tab-${savedTabName}`)?.classList.add('active');
+                const targetTabId = savedTab.dataset.tab || 'appearance';
+                const content = document.getElementById(`settings-tab-${targetTabId}`);
+                if (content) content.classList.add('active');
             }
+            resizeScroll();
         } else {
             document.querySelectorAll('.settings-tab').forEach((t) => t.classList.remove('active'));
             document.querySelectorAll('.settings-tab-content').forEach((c) => c.classList.remove('active'));

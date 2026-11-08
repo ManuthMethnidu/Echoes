@@ -602,6 +602,10 @@ export function initializeUIInteractions(player, api, ui) {
             const contentId = `settings-tab-${tab.dataset.tab}`;
             document.getElementById(contentId)?.classList.add('active');
 
+            import('./smooth-scroll.js')
+                .then(({ resizeScroll }) => resizeScroll())
+                .catch(() => {});
+
             // Save active tab
             import('./storage.js')
                 .then(({ settingsUiState }) => {

@@ -153,6 +153,17 @@ Echoes combines high-bitrate audio streaming with a serverless edge architecture
 - Offline CacheStorage: Caches tracks locally in the browser so that returning users can play cached audio even without internet connectivity.
 - Direct Track Exporter: Download tracks, albums, or playlists directly to your local file system with embedded ID3 metadata tags and album artwork.
 
+### Smart Recommendations & Autonomous Radio Engine
+- Client-Side Behavioral Telemetry: Privacy-first listening signal tracking in local IndexedDB (`listening-tracker.js`). Measures completion ratios (>80% completion earns positive affinity, while <20% or skips under 5 seconds apply immediate penalties).
+- Multi-Source Seed Scoring: Algorithmic library ranking with base weighting (Favorites +3, Playlists +2, History +1) combined with completion bonuses. Automatically blacklists frequently skipped tracks and disliked artists.
+- Discovery Graph Continuum: Feeds scored seeds into the YouTube Music radio continuum graph (`ytEngine.getRadio`) with automated Apple Music and Tidal similarity fallbacks.
+- Dynamic Queue Reranking: Automatically deduplicates candidates against active queue, boosts artists with proven affinity scores, and feeds tracks for infinite, autonomous autoplay.
+
+### Echoes Recap (Personalized Listening Analytics)
+- Spotify-Style Persona Archetypes: Behavioral listener classifications backed by exact mathematical ratios (`The Superfan`, `The Night Owl`, `The Early Riser`, `The Heavy Looper`, `The Sonic Explorer`).
+- Fluid WebGL2 Droplet Timeframe Selector: Integrated `<GooeyNav />` navigation powered by GLSL metaball shaders and spring wobble physics for effortless switching between All Time, 2026, 6 Months, and 30 Days.
+- Theme-Adaptive Shareable Story Cards: Real-time high-resolution canvas generation matching active theme tokens (Dark, Monochrome, Ocean, Mocha, White) with clean branding and instant PNG download / clipboard copy.
+
 ### Minimalist Aesthetic & Progressive Web App
 - Theme Support: Monochromatic, distraction-free aesthetic with automatic dark/light theme switching.
 - Installable PWA: Full Progressive Web App support on desktop (Windows, macOS, Linux) and mobile (iOS, Android).

@@ -50,6 +50,13 @@ export class YouTubeMusicEngine {
         if (artist) params.set('artist', artist);
         if (album) params.set('album', album);
 
+        try {
+            const probe = typeof document !== 'undefined' ? document.createElement('audio') : null;
+            if (probe && !probe.canPlayType('audio/webm; codecs="opus"')) {
+                params.set('format', 'm4a');
+            }
+        } catch {}
+
         const res = await fetch(`/api/yt/stream?${params.toString()}`);
         if (!res.ok) {
             const err = await res.json().catch(() => ({}));

@@ -574,6 +574,9 @@ class AudioContextManager {
                 }
 
                 this.audio = audioElement;
+                if (audioElement && !audioElement.crossOrigin) {
+                    audioElement.crossOrigin = 'anonymous';
+                }
 
                 if (!this.sources.has(audioElement)) {
                     this.sources.set(audioElement, this.audioContext.createMediaElementSource(audioElement));

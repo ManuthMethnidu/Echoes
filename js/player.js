@@ -50,8 +50,12 @@ export class Player {
     /** @private */
     constructor(audioElement, api, quality = 'LOSSLESS') {
         this.audio = audioElement;
+        if (this.audio) {
+            this.audio.crossOrigin = 'anonymous';
+        }
         const crossfadeAudio = document.createElement('audio');
         crossfadeAudio.id = 'audio-player-crossfade';
+        crossfadeAudio.crossOrigin = 'anonymous';
         crossfadeAudio.preload = 'auto';
         crossfadeAudio.style.display = 'none';
         try {
@@ -853,6 +857,7 @@ export class Player {
         element.pause();
         element.removeAttribute('src');
         element.load();
+        element.crossOrigin = 'anonymous';
         element.preload = singleUse ? 'none' : 'auto';
         element.src = getProxyUrl(streamUrl);
         // Safari needs an explicit load after replacing a failed MSE/Shaka source.

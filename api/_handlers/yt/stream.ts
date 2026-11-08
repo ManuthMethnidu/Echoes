@@ -97,14 +97,25 @@ function scoreCandidate(candidate: any, cleanTit: string, cleanArt: string, targ
     return score;
 }
 
-function findPlayableAudio(videoData: any): { format: any; streamUrl: string; issuer: string } | null {
+function findPlayableAudio(videoData: any, preferM4a: boolean = false): { format: any; streamUrl: string; issuer: string } | null {
     if (!videoData) return null;
 
-    // Check adaptive formats (audio-only formats, highest bitrate first)
+    // Check adaptive formats (audio-only formats)
     const adaptiveFormats = (videoData.adaptiveFormats || []).filter(
         (f: any) => f.type && f.type.startsWith('audio') && f.url
     );
-    adaptiveFormats.sort((a: any, b: any) => (parseInt(b.bitrate) || 0) - (parseInt(a.bitrate) || 0));
+
+    if (preferM4a) {
+        adaptiveFormats.sort((a: any, b: any) => {
+            const aIsMp4 = a.type?.includes('mp4') || a.type?.includes('m4a');
+            const bIsMp4 = b.type?.includes('mp4') || b.type?.includes('m4a');
+            if (aIsMp4 && !bIsMp4) return -1;
+            if (!aIsMp4 && bIsMp4) return 1;
+            return (parseInt(b.bitrate) || 0) - (parseInt(a.bitrate) || 0);
+        });
+    } else {
+        adaptiveFormats.sort((a: any, b: any) => (parseInt(b.bitrate) || 0) - (parseInt(a.bitrate) || 0));
+    }
 
     for (const f of adaptiveFormats) {
         const issuer = extractIssuer(f.url);
@@ -201,6 +212,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const artistParam = typeof req.query.artist === 'string' ? req.query.artist.trim() : '';
     const albumParam = typeof req.query.album === 'string' ? req.query.album.trim() : '';
 
+    const userAgent = (req.headers['user-agent'] || '').toString();
+    const isAppleDevice =
+        /iPhone|iPad|iPod/i.test(userAgent) ||
+        (/Macintosh/i.test(userAgent) && /Safari/i.test(userAgent) && !/Chrome|CriOS|Edg|OPR/i.test(userAgent));
+    const formatParam = typeof req.query.format === 'string' ? req.query.format.toLowerCase() : '';
+    const preferM4a =
+        formatParam === 'm4a' ||
+        formatParam === 'mp4' ||
+        formatParam === 'aac' ||
+        (isAppleDevice && formatParam !== 'webm');
+
     let data: any = null;
     let instance: string = '';
 
@@ -217,7 +239,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // 1. Direct Playable Check: If this video has formats signed by an active companion node, return immediately
     if (data) {
-        const playable = findPlayableAudio(data);
+        const playable = findPlayableAudio(data, preferM4a);
         if (playable) {
             return res.status(200).json(formatResponse(playable.format, playable.streamUrl, data, videoId, instance));
         }
@@ -284,7 +306,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                             (base) => `${base}/api/v1/videos/${cid}`,
                             2500
                         );
-                        const playable = findPlayableAudio(cRes.data);
+                        const playable = findPlayableAudio(cRes.data, preferM4a);
                         if (playable) {
                             return {
                                 format: playable.format,
@@ -329,7 +351,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             (f: any) => f.type && f.type.startsWith('audio') && f.url
         );
         if (audioFormats.length > 0) {
-            audioFormats.sort((a: any, b: any) => (parseInt(b.bitrate) || 0) - (parseInt(a.bitrate) || 0));
+            if (preferM4a) {
+                audioFormats.sort((a: any, b: any) => {
+                    const aIsMp4 = a.type?.includes('mp4') || a.type?.includes('m4a');
+                    const bIsMp4 = b.type?.includes('mp4') || b.type?.includes('m4a');
+                    if (aIsMp4 && !bIsMp4) return -1;
+                    if (!aIsMp4 && bIsMp4) return 1;
+                    return (parseInt(b.bitrate) || 0) - (parseInt(a.bitrate) || 0);
+                });
+            } else {
+                audioFormats.sort((a: any, b: any) => (parseInt(b.bitrate) || 0) - (parseInt(a.bitrate) || 0));
+            }
             const bestAudio = audioFormats[0];
             const streamUrl = resolveStreamUrl(bestAudio.url, instance);
             return res.status(200).json(formatResponse(bestAudio, streamUrl, data, videoId, instance));

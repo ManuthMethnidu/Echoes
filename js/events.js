@@ -1863,15 +1863,19 @@ export async function handleTrackAction(
                 }
                 showNotification(`Saving ${tracks.length} tracks from "${name}" to offline cache...`);
                 let saved = 0;
-                for (const t of tracks) {
+                for (let i = 0; i < tracks.length; i++) {
+                    const t = tracks[i];
                     try {
                         await offlineStorage.cacheTrack(t, api, lyricsManager);
                         saved++;
+                        if ((i + 1) % 5 === 0 || i + 1 === tracks.length) {
+                            showNotification(`Cached ${saved}/${tracks.length} tracks from "${name}"...`);
+                        }
                     } catch (e) {
                         console.warn('[Offline] Failed to cache track:', t.id, e);
                     }
                 }
-                showNotification(`Cached ${saved} tracks offline from "${name}"!`);
+                showNotification(`✓ Cached ${saved}/${tracks.length} tracks offline from "${name}"!`);
             } catch (err) {
                 console.error('[Offline] Failed to cache collection:', err);
                 showNotification('Failed to save to offline cache');
@@ -1888,9 +1892,27 @@ export async function handleTrackAction(
                 await offlineStorage.removeTrack(trackId);
                 showNotification(`Removed "${title}" from offline cache`);
             } else {
-                showNotification(`Saving "${title}" to offline cache...`);
-                await offlineStorage.cacheTrack(item, api, lyricsManager);
-                showNotification(`Saved "${title}" for offline playback!`);
+                const { addDownloadTask, updateDownloadProgress, completeDownloadTask } = await import('./downloads.js');
+                const controller = new AbortController();
+                addDownloadTask(trackId, item, title, api, controller, { isCache: true });
+
+                try {
+                    await offlineStorage.cacheTrack(item, api, lyricsManager, {
+                        signal: controller.signal,
+                        onProgress: (progress) => {
+                            updateDownloadProgress(trackId, progress);
+                        },
+                    });
+                    completeDownloadTask(trackId, true, '✓ Cached offline');
+                    showNotification(`Saved "${title}" for offline playback!`);
+                } catch (cacheErr) {
+                    if (controller.signal.aborted) {
+                        showNotification(`Cancelled caching "${title}"`);
+                    } else {
+                        completeDownloadTask(trackId, false, cacheErr.message || '✗ Caching failed');
+                        throw cacheErr;
+                    }
+                }
             }
         } catch (err) {
             console.error('[Offline] Failed to toggle offline cache:', err);

@@ -255,7 +255,7 @@ export class OfflineStorage {
         return { bytes: totalBytes, mb, count: tracks.length };
     }
 
-    async cacheTrack(track, api = null, lyricsManager = null) {
+    async cacheTrack(track, api = null, lyricsManager = null, options = {}) {
         if (!track?.id) throw new Error('Invalid track');
         const cleanId = String(track.id);
 
@@ -271,6 +271,9 @@ export class OfflineStorage {
             track,
             calculateDashBytes: false,
             triggerDownload: false,
+            signal: options.signal,
+            onProgress: options.onProgress,
+            ...options,
         });
 
         if (!audioBlob || audioBlob.size === 0) {
@@ -284,7 +287,7 @@ export class OfflineStorage {
             try {
                 const coverUrl = musicApi.getCoverUrl(coverId, '320');
                 if (coverUrl && !coverUrl.startsWith('data:') && !coverUrl.startsWith('blob:')) {
-                    const res = await fetch(coverUrl);
+                    const res = await fetch(coverUrl, { signal: options.signal });
                     if (res.ok) coverBlob = await res.blob();
                 }
             } catch {}

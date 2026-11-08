@@ -8008,12 +8008,13 @@ export class UIRenderer {
             fragment.appendChild(deleteBtn);
         }
 
-        // Share (User Playlists Only)
+        // Share / Copy Link (User Playlists Only)
         if (showShare || (isOwned && playlist.isPublic)) {
             const shareBtn = document.createElement('button');
             shareBtn.id = 'share-playlist-btn';
             shareBtn.className = 'btn-secondary';
-            shareBtn.innerHTML = `${SVG_SHARE(20)}<span>Share</span>`;
+            shareBtn.title = 'Copy Playlist Link';
+            shareBtn.innerHTML = `${SVG_LINK(20)}<span>Copy Link</span>`;
 
             shareBtn.onclick = () => {
                 const url = getShareUrl(`/userplaylist/${playlist.id || playlist.uuid}`);

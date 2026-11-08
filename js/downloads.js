@@ -201,7 +201,7 @@ export function showNotification(message, options = {}) {
     );
 }
 
-export function addDownloadTask(trackId, track, _filename, api, abortController) {
+export function addDownloadTask(trackId, track, _filename, api, abortController, options = {}) {
     const container = createDownloadNotification();
 
     const taskEl = document.createElement('div');
@@ -209,19 +209,30 @@ export function addDownloadTask(trackId, track, _filename, api, abortController)
     taskEl.dataset.trackId = trackId;
     const trackTitle = getTrackTitle(track);
     const trackArtists = getTrackArtists(track);
+    const isCache = options.isCache || false;
+    const initialStatus = isCache ? 'Caching offline...' : 'Starting...';
+
+    let coverUrl = '/images/echos_logo.svg';
+    try {
+        const coverId = track?.album?.cover || track?.cover || track?.image;
+        if (coverId && api?.getCoverUrl) {
+            coverUrl = api.getCoverUrl(coverId, '160') || coverUrl;
+        }
+    } catch {}
+
     taskEl.innerHTML = `
         <div style="display: flex; align-items: start; gap: 0.75rem;">
-            <img crossorigin="anonymous" referrerpolicy="no-referrer" src="${api.getCoverUrl(track.album?.cover)}"
-                 style="width: 40px; height: 40px; border-radius: 4px; flex-shrink: 0;">
+            <img crossorigin="anonymous" referrerpolicy="no-referrer" src="${coverUrl}"
+                 style="width: 40px; height: 40px; border-radius: 4px; flex-shrink: 0; object-fit: cover;">
             <div style="flex: 1; min-width: 0;">
                 <div style="font-weight: 500; font-size: 0.9rem; margin-bottom: 0.25rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${trackTitle}</div>
                 <div style="font-size: 0.8rem; color: var(--muted-foreground); margin-bottom: 0.5rem;">${trackArtists}</div>
                 <div class="download-progress-bar" style="height: 4px; background: var(--secondary); border-radius: 2px; overflow: hidden;">
                     <div class="download-progress-fill" style="width: 0%; height: 100%; background: var(--highlight); transition: width 0.2s;"></div>
                 </div>
-                <div class="download-status" style="font-size: 0.75rem; color: var(--muted-foreground); margin-top: 0.25rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Starting...</div>
+                <div class="download-status" style="font-size: 0.75rem; color: var(--muted-foreground); margin-top: 0.25rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${initialStatus}</div>
             </div>
-            <button class="download-cancel" style="background: transparent; border: none; color: var(--muted-foreground); cursor: pointer; padding: 4px; border-radius: 4px; transition: all 0.2s;">
+            <button class="download-cancel" style="background: transparent; border: none; color: var(--muted-foreground); cursor: pointer; padding: 4px; border-radius: 4px; transition: all 0.2s;" title="Cancel">
                 ${SVG_CLOSE(20)}
             </button>
         </div>
@@ -229,7 +240,7 @@ export function addDownloadTask(trackId, track, _filename, api, abortController)
 
     container.appendChild(taskEl);
 
-    downloadTasks.set(trackId, { taskEl, abortController });
+    downloadTasks.set(trackId, { taskEl, abortController, isCache });
 
     taskEl.querySelector('.download-cancel').addEventListener('click', () => {
         abortController.abort();
@@ -243,9 +254,10 @@ export function updateDownloadProgress(trackId, progress) {
     const task = downloadTasks.get(trackId);
     if (!task) return;
 
-    const { taskEl } = task;
+    const { taskEl, isCache } = task;
     const progressFill = taskEl.querySelector('.download-progress-fill');
     const statusEl = taskEl.querySelector('.download-status');
+    const actionLabel = isCache ? 'Caching' : 'Downloading';
 
     if (progress instanceof DownloadProgress && progress.receivedBytes && progress.totalBytes) {
         const percent = progress.totalBytes ? Math.round((progress.receivedBytes / progress.totalBytes) * 100) : 0;
@@ -256,7 +268,7 @@ export function updateDownloadProgress(trackId, progress) {
         const receivedMB = (progress.receivedBytes / (1024 * 1024)).toFixed(1);
         const totalMB = progress.totalBytes ? (progress.totalBytes / (1024 * 1024)).toFixed(1) : '?';
 
-        statusEl.textContent = `Downloading: ${receivedMB}MB / ${totalMB}MB (${percent}%)`;
+        statusEl.textContent = `${actionLabel}: ${receivedMB}MB / ${totalMB}MB (${percent}%)`;
     } else if (progress instanceof SegmentedDownloadProgress && progress.currentSegment && progress.totalSegments) {
         const percent = progress.totalBytes ? Math.round((progress.currentSegment / progress.totalSegments) * 100) : 0;
 
@@ -266,19 +278,19 @@ export function updateDownloadProgress(trackId, progress) {
         const receivedMB = (progress.receivedBytes / (1024 * 1024)).toFixed(1);
         const totalMB = progress.totalBytes ? (progress.totalBytes / (1024 * 1024)).toFixed(1) : '?';
 
-        statusEl.textContent = `Downloading: ${receivedMB}MB / ${totalMB}MB (${percent}%)`;
+        statusEl.textContent = `${actionLabel}: ${receivedMB}MB / ${totalMB}MB (${percent}%)`;
     } else if (progress instanceof FfmpegProgress && progress.stage == 'encoding') {
         const percent = progress.progress ? Math.round(progress.progress) : 0;
         progressFill.style.width = `${percent}%`;
         progressFill.style.background = '#3b82f6'; // Blue for encoding
         statusEl.textContent = `Converting: ${percent}%`;
-    } else if (progress instanceof ProgressMessage || progress.message) {
+    } else if (progress instanceof ProgressMessage || progress?.message) {
         if (progress instanceof FfmpegProgress && (progress.stage == 'parsing' || progress.stage == 'stdout')) {
             return;
         }
 
         progressFill.style.width = '100%';
-        progressFill.style.background = '#3b82f6';
+        progressFill.style.background = 'var(--highlight)';
         statusEl.textContent = progress.message;
     }
 }
@@ -287,7 +299,7 @@ export function completeDownloadTask(trackId, success = true, message = null) {
     const task = downloadTasks.get(trackId);
     if (!task) return;
 
-    const { taskEl } = task;
+    const { taskEl, isCache } = task;
     const progressFill = taskEl.querySelector('.download-progress-fill');
     const statusEl = taskEl.querySelector('.download-status');
     const cancelBtn = taskEl.querySelector('.download-cancel');
@@ -295,19 +307,21 @@ export function completeDownloadTask(trackId, success = true, message = null) {
     if (success) {
         progressFill.style.width = '100%';
         progressFill.style.background = '#10b981';
-        statusEl.textContent = '✓ Downloaded';
+        statusEl.textContent = message || (isCache ? '✓ Cached offline' : '✓ Downloaded');
         statusEl.style.color = '#10b981';
-        cancelBtn.remove();
+        if (cancelBtn) cancelBtn.remove();
 
         setTimeout(() => removeDownloadTask(trackId), 3000);
     } else {
         progressFill.style.background = '#ef4444';
-        statusEl.textContent = message || '✗ Download failed';
+        statusEl.textContent = message || (isCache ? '✗ Caching failed' : '✗ Download failed');
         statusEl.style.color = '#ef4444';
-        cancelBtn.innerHTML = `
-            ${SVG_CLOSE(20)}
-        `;
-        cancelBtn.onclick = () => removeDownloadTask(trackId);
+        if (cancelBtn) {
+            cancelBtn.innerHTML = `
+                ${SVG_CLOSE(20)}
+            `;
+            cancelBtn.onclick = () => removeDownloadTask(trackId);
+        }
 
         setTimeout(() => removeDownloadTask(trackId), 5000);
     }

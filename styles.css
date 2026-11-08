@@ -1213,21 +1213,27 @@ ul {
     object-fit: contain;
 }
 
-.sidebar-logo .app-logo-light {
+.sidebar-logo .app-logo-light,
+.about-logo .app-logo-light {
     display: none;
 }
 
-.sidebar-logo .app-logo-dark {
+.sidebar-logo .app-logo-dark,
+.about-logo .app-logo-dark {
     display: inline-block;
 }
 
 :root[data-theme='white'] .sidebar-logo .app-logo-dark,
-:root[data-theme='latte'] .sidebar-logo .app-logo-dark {
+:root[data-theme='latte'] .sidebar-logo .app-logo-dark,
+:root[data-theme='white'] .about-logo .app-logo-dark,
+:root[data-theme='latte'] .about-logo .app-logo-dark {
     display: none;
 }
 
 :root[data-theme='white'] .sidebar-logo .app-logo-light,
-:root[data-theme='latte'] .sidebar-logo .app-logo-light {
+:root[data-theme='latte'] .sidebar-logo .app-logo-light,
+:root[data-theme='white'] .about-logo .app-logo-light,
+:root[data-theme='latte'] .about-logo .app-logo-light {
     display: inline-block;
 }
 
@@ -5797,15 +5803,15 @@ input.skeleton {
 }
 
 .hof-tag.creator-tag {
-    background: rgba(234, 179, 8, 0.15);
-    color: #facc15;
-    border: 1px solid rgba(234, 179, 8, 0.3);
+    background: var(--foreground);
+    color: var(--background);
+    border: 1px solid var(--foreground);
 }
 
 .hof-tag.contributor-tag {
-    background: rgba(59, 130, 246, 0.15);
-    color: #60a5fa;
-    border: 1px solid rgba(59, 130, 246, 0.3);
+    background: var(--secondary);
+    color: var(--foreground);
+    border: 1px solid var(--border);
 }
 
 .hof-tag.join-tag {
@@ -7294,16 +7300,16 @@ img[src=''] {
 }
 
 .cache-playlist-cta {
-    background: rgba(34, 197, 94, 0.14) !important;
-    color: #22c55e !important;
-    border: 1px solid rgba(34, 197, 94, 0.35) !important;
+    background: var(--secondary) !important;
+    color: var(--foreground) !important;
+    border: 1px solid var(--border) !important;
     font-weight: 600 !important;
     transition: background 0.15s ease, transform 0.1s ease, border-color 0.15s ease !important;
 }
 
 .cache-playlist-cta:hover {
-    background: rgba(34, 197, 94, 0.24) !important;
-    border-color: rgba(34, 197, 94, 0.55) !important;
+    background: var(--card-hover, rgba(255, 255, 255, 0.08)) !important;
+    border-color: var(--foreground) !important;
     transform: translateY(-1px);
 }
 
@@ -7313,11 +7319,11 @@ img[src=''] {
     align-items: center;
     gap: 8px;
     font-size: 0.8rem;
-    color: var(--text-secondary);
+    color: var(--muted-foreground, var(--text-secondary));
     margin-top: 0.85rem;
     padding: 0.45rem 0.85rem;
-    background: rgba(34, 197, 94, 0.05);
-    border: 1px solid rgba(34, 197, 94, 0.18);
+    background: var(--secondary);
+    border: 1px solid var(--border);
     border-radius: 8px;
     width: fit-content;
     max-width: 100%;
@@ -7326,8 +7332,8 @@ img[src=''] {
 }
 
 .cache-hint-badge {
-    background: rgba(34, 197, 94, 0.2);
-    color: #22c55e;
+    background: var(--foreground);
+    color: var(--background);
     font-size: 0.68rem;
     font-weight: 700;
     padding: 2px 6px;
@@ -13307,6 +13313,24 @@ body.is-tv-device a:focus-visible {
     outline: 3px solid #ffffff !important;
     outline-offset: 4px !important;
     transform: scale(1.08) !important;
+}
+
+/* TV Mode: Disable smooth sidebar collapse / expand transitions for instant, zero-lag D-pad response */
+body.is-tv-device .app-container,
+body.is-tv-device .sidebar,
+body.is-tv-device .sidebar-logo-link,
+body.is-tv-device .sidebar-logo span,
+body.is-tv-device .sidebar-nav span,
+body.is-tv-device .sidebar-nav a,
+body.is-tv-device .sidebar-nav button,
+body.is-tv-device .sidebar-nav .nav-icon,
+body.is-tv-device .pinned-items-header,
+body.is-tv-device #pinned-items-list,
+body.is-tv-device #pinned-items-list *,
+body.is-tv-device #sidebar-toggle-btn {
+    transition: none !important;
+    animation: none !important;
+    will-change: auto !important;
 }
 
 /* Custom CSS Editor & AI Prompt Guide in Appearance Settings */

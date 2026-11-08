@@ -522,8 +522,20 @@ svg {
 img {
     max-width: 100%;
     display: block;
-    background-color: var(--muted);
+    background-color: transparent;
     border: none;
+}
+
+.app-logo,
+.sidebar-logo img,
+.about-hero img,
+.legal-page-header img,
+.profile-avatar,
+.user-avatar,
+.nav-item img,
+svg,
+img.transparent-bg {
+    background-color: transparent !important;
 }
 
 button {
@@ -991,9 +1003,12 @@ ul {
     height: 100vh;
     height: 100dvh;
     min-height: 0;
-    grid-template:
-        'sidebar main' 1fr
-        'player player' auto / 210px 1fr;
+    grid-template-columns: 210px 1fr;
+    grid-template-rows: 1fr auto;
+    grid-template-areas:
+        'sidebar main'
+        'player player';
+    transition: grid-template-columns 0.3s cubic-bezier(0.2, 0, 0, 1);
 }
 
 .sidebar {
@@ -1005,7 +1020,9 @@ ul {
     display: flex;
     flex-direction: column;
     gap: 2rem;
-    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: width 0.3s cubic-bezier(0.2, 0, 0, 1), padding 0.3s cubic-bezier(0.2, 0, 0, 1), transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow-x: hidden;
+    box-sizing: border-box;
 }
 
 .sidebar-content {
@@ -1149,7 +1166,7 @@ ul {
     box-shadow: var(--shadow-2xl);
 
     /* Standardized shadow */
-    transition: all var(--transition-normal) var(--ease-out-back);
+    transition: width 0.3s cubic-bezier(0.2, 0, 0, 1), left 0.3s cubic-bezier(0.2, 0, 0, 1), transform 0.3s cubic-bezier(0.2, 0, 0, 1), background-color 0.2s ease, border-color 0.2s ease;
     height: var(--player-bar-height-desktop);
     animation: slide-up var(--transition-slow) var(--ease-out-back);
 }
@@ -1202,16 +1219,26 @@ ul {
     display: inline-block;
 }
 
-.sidebar-logo span {
+.sidebar-logo span,
+.sidebar-nav .nav-item a span,
+.sidebar-nav .nav-item button span,
+.pinned-items-header,
+#pinned-items-list .pinned-item-name,
+.sidebar-donate-goal {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
     min-width: 0;
+    max-width: 160px;
+    opacity: 1;
+    transform: translateX(0);
+    transition: opacity 0.22s cubic-bezier(0.2, 0, 0, 1), max-width 0.3s cubic-bezier(0.2, 0, 0, 1), transform 0.22s ease, margin 0.22s ease;
 }
 
 #sidebar-toggle {
     padding: 0;
     flex-shrink: 0;
+    transition: transform 0.3s cubic-bezier(0.2, 0, 0, 1), margin 0.3s ease;
 }
 
 .sidebar-nav ul {
@@ -8686,12 +8713,22 @@ body:has(#fullscreen-cover-overlay:not([style*='display: none'])) .now-playing-b
         grid-template-columns: 80px 1fr;
     }
 
-    body.sidebar-collapsed .sidebar-logo span {
-        display: none;
+    body.sidebar-collapsed .sidebar {
+        padding: 1.25rem 0.5rem;
     }
 
-    body.sidebar-collapsed .sidebar-nav span {
-        display: none;
+    body.sidebar-collapsed .sidebar-logo span,
+    body.sidebar-collapsed .sidebar-nav span,
+    body.sidebar-collapsed .pinned-items-header,
+    body.sidebar-collapsed #pinned-items-list .nav-item a .pinned-item-name,
+    body.sidebar-collapsed .sidebar-donate-goal {
+        opacity: 0;
+        max-width: 0;
+        margin: 0 !important;
+        padding: 0 !important;
+        pointer-events: none;
+        overflow: hidden;
+        transform: translateX(-8px);
     }
 
     body.sidebar-collapsed .sidebar-logo {
@@ -8704,27 +8741,17 @@ body:has(#fullscreen-cover-overlay:not([style*='display: none'])) .now-playing-b
     body.sidebar-collapsed .sidebar-nav .nav-item button {
         justify-content: center;
         padding: 0.75rem 0;
-    }
-
-    body.sidebar-collapsed .sidebar-nav .nav-item button span {
-        display: none;
-    }
-
-    body.sidebar-collapsed .pinned-items-header {
-        display: none;
-    }
-
-    body.sidebar-collapsed #pinned-items-list .nav-item a .pinned-item-name {
-        display: none;
+        gap: 0;
     }
 
     body.sidebar-collapsed #pinned-items-list .nav-item a {
         justify-content: center;
+        gap: 0;
     }
 
     body.sidebar-collapsed .now-playing-bar {
         width: calc(96% - 80px) !important;
-        left: calc(80px + 2%);
+        left: calc(80px + 2%) !important;
     }
 
     body.sidebar-collapsed #sidebar-toggle {

@@ -27,7 +27,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             // Handle channel results
             if (item.type === 'channel' || queryType === 'channel') {
                 const authorId = item.authorId || item.id || '';
-                const author = item.author || 'Unknown Artist';
+                const author = (item.author || 'Unknown Artist').replace(/\s*-\s*Topic$/i, '').trim();
                 let picture = '/images/echos_logo.svg';
                 if (Array.isArray(item.authorThumbnails) && item.authorThumbnails.length > 0) {
                     const sorted = [...item.authorThumbnails].sort((a, b) => (b.width || 0) - (a.width || 0));
@@ -52,7 +52,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             }
 
             const title = item.title || 'Unknown Title';
-            const author = item.author || 'Unknown Artist';
+            const author = (item.author || 'Unknown Artist').replace(/\s*-\s*Topic$/i, '').trim();
             const duration = Number(item.lengthSeconds) || 0;
             // Always use i.ytimg.com direct Google CDN - guaranteed CORS and ultra fast 200 OK
             const thumb = `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;

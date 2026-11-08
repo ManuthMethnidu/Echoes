@@ -92,6 +92,8 @@ import {
     SVG_LINK,
     SVG_SOUNDCLOUD,
     SVG_APPLE,
+    SVG_SPOTIFY,
+    SVG_MUSIC,
     SVG_REPEAT,
     SVG_REPEAT_ONE,
     SVG_PLAY_LARGE,
@@ -7283,7 +7285,7 @@ export class UIRenderer {
             imageEl.src = this.api.getArtistPictureUrl(artist.picture);
             imageEl.classList.remove('skeleton');
             imageEl.style.backgroundColor = '';
-            nameEl.textContent = artist.name;
+            nameEl.textContent = (artist.name || '').replace(/\s*-\s*Topic$/i, '').trim();
 
             // Set background
             this.setPageBackground(imageEl.src);
@@ -7710,37 +7712,43 @@ export class UIRenderer {
     }
 
     createSocialLinkHTML(link) {
-        const url = link.url;
-
+        const url = typeof link === 'string' ? link : link?.url;
+        if (!url) return '';
         if (url.includes('tidal.com')) return '';
 
-        let icon = SVG_GLOBE(24);
+        let icon = SVG_GLOBE(20);
         let title = 'Website';
 
         if (url.includes('twitter.com') || url.includes('x.com')) {
-            icon = SVG_TWITTER(24);
+            icon = SVG_TWITTER(20);
             title = 'Twitter';
         } else if (url.includes('instagram.com')) {
-            icon = SVG_INSTAGRAM(24);
+            icon = SVG_INSTAGRAM(20);
             title = 'Instagram';
         } else if (url.includes('facebook.com')) {
-            icon = SVG_FACEBOOK(24);
+            icon = SVG_FACEBOOK(20);
             title = 'Facebook';
-        } else if (url.includes('youtube.com')) {
-            icon = SVG_YOUTUBE(24);
+        } else if (url.includes('youtube.com') || url.includes('youtu.be')) {
+            icon = SVG_YOUTUBE(20);
             title = 'YouTube';
         } else if (url.includes('spotify.com') || url.includes('open.spotify.com')) {
-            icon = SVG_LINK(24);
+            icon = SVG_SPOTIFY(20);
             title = 'Spotify';
         } else if (url.includes('soundcloud.com')) {
-            icon = SVG_SOUNDCLOUD(24);
+            icon = SVG_SOUNDCLOUD(20);
             title = 'SoundCloud';
-        } else if (url.includes('apple.com')) {
-            icon = SVG_APPLE(24);
+        } else if (url.includes('apple.com') || url.includes('itunes.apple.com')) {
+            icon = SVG_APPLE(20);
             title = 'Apple Music';
+        } else if (url.includes('bandcamp.com')) {
+            icon = SVG_MUSIC(20);
+            title = 'Bandcamp';
+        } else if (url.includes('tiktok.com')) {
+            icon = SVG_MUSIC(20);
+            title = 'TikTok';
         }
 
-        return `<a href="${url}" target="_blank" rel="noopener noreferrer" class="social-link" title="${title}">${icon}</a>`;
+        return `<a href="${url}" target="_blank" rel="noopener noreferrer" class="social-link" title="${title}" aria-label="${title}">${icon}</a>`;
     }
 
     async renderRecentPage() {

@@ -1252,14 +1252,16 @@ export class LosslessAPI {
     }
 
     async getArtistSocials(artistName) {
-        const cacheKey = `artist_socials_${artistName}`;
+        const cleanName = (artistName || '').replace(/\s*-\s*Topic$/i, '').trim();
+        if (!cleanName) return [];
+        const cacheKey = `artist_socials_${cleanName}`;
         const cached = await this.cache.get('artist', cacheKey);
         if (cached) return cached;
 
         try {
-            const searchUrl = `https://musicbrainz.org/ws/2/artist/?query=artist:${encodeURIComponent(artistName)}&fmt=json`;
+            const searchUrl = `https://musicbrainz.org/ws/2/artist/?query=artist:${encodeURIComponent('"' + cleanName + '"')}&fmt=json`;
             const searchRes = await fetch(searchUrl, {
-                headers: { 'User-Agent': 'Echoes/2.0.0 ( https://echoes.mteck.tech )' },
+                headers: { 'User-Agent': 'EchoesClient/2.0.0 ( contact.Echoes@proton.me )' },
             });
             const searchData = await searchRes.json();
 
@@ -1270,25 +1272,60 @@ export class LosslessAPI {
 
             const detailsUrl = `https://musicbrainz.org/ws/2/artist/${mbid}?inc=url-rels&fmt=json`;
             const detailsRes = await fetch(detailsUrl, {
-                headers: { 'User-Agent': 'Echoes/2.0.0 ( https://echoes.mteck.tech )' },
+                headers: { 'User-Agent': 'EchoesClient/2.0.0 ( contact.Echoes@proton.me )' },
             });
             const detailsData = await detailsRes.json();
 
-            const links = [];
+            const platformOrder = ['website', 'spotify', 'apple', 'youtube', 'instagram', 'twitter', 'tiktok', 'soundcloud', 'bandcamp', 'facebook'];
+            const classifyLink = (url, type) => {
+                const lower = url.toLowerCase();
+                if (
+                    lower.includes('tidal.com') ||
+                    lower.includes('plus.google.com') ||
+                    lower.includes('napster.com') ||
+                    lower.includes('qobuz.com') ||
+                    lower.includes('melon.com') ||
+                    lower.includes('discogs.com') ||
+                    lower.includes('wikidata.org') ||
+                    lower.includes('wikipedia.org') ||
+                    lower.includes('allmusic.com') ||
+                    lower.includes('rateyourmusic.com')
+                ) {
+                    return null;
+                }
+                if (lower.includes('spotify.com') || lower.includes('open.spotify.com')) return 'spotify';
+                if (lower.includes('apple.com') || lower.includes('itunes.apple.com')) return 'apple';
+                if (lower.includes('youtube.com') || lower.includes('youtu.be')) return 'youtube';
+                if (lower.includes('instagram.com')) return 'instagram';
+                if (lower.includes('twitter.com') || lower.includes('x.com')) return 'twitter';
+                if (lower.includes('tiktok.com')) return 'tiktok';
+                if (lower.includes('soundcloud.com')) return 'soundcloud';
+                if (lower.includes('bandcamp.com')) return 'bandcamp';
+                if (lower.includes('facebook.com')) return 'facebook';
+                if (type === 'official homepage' || lower.includes('official') || !lower.includes('/')) return 'website';
+                return 'website';
+            };
+
+            const platformMap = new Map();
             if (detailsData.relations) {
                 for (const rel of detailsData.relations) {
-                    if (
-                        [
-                            'social network',
-                            'streaming',
-                            'official homepage',
-                            'youtube',
-                            'soundcloud',
-                            'bandcamp',
-                        ].includes(rel.type)
-                    ) {
-                        links.push({ type: rel.type, url: rel.url.resource });
+                    const rawUrl = rel.url?.resource;
+                    if (!rawUrl) continue;
+                    const platform = classifyLink(rawUrl, rel.type);
+                    if (!platform) continue;
+                    // Prefer official homepage if multiple websites
+                    if (platform === 'website' && rel.type === 'official homepage') {
+                        platformMap.set(platform, { type: rel.type, url: rawUrl, platform });
+                    } else if (!platformMap.has(platform)) {
+                        platformMap.set(platform, { type: rel.type, url: rawUrl, platform });
                     }
+                }
+            }
+
+            const links = [];
+            for (const p of platformOrder) {
+                if (platformMap.has(p)) {
+                    links.push(platformMap.get(p));
                 }
             }
 

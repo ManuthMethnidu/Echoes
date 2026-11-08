@@ -27,8 +27,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             channelId = clean;
             try {
                 const { data } = await fetchWithFailover((base) => `${base}/api/v1/channels/${channelId}`);
-                if (data) {
-                    artistName = data.author || artistName;
+                if (data && data.author) {
+                    artistName = data.author;
                     bio = data.description || '';
                     if (Array.isArray(data.authorThumbnails) && data.authorThumbnails.length > 0) {
                         const sorted = [...data.authorThumbnails].sort((a, b) => (b.width || 0) - (a.width || 0));
@@ -38,7 +38,42 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             } catch (err) {
                 console.warn('[YouTube Artist] Channel by ID fetch warning:', err);
             }
+
+            // Fallback: If Invidious failed or author is still the raw channel ID (common with YouTube Topic channels),
+            // fetch the YouTube channel page directly to extract og:title, og:image, and og:description
+            if (!artistName || /^UC[a-zA-Z0-9_-]{20,}$/.test(artistName)) {
+                try {
+                    const ytRes = await fetch(`https://www.youtube.com/channel/${channelId}`, {
+                        headers: {
+                            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                            'Accept-Language': 'en-US,en;q=0.9',
+                        },
+                    });
+                    if (ytRes.ok) {
+                        const html = await ytRes.text();
+                        const ogTitle = html.match(/<meta property="og:title" content="([^"]+)"/i)?.[1];
+                        const titleTag = html.match(/<title>([^<]+)<\/title>/i)?.[1];
+                        const rawTitle = ogTitle || titleTag || '';
+                        const parsedName = rawTitle.replace(/\s*-\s*Topic$/i, '').replace(/\s*-\s*YouTube$/i, '').trim();
+                        if (parsedName) {
+                            artistName = parsedName;
+                        }
+                        const ogImage = html.match(/<meta property="og:image" content="([^"]+)"/i)?.[1];
+                        if (ogImage) {
+                            artistPicture = ogImage;
+                        }
+                        const ogDesc = html.match(/<meta property="og:description" content="([^"]+)"/i)?.[1];
+                        if (ogDesc && !bio) {
+                            bio = ogDesc;
+                        }
+                    }
+                } catch (ytErr) {
+                    console.warn('[YouTube Artist] Direct channel scraper fallback warning:', ytErr);
+                }
+            }
         }
+
+        artistName = (artistName || clean).replace(/\s*-\s*Topic$/i, '').trim();
 
         // 2. If no channel ID or channel name is still raw, search by channel name
         if (!channelId) {
@@ -76,7 +111,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 }
             }
 
-            if (channelVideos.length === 0) {
+            if (channelVideos.length === 0 && artistName && !/^UC[a-zA-Z0-9_-]{20,}$/.test(artistName)) {
                 const { data: sData } = await fetchWithFailover(
                     (base) => `${base}/api/v1/search?q=${encodeURIComponent(artistName)}&type=video`
                 );
@@ -90,11 +125,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         // 4. Fetch playlists / albums for this artist
         try {
-            const { data: pData } = await fetchWithFailover(
-                (base) => `${base}/api/v1/search?q=${encodeURIComponent(artistName + ' album')}&type=playlist`
-            );
-            if (Array.isArray(pData)) {
-                channelPlaylists = pData;
+            if (artistName && !/^UC[a-zA-Z0-9_-]{20,}$/.test(artistName)) {
+                const { data: pData } = await fetchWithFailover(
+                    (base) => `${base}/api/v1/search?q=${encodeURIComponent(artistName + ' album')}&type=playlist`
+                );
+                if (Array.isArray(pData)) {
+                    channelPlaylists = pData;
+                }
             }
         } catch (err) {
             console.warn('[YouTube Artist] Playlist fetch warning:', err);

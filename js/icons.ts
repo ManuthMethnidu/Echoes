@@ -67,6 +67,7 @@ export { default as SVG_SKIP_FORWARD } from '!lucide/skip-forward.svg?svg&icon';
 export { default as SVG_SLIDERS } from '!lucide/sliders-horizontal.svg?svg&icon';
 export { default as SVG_SORT } from '../images/sort.svg?svg&icon';
 export { default as SVG_SOUNDCLOUD } from '../images/soundcloud.svg?svg&icon';
+export { default as SVG_SPOTIFY } from '../images/spotify.svg?svg&icon';
 export { default as SVG_SPARKLES } from '!lucide/sparkles.svg?svg&icon';
 export { default as SVG_SQUARE_PEN } from '!lucide/square-pen.svg?svg&icon';
 export { default as SVG_STORE } from '!lucide/store.svg?svg&icon';

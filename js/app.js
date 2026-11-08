@@ -1774,7 +1774,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                     }
 
                     // Check for pending tracks (from Add to Playlist -> New Playlist)
-                    const modal = document.getElementById('playlist-modal');
                     if (modal._pendingTracks && Array.isArray(modal._pendingTracks)) {
                         tracks = [...tracks, ...modal._pendingTracks];
                         delete modal._pendingTracks;

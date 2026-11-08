@@ -44,7 +44,7 @@ import { audioContextManager } from './audio-context.js';
 import { navigate } from './router.js';
 import { sidePanelManager } from './side-panel.js';
 import { searchCommunityPlaylists } from './community-playlists.js';
-import { resizeScroll } from './smooth-scroll.js';
+import { resizeScroll, scrollTo } from './smooth-scroll.js';
 import {
     renderUnreleasedPage as renderUnreleasedTrackerPage,
     renderTrackerArtistPage as renderTrackerArtistContent,
@@ -2732,13 +2732,8 @@ export class UIRenderer {
             );
         });
 
-        const mainContent = document.querySelector('.main-content');
-        if (mainContent && previousPage !== pageId) {
-            if (window.lenis) {
-                window.lenis.scrollTo(0, { immediate: true });
-            } else {
-                mainContent.scrollTop = 0;
-            }
+        if (previousPage !== pageId) {
+            scrollTo(0, { immediate: true });
         }
 
         // Clear artist context when navigating away from artist page
@@ -2789,6 +2784,9 @@ export class UIRenderer {
                 if (content) content.classList.add('active');
             }
             resizeScroll();
+            requestAnimationFrame(() => resizeScroll());
+            setTimeout(() => resizeScroll(), 100);
+            setTimeout(() => resizeScroll(), 350);
         } else {
             document.querySelectorAll('.settings-tab').forEach((t) => t.classList.remove('active'));
             document.querySelectorAll('.settings-tab-content').forEach((c) => c.classList.remove('active'));

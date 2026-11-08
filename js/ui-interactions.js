@@ -603,7 +603,11 @@ export function initializeUIInteractions(player, api, ui) {
             document.getElementById(contentId)?.classList.add('active');
 
             import('./smooth-scroll.js')
-                .then(({ resizeScroll }) => resizeScroll())
+                .then(({ resizeScroll }) => {
+                    resizeScroll();
+                    requestAnimationFrame(() => resizeScroll());
+                    setTimeout(() => resizeScroll(), 100);
+                })
                 .catch(() => {});
 
             // Save active tab

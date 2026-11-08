@@ -125,11 +125,21 @@ export default defineConfig(({ mode }) => {
                             },
                         },
                         {
-                            urlPattern: ({ request }) =>
-                                request.destination === 'style' || request.destination === 'font',
+                            urlPattern: ({ request }) => request.destination === 'style',
+                            handler: 'StaleWhileRevalidate',
+                            options: {
+                                cacheName: 'stylesheets',
+                                expiration: {
+                                    maxEntries: 40,
+                                    maxAgeSeconds: 24 * 60 * 60,
+                                },
+                            },
+                        },
+                        {
+                            urlPattern: ({ request }) => request.destination === 'font',
                             handler: 'CacheFirst',
                             options: {
-                                cacheName: 'static-resources',
+                                cacheName: 'static-fonts',
                                 expiration: {
                                     maxEntries: 60,
                                     maxAgeSeconds: 60 * 24 * 60 * 60,

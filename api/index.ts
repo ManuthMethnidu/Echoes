@@ -80,31 +80,10 @@ const STATIC_ROUTES: Record<string, ApiHandler> = {
     'upload': uploadImageHandler,
     'artwork': artworkHandler,
     'test-innertube': async (req: VercelRequest, res: VercelResponse) => {
-        const videoId = '6r5Fsq7cK9w';
         try {
-            const vRes = await fetch(`https://yt.chocolatemoo53.com/api/v1/videos/${videoId}`);
-            const data = await vRes.json();
-            const f = (data.adaptiveFormats || []).find((x: any) => x.itag === '140');
-            const parsed = new URL(f.url);
-            const origHost = parsed.hostname;
-            parsed.searchParams.set('host', origHost);
-            const comp = 'yt-comp1.chocolatemoo53.com';
-            const testUrl = `https://${comp}${parsed.pathname}${parsed.search}`;
-
-            const aRes = await fetch(testUrl, {
-                headers: {
-                    'Range': 'bytes=0-1024',
-                    'User-Agent': 'Mozilla/5.0',
-                    'Referer': 'https://yt.chocolatemoo53.com/'
-                }
-            });
-            const text = aRes.status !== 206 ? await aRes.text() : '';
-            return res.status(200).json({
-                compStatus: aRes.status,
-                compContentType: aRes.headers.get('content-type'),
-                compContentLength: aRes.headers.get('content-length'),
-                errorBody: text.slice(0, 200)
-            });
+            const ipRes = await fetch('https://ifconfig.me/ip');
+            const ip = await ipRes.text();
+            return res.status(200).json({ vercelIp: ip.trim() });
         } catch (e: any) {
             return res.status(500).json({ error: e.message });
         }

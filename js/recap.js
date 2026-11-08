@@ -694,25 +694,33 @@ function drawStoryCard(canvas, data) {
 
         // Persona Title & Percentage Pill
         ctx.fillStyle = fgColor;
-        ctx.font = 'bold 34px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-        ctx.fillText(data.persona.title, 48, 160);
+        const titleFont = 'bold 32px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+        const pillFont = 'bold 13px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+
+        // Measure title with titleFont first so pill never overlaps
+        ctx.font = titleFont;
+        const titleWidth = ctx.measureText(data.persona.title).width;
+        ctx.fillText(data.persona.title, 48, 158);
 
         if (data.persona.percentStat) {
-            ctx.font = 'bold 14px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
             const pillText = data.persona.percentStat;
+            ctx.font = pillFont;
             const textWidth = ctx.measureText(pillText).width;
-            const titleWidth = ctx.measureText(data.persona.title).width;
-            const pillX = Math.min(w - 180, 48 + titleWidth + 16);
+            const pillWidth = textWidth + 24;
+            const pillX = 48 + titleWidth + 16;
+            const pillY = 135;
+
             ctx.fillStyle = secondaryColor;
             ctx.strokeStyle = borderColor;
             ctx.lineWidth = 1;
             ctx.beginPath();
-            ctx.roundRect(pillX, 137, textWidth + 20, 28, 999);
+            ctx.roundRect(pillX, pillY, pillWidth, 28, 999);
             ctx.fill();
             ctx.stroke();
 
             ctx.fillStyle = fgColor;
-            ctx.fillText(pillText, pillX + 10, 156);
+            ctx.font = pillFont;
+            ctx.fillText(pillText, pillX + 12, pillY + 18);
         }
 
         // Tagline text

@@ -42,30 +42,7 @@ function cleanSearchQuery(q: string): string {
         .trim();
 }
 
-async function verifyStreamPlayable(url: string, timeoutMs = 2000): Promise<boolean> {
-    if (!url) return false;
-    try {
-        const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), timeoutMs);
-        const res = await fetch(url, {
-            headers: {
-                'Range': 'bytes=0-100',
-                'User-Agent':
-                    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
-            },
-            signal: controller.signal,
-        });
-        clearTimeout(timer);
-        return res.status === 200 || res.status === 206;
-    } catch {
-        return false;
-    }
-}
-
-async function findVerifiedPlayableAudio(
-    videoData: any,
-    timeoutMs = 1800
-): Promise<{ format: any; streamUrl: string; issuer: string } | null> {
+function findPlayableAudio(videoData: any): { format: any; streamUrl: string; issuer: string } | null {
     if (!videoData) return null;
 
     // Check adaptive formats (audio-only formats, highest bitrate first)
@@ -74,34 +51,34 @@ async function findVerifiedPlayableAudio(
     );
     adaptiveFormats.sort((a: any, b: any) => (parseInt(b.bitrate) || 0) - (parseInt(a.bitrate) || 0));
 
-    // Check progressive format streams
-    const formatStreams = (videoData.formatStreams || []).filter((f: any) => f.url);
-
-    const candidates: Array<{ format: any; streamUrl: string; issuer: string }> = [];
-
-    for (const f of [...adaptiveFormats, ...formatStreams]) {
+    for (const f of adaptiveFormats) {
         const issuer = extractIssuer(f.url);
         if (issuer) {
-            candidates.push({
+            return {
                 format: f,
                 streamUrl: resolveStreamUrl(f.url),
                 issuer,
-            });
+            };
         }
     }
 
-    if (candidates.length === 0) return null;
-
-    // Test up to the top 2 audio formats for verified playback
-    for (const c of candidates.slice(0, 2)) {
-        const ok = await verifyStreamPlayable(c.streamUrl, timeoutMs);
-        if (ok) return c;
+    // Check progressive format streams
+    const formatStreams = (videoData.formatStreams || []).filter((f: any) => f.url);
+    for (const f of formatStreams) {
+        const issuer = extractIssuer(f.url);
+        if (issuer) {
+            return {
+                format: f,
+                streamUrl: resolveStreamUrl(f.url),
+                issuer,
+            };
+        }
     }
 
     return null;
 }
 
-// Early-resolving promise helper: returns the first truthy value without waiting for slow rejects/timeouts
+// Early-resolving helper: returns the first truthy result without waiting for the rest
 async function findFirstValid<T>(promises: Promise<T | null>[]): Promise<T | null> {
     return new Promise((resolve) => {
         let remaining = promises.length;
@@ -182,13 +159,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         console.warn(`[YouTube Stream] Direct video lookup failed for ${videoId}:`, directErr);
     }
 
-    // 1. Direct Playable Check: If this video has formats signed by an active companion node, verify and return
+    // 1. Direct Playable Check: If this video has formats signed by an active companion node, return immediately
     if (data) {
-        const playable = await findVerifiedPlayableAudio(data, 1800);
+        const playable = findPlayableAudio(data);
         if (playable) {
             return res.status(200).json(formatResponse(playable.format, playable.streamUrl, data, videoId, instance));
         }
-        console.log(`[YouTube Stream] Video ${videoId} has no verified direct stream; starting candidate failover search`);
+        console.log(`[YouTube Stream] Video ${videoId} has no companion issuer; starting candidate failover search`);
     }
 
     // 2. Candidate Search Failover: Find alternative playable uploads for this track
@@ -236,7 +213,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                         (base) => `${base}/api/v1/videos/${cid}`,
                         2500
                     );
-                    const playable = await findVerifiedPlayableAudio(cRes.data, 1800);
+                    const playable = findPlayableAudio(cRes.data);
                     if (playable) {
                         return {
                             format: playable.format,
@@ -252,7 +229,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
             const valid = await findFirstValid(candidateLookups);
             if (valid) {
-                console.log(`[YouTube Stream] Failover matched verified candidate ${valid.cid} for ${videoId} (${cleanTerms})`);
+                console.log(`[YouTube Stream] Failover matched candidate ${valid.cid} for ${videoId} (${cleanTerms})`);
                 return res.status(200).json(
                     formatResponse(
                         valid.format,

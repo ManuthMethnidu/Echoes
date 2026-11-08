@@ -1,0 +1,15 @@
+services:
+  echoes-backend:
+    build: .
+    container_name: echoes-backend
+    restart: always
+    ports:
+      - "127.0.0.1:4040:4000"
+    environment:
+      - NODE_ENV=production
+      - PORT=4000
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"

@@ -1117,17 +1117,19 @@ body.sidebar-collapsed .now-playing-bar {
         bottom: 0 !important;
         width: 100% !important;
         height: var(--player-bar-height-mobile);
+        /* 3-column layout: track | play+next | queue */
         grid-template:
-            'track actions' 56px
-            'progress progress' 34px / minmax(0, 1fr) auto;
-        gap: 2px 10px;
-        padding: 9px 12px max(9px, env(safe-area-inset-bottom));
+            'track actions queue' 56px
+            'progress progress progress' 34px / minmax(0, 1fr) auto 44px;
+        gap: 2px 0;
+        padding: 9px 8px max(9px, env(safe-area-inset-bottom));
         border-top: 1px solid var(--chrome-divider);
         background: var(--card);
     }
 
     .now-playing-bar .track-info {
         grid-area: track;
+        padding-left: 4px;
     }
 
     .now-playing-bar .cover {
@@ -1142,8 +1144,11 @@ body.sidebar-collapsed .now-playing-bar {
 
     .player-controls .buttons {
         grid-area: actions;
-        padding: 0 44px 0 0 !important;
+        padding: 0 !important;
         gap: 0;
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
     }
 
     .player-controls .buttons #shuffle-btn,
@@ -1164,13 +1169,22 @@ body.sidebar-collapsed .now-playing-bar {
         order: initial;
         width: 100%;
         gap: 8px;
+        padding: 0 4px;
     }
 
+    /* volume-controls holds player-actions-row (queue btn) + volume-slider-row.
+       Use display:contents so its children become direct grid items. */
     .volume-controls {
-        display: block !important;
-        position: absolute;
-        top: 15px;
-        right: 8px;
+        display: contents !important;
+        position: static;
+    }
+
+    /* player-actions-row gets the dedicated 'queue' grid area */
+    .player-actions-row {
+        grid-area: queue;
+        display: flex !important;
+        align-items: center;
+        justify-content: center;
     }
 
     .player-actions-row button {

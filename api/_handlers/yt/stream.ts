@@ -16,9 +16,9 @@ function extractIssuer(rawUrl: string): string | null {
 function resolveStreamUrl(rawUrl: string, instance?: string): string {
     if (!rawUrl) return rawUrl;
     try {
-        const parsed = new URL(rawUrl);
         const issuer = extractIssuer(rawUrl);
         if (issuer) {
+            const parsed = new URL(rawUrl);
             let origHost = parsed.hostname;
             if (!origHost.includes('googlevideo.com')) {
                 const mvi = parsed.searchParams.get('mvi') || '1';
@@ -32,6 +32,9 @@ function resolveStreamUrl(rawUrl: string, instance?: string): string {
         }
     } catch {}
     if (instance) {
+        if (rawUrl.startsWith('/')) {
+            return `${instance}${rawUrl}`;
+        }
         return rawUrl.replace(/^https:\/\/[^\/]+/, instance);
     }
     return rawUrl;
@@ -97,7 +100,11 @@ function scoreCandidate(candidate: any, cleanTit: string, cleanArt: string, targ
     return score;
 }
 
-function findPlayableAudio(videoData: any, preferM4a: boolean = false): { format: any; streamUrl: string; issuer: string } | null {
+function findPlayableAudio(
+    videoData: any,
+    instance?: string,
+    preferM4a: boolean = false
+): { format: any; streamUrl: string; issuer?: string } | null {
     if (!videoData) return null;
 
     // Check adaptive formats (audio-only formats)
@@ -117,28 +124,46 @@ function findPlayableAudio(videoData: any, preferM4a: boolean = false): { format
         adaptiveFormats.sort((a: any, b: any) => (parseInt(b.bitrate) || 0) - (parseInt(a.bitrate) || 0));
     }
 
+    // 1. Prefer format with companion issuer if available
     for (const f of adaptiveFormats) {
         const issuer = extractIssuer(f.url);
         if (issuer) {
             return {
                 format: f,
-                streamUrl: resolveStreamUrl(f.url),
+                streamUrl: resolveStreamUrl(f.url, instance),
                 issuer,
             };
         }
     }
 
-    // Check progressive format streams
+    // 2. Otherwise use the highest quality adaptive audio format
+    if (adaptiveFormats.length > 0) {
+        const best = adaptiveFormats[0];
+        return {
+            format: best,
+            streamUrl: resolveStreamUrl(best.url, instance),
+        };
+    }
+
+    // 3. Fallback to progressive format streams (combined video/audio)
     const formatStreams = (videoData.formatStreams || []).filter((f: any) => f.url);
     for (const f of formatStreams) {
         const issuer = extractIssuer(f.url);
         if (issuer) {
             return {
                 format: f,
-                streamUrl: resolveStreamUrl(f.url),
+                streamUrl: resolveStreamUrl(f.url, instance),
                 issuer,
             };
         }
+    }
+
+    if (formatStreams.length > 0) {
+        const best = formatStreams[0];
+        return {
+            format: best,
+            streamUrl: resolveStreamUrl(best.url, instance),
+        };
     }
 
     return null;
@@ -237,13 +262,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         console.warn(`[YouTube Stream] Direct video lookup failed for ${videoId}:`, directErr);
     }
 
-    // 1. Direct Playable Check: If this video has formats signed by an active companion node, return immediately
+    // 1. Direct Playable Check: If this video has playable formats, return immediately
     if (data) {
-        const playable = findPlayableAudio(data, preferM4a);
+        const playable = findPlayableAudio(data, instance, preferM4a);
         if (playable) {
             return res.status(200).json(formatResponse(playable.format, playable.streamUrl, data, videoId, instance));
         }
-        console.log(`[YouTube Stream] Video ${videoId} has no companion issuer; starting candidate failover search`);
+        console.log(`[YouTube Stream] Video ${videoId} has no direct audio formats; starting candidate failover search`);
     }
 
     // 2. Candidate Search Failover: Find alternative playable uploads for this track
@@ -306,7 +331,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                             (base) => `${base}/api/v1/videos/${cid}`,
                             2500
                         );
-                        const playable = findPlayableAudio(cRes.data, preferM4a);
+                        const playable = findPlayableAudio(cRes.data, cRes.instance, preferM4a);
                         if (playable) {
                             return {
                                 format: playable.format,

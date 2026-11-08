@@ -996,7 +996,7 @@ export class Player {
                 return this.safePlay(activeElement);
             });
         } else {
-            activeElement.src = streamUrl;
+            activeElement.src = getProxyUrl(streamUrl);
             this.applyAudioEffects();
             this.updateAdaptiveQualityBadge();
 
@@ -1394,7 +1394,7 @@ export class Player {
                 this.currentRgValues = null;
                 this.applyReplayGain();
 
-                activeElement.src = streamUrl;
+                activeElement.src = getProxyUrl(streamUrl);
                 this.applyAudioEffects();
 
                 const canPlay = await this.waitForCanPlayOrTimeout(activeElement);
@@ -1439,7 +1439,7 @@ export class Player {
                 this.currentRgValues = null;
                 this.applyReplayGain();
 
-                activeElement.src = streamUrl;
+                activeElement.src = getProxyUrl(streamUrl);
                 this.applyAudioEffects();
 
                 // Wait for audio to be ready before playing (prevents restart issues with blob URLs)
@@ -1542,7 +1542,7 @@ export class Player {
 
                     this.updateAdaptiveQualityBadge();
                 } else {
-                    activeElement.src = streamUrl;
+                    activeElement.src = getProxyUrl(streamUrl);
                 }
 
                 this.applyAudioEffects();

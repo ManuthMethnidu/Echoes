@@ -20,6 +20,7 @@ const ALLOWED_STREAM_DOMAINS = [
     'materialio.us',
     'protokolla.fi',
     'ducks.party',
+    'nerdvpn.de',
     'qzz.io',
 ];
 
@@ -64,8 +65,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
 
         const parsedInitial = new URL(validatedUrl);
-        if (parsedInitial.hostname.includes('chocolatemoo53.com')) {
-            headers['Referer'] = 'https://yt.chocolatemoo53.com/';
+        if (!parsedInitial.hostname.includes('googlevideo.com') && !parsedInitial.hostname.includes('youtube.com')) {
+            headers['Referer'] = `https://${parsedInitial.hostname}/`;
+            headers['Origin'] = `https://${parsedInitial.hostname}`;
         }
 
         let currentUrl = validatedUrl;

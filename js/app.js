@@ -327,6 +327,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Haptic feedback on every click
     document.addEventListener('click', () => hapticLight(), { capture: true });
 
+    // Early unlock for AudioSession and Web Audio context (bypasses iOS Silent switch & autoplay policies)
+    const unlockAudioSession = () => {
+        if (typeof navigator !== 'undefined' && 'audioSession' in navigator) {
+            try {
+                navigator.audioSession.type = 'playback';
+            } catch {}
+        }
+        if (Player.instance?.audio) {
+            Player.instance.audio.crossOrigin = 'anonymous';
+        }
+    };
+    document.addEventListener('pointerdown', unlockAudioSession, { capture: true, passive: true });
+    document.addEventListener('keydown', unlockAudioSession, { capture: true, passive: true });
+
     // Initialize analytics
     initAnalytics();
 

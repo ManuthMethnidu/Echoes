@@ -2,6 +2,8 @@
  * echos - YouTube Music Client Engine (ArchiveTune style)
  */
 
+import { isIos, isSafari } from './platform-detection.js';
+
 export class YouTubeMusicEngine {
     constructor() {
         this.cache = new Map();
@@ -52,10 +54,12 @@ export class YouTubeMusicEngine {
 
         try {
             const probe = typeof document !== 'undefined' ? document.createElement('audio') : null;
-            if (probe && !probe.canPlayType('audio/webm; codecs="opus"')) {
+            if (isIos || isSafari || !probe || !probe.canPlayType('audio/webm; codecs="opus"')) {
                 params.set('format', 'm4a');
             }
-        } catch {}
+        } catch {
+            params.set('format', 'm4a');
+        }
 
         const res = await fetch(`/api/yt/stream?${params.toString()}`);
         if (!res.ok) {

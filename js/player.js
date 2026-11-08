@@ -50,8 +50,10 @@ export class Player {
     /** @private */
     constructor(audioElement, api, quality = 'LOSSLESS') {
         this.audio = audioElement;
+        this.audio.crossOrigin = 'anonymous';
         const crossfadeAudio = document.createElement('audio');
         crossfadeAudio.id = 'audio-player-crossfade';
+        crossfadeAudio.crossOrigin = 'anonymous';
         crossfadeAudio.preload = 'auto';
         crossfadeAudio.style.display = 'none';
         try {
@@ -853,6 +855,7 @@ export class Player {
         element.pause();
         element.removeAttribute('src');
         element.load();
+        element.crossOrigin = 'anonymous';
         element.preload = singleUse ? 'none' : 'auto';
         element.src = getProxyUrl(streamUrl);
         // Safari needs an explicit load after replacing a failed MSE/Shaka source.
@@ -3267,6 +3270,17 @@ export class Player {
 
     async safePlay(element = this.activeElement) {
         try {
+            if (typeof navigator !== 'undefined' && 'audioSession' in navigator) {
+                try {
+                    navigator.audioSession.type = 'playback';
+                } catch {}
+            }
+            if (!audioContextManager.isReady() && element) {
+                audioContextManager.init(element);
+                this.applyReplayGain();
+            }
+            await audioContextManager.resume();
+
             await element.play();
             this.autoplayBlocked = false;
             return true;

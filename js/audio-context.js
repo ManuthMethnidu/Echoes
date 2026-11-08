@@ -499,10 +499,8 @@ class AudioContextManager {
                 } catch {}
             }
 
-            const isApple = isIos || isSafari;
-            const needsDsp = this.isEQEnabled || this.isGraphicEQEnabled || this.isMonoAudioEnabled || this.isBinauralEnabled;
-
-            if (!isApple || needsDsp) {
+            try {
+                audioElement.crossOrigin = 'anonymous';
                 if (!this.sources.has(audioElement)) {
                     const src = this.audioContext.createMediaElementSource(audioElement);
                     this.sources.set(audioElement, src);
@@ -522,7 +520,8 @@ class AudioContextManager {
 
                 this.binauralDsp = new BinauralDSP(this.audioContext);
                 void this._loadBinauralSettings();
-            } else {
+            } catch (mediaErr) {
+                console.warn('[AudioContext] MediaElementSource creation failed, falling back to native element playback:', mediaErr);
                 this.source = null;
             }
 
@@ -575,37 +574,28 @@ class AudioContextManager {
         if (this.audio === audioElement) return;
 
         this.audio = audioElement;
-        const isApple = isIos || isSafari;
-        const needsDsp = this.isEQEnabled || this.isGraphicEQEnabled || this.isMonoAudioEnabled || this.isBinauralEnabled;
 
-        if (!isApple || needsDsp) {
-            try {
-                if (this.source) {
-                    try {
-                        this.source.disconnect();
-                    } catch {
-                        // node may already be disconnected
-                    }
-                }
-
-                if (!this.sources.has(audioElement)) {
-                    this.sources.set(audioElement, this.audioContext.createMediaElementSource(audioElement));
-                }
-                this.source = this.sources.get(audioElement);
-
-                if (this.isInitialized) {
-                    this._connectGraph();
-                }
-            } catch (e) {
-                console.warn('changeSource failed:', e);
-            }
-        } else {
+        try {
             if (this.source) {
                 try {
                     this.source.disconnect();
-                } catch {}
-                this.source = null;
+                } catch {
+                    // node may already be disconnected
+                }
             }
+
+            audioElement.crossOrigin = 'anonymous';
+            if (!this.sources.has(audioElement)) {
+                this.sources.set(audioElement, this.audioContext.createMediaElementSource(audioElement));
+            }
+            this.source = this.sources.get(audioElement);
+
+            if (this.isInitialized) {
+                this._connectGraph();
+            }
+        } catch (e) {
+            console.warn('changeSource failed:', e);
+            this.source = null;
         }
     }
 
@@ -645,9 +635,9 @@ class AudioContextManager {
      * the new chain is wired up first, then the old connections are torn down.
      */
     _connectGraph() {
-        const needsDsp = this.isEQEnabled || this.isGraphicEQEnabled || this.isMonoAudioEnabled || this.isBinauralEnabled;
-        if (!this.source && this.audioContext && this.audio && needsDsp) {
+        if (!this.source && this.audioContext && this.audio) {
             try {
+                this.audio.crossOrigin = 'anonymous';
                 if (!this.sources.has(this.audio)) {
                     this.sources.set(this.audio, this.audioContext.createMediaElementSource(this.audio));
                 }
@@ -829,6 +819,11 @@ class AudioContextManager {
      * @returns {Promise<boolean>} - Returns true if context is running
      */
     async resume() {
+        if (typeof navigator !== 'undefined' && 'audioSession' in navigator) {
+            try {
+                navigator.audioSession.type = 'playback';
+            } catch {}
+        }
         if (!this.audioContext) return false;
 
         console.log('[AudioContext] Current state:', this.audioContext.state);

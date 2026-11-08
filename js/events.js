@@ -1171,6 +1171,46 @@ export async function initializePlayerEvents(player, audioPlayer, scrobbler, ui)
             mode === REPEAT_MODE.OFF ? 'Repeat' : mode === REPEAT_MODE.ALL ? 'Repeat Queue' : 'Repeat One';
     });
 
+    // Podcast Controls (-15s rewind, +30s fast-forward, playback speed)
+    const podcastSkipBackBtn = document.getElementById('podcast-skip-back-btn');
+    const podcastSkipForwardBtn = document.getElementById('podcast-skip-forward-btn');
+    const podcastSpeedBtn = document.getElementById('podcast-speed-btn');
+
+    const fsPodcastSkipBackBtn = document.getElementById('fs-podcast-skip-back-btn');
+    const fsPodcastSkipForwardBtn = document.getElementById('fs-podcast-skip-forward-btn');
+    const fsPodcastSpeedBtn = document.getElementById('fs-podcast-speed-btn');
+
+    const handleSkip = async (deltaSeconds) => {
+        await hapticLight();
+        const el = player.activeElement;
+        if (el) {
+            const target = Math.max(0, Math.min(el.duration || Infinity, el.currentTime + deltaSeconds));
+            await player.seek(target);
+        }
+    };
+
+    podcastSkipBackBtn?.addEventListener('click', () => handleSkip(-15));
+    fsPodcastSkipBackBtn?.addEventListener('click', () => handleSkip(-15));
+    podcastSkipForwardBtn?.addEventListener('click', () => handleSkip(30));
+    fsPodcastSkipForwardBtn?.addEventListener('click', () => handleSkip(30));
+
+    const PODCAST_SPEEDS = [1, 1.2, 1.5, 1.75, 2];
+    const handleSpeedToggle = async () => {
+        await hapticLight();
+        const el = player.activeElement;
+        const currentSpeed = el?.playbackRate || 1;
+        const nextIdx = (PODCAST_SPEEDS.findIndex((s) => Math.abs(s - currentSpeed) < 0.05) + 1) % PODCAST_SPEEDS.length;
+        const newSpeed = PODCAST_SPEEDS[nextIdx];
+        player.setSpeed(newSpeed);
+        const label = `${newSpeed}x`;
+        if (podcastSpeedBtn) podcastSpeedBtn.textContent = label;
+        if (fsPodcastSpeedBtn) fsPodcastSpeedBtn.textContent = label;
+        showNotification(`Speed: ${label}`);
+    };
+
+    podcastSpeedBtn?.addEventListener('click', handleSpeedToggle);
+    fsPodcastSpeedBtn?.addEventListener('click', handleSpeedToggle);
+
     window.addEventListener('radio-state-changed', (e) => {
         if (e.detail && e.detail.enabled) {
             showNotification('Infinite Radio Enabled');

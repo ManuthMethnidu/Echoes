@@ -509,6 +509,7 @@ export class Player {
                 }
                 if (titleEl) {
                     this.updateNowPlayingTitle(track);
+        this.updatePodcastControls(track);
                 }
                 if (albumEl) {
                     const albumTitle = track.album?.title || '';
@@ -955,6 +956,7 @@ export class Player {
         }
         if (deezerHiResFallback) {
             this.updateNowPlayingTitle(track);
+        this.updatePodcastControls(track);
         }
 
         const retryImmediateHandoff = async (error) => {
@@ -1347,6 +1349,7 @@ export class Player {
             }
         }
         this.updateNowPlayingTitle(track);
+        this.updatePodcastControls(track);
         const albumEl = document.querySelector('.now-playing-bar .album');
         if (albumEl) {
             const albumTitle = track.album?.title || '';
@@ -1610,6 +1613,7 @@ export class Player {
                         this.currentTrack.legacyQualityDisplay = resolvedStreamInfo.qualityDisplay;
                     }
                     this.updateNowPlayingTitle(track);
+        this.updatePodcastControls(track);
                 }
 
                 const deezerHiResFallback =
@@ -1621,9 +1625,11 @@ export class Player {
                 }
                 if (deezerHiResFallback) {
                     this.updateNowPlayingTitle(track);
+        this.updatePodcastControls(track);
                 }
 
                 this.updateNowPlayingTitle(track);
+        this.updatePodcastControls(track);
                 this.updateAdaptiveQualityBadge();
                 this.syncDurationUI(
                     activeElement,
@@ -2994,6 +3000,48 @@ export class Player {
             ? `<span class="deezer-hires-warning" role="img" tabindex="0" aria-label="Hi-Res unavailable for this track. Playing in CD-quality lossless instead. That's 16-bit / 44.1 kHz FLAC.">${SVG_TRIANGLE_ALERT(16)}</span>`
             : '';
         titleEl.innerHTML = `${escapeHtml(getTrackTitle(track))} ${createQualityBadgeHTML(track)}${warning}`;
+    }
+
+    updatePodcastControls(track = this.currentTrack) {
+        const isPodcast = Boolean(track && (track.isPodcast || (track.id && String(track.id).startsWith('podcast_'))));
+
+        const podcastSkipBackBtn = document.getElementById('podcast-skip-back-btn');
+        const podcastSkipForwardBtn = document.getElementById('podcast-skip-forward-btn');
+        const podcastSpeedBtn = document.getElementById('podcast-speed-btn');
+        const shuffleBtn = document.getElementById('shuffle-btn');
+        const repeatBtn = document.getElementById('repeat-btn');
+
+        const fsPodcastSkipBackBtn = document.getElementById('fs-podcast-skip-back-btn');
+        const fsPodcastSkipForwardBtn = document.getElementById('fs-podcast-skip-forward-btn');
+        const fsPodcastSpeedBtn = document.getElementById('fs-podcast-speed-btn');
+        const fsShuffleBtn = document.getElementById('fs-shuffle-btn');
+        const fsRepeatBtn = document.getElementById('fs-repeat-btn');
+
+        if (isPodcast) {
+            if (podcastSkipBackBtn) podcastSkipBackBtn.style.display = 'inline-flex';
+            if (podcastSkipForwardBtn) podcastSkipForwardBtn.style.display = 'inline-flex';
+            if (podcastSpeedBtn) podcastSpeedBtn.style.display = 'inline-flex';
+            if (shuffleBtn) shuffleBtn.style.display = 'none';
+            if (repeatBtn) repeatBtn.style.display = 'none';
+
+            if (fsPodcastSkipBackBtn) fsPodcastSkipBackBtn.style.display = 'inline-flex';
+            if (fsPodcastSkipForwardBtn) fsPodcastSkipForwardBtn.style.display = 'inline-flex';
+            if (fsPodcastSpeedBtn) fsPodcastSpeedBtn.style.display = 'inline-flex';
+            if (fsShuffleBtn) fsShuffleBtn.style.display = 'none';
+            if (fsRepeatBtn) fsRepeatBtn.style.display = 'none';
+        } else {
+            if (podcastSkipBackBtn) podcastSkipBackBtn.style.display = 'none';
+            if (podcastSkipForwardBtn) podcastSkipForwardBtn.style.display = 'none';
+            if (podcastSpeedBtn) podcastSpeedBtn.style.display = 'none';
+            if (shuffleBtn) shuffleBtn.style.display = '';
+            if (repeatBtn) repeatBtn.style.display = '';
+
+            if (fsPodcastSkipBackBtn) fsPodcastSkipBackBtn.style.display = 'none';
+            if (fsPodcastSkipForwardBtn) fsPodcastSkipForwardBtn.style.display = 'none';
+            if (fsPodcastSpeedBtn) fsPodcastSpeedBtn.style.display = 'none';
+            if (fsShuffleBtn) fsShuffleBtn.style.display = '';
+            if (fsRepeatBtn) fsRepeatBtn.style.display = '';
+        }
     }
 
     updateAdaptiveQualityBadge() {

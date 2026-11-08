@@ -13776,6 +13776,48 @@ body.is-tv-device #sidebar-toggle-btn {
     }
 }
 
+/* Podcast-specific player controls */
+.podcast-control-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    background: transparent;
+    color: var(--muted-foreground);
+    cursor: pointer;
+    transition: color var(--transition-fast), transform var(--transition-fast), background-color var(--transition-fast);
+}
+
+.podcast-control-btn:hover {
+    color: var(--foreground);
+    transform: scale(1.08);
+}
+
+.podcast-control-btn:active {
+    transform: scale(0.95);
+}
+
+#podcast-speed-btn,
+#fs-podcast-speed-btn {
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: var(--radius-sm, 6px);
+    border: 1px solid var(--border);
+    background: var(--secondary);
+    color: var(--foreground);
+    min-width: 32px;
+    text-align: center;
+    line-height: 1;
+}
+
+#podcast-speed-btn:hover,
+#fs-podcast-speed-btn:hover {
+    background: var(--card);
+    border-color: var(--foreground);
+}
+
+
 
 
 

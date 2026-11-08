@@ -3444,6 +3444,11 @@ export class UIRenderer {
                     view.classList.add('active');
                 }
 
+                if (tab.dataset.tab === 'podcasts') {
+                    const { navigate } = await import('./router.js');
+                    navigate('/podcasts');
+                    return;
+                }
                 if (tab.dataset.tab === 'explore') {
                     await this.renderExplorePage();
                 }

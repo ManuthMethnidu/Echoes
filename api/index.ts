@@ -36,6 +36,7 @@ import usersSearchHandler from './_handlers/users/search.js';
 import publicPlaylistHandler from './_handlers/public/playlists/[id].js';
 import uploadImageHandler from './_handlers/upload/image.js';
 import artworkHandler from './_handlers/artwork/index.js';
+import podcastsHandler from './_handlers/podcasts.js';
 
 type ApiHandler = (req: VercelRequest, res: VercelResponse) => Promise<any> | any;
 
@@ -79,6 +80,7 @@ const STATIC_ROUTES: Record<string, ApiHandler> = {
     'upload/image': uploadImageHandler,
     'upload': uploadImageHandler,
     'artwork': artworkHandler,
+    'podcasts': podcastsHandler,
 };
 
 function extractRoute(req: VercelRequest): string {
@@ -189,6 +191,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 req.query.id = decodeURIComponent(rawId);
                 return await artworkHandler(req, res);
             }
+        }
+
+        // 5. Dynamic route: podcasts/*
+        if (route === 'podcasts' || route.startsWith('podcasts/')) {
+            return await podcastsHandler(req, res);
         }
 
         // Not Found

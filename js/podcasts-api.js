@@ -1,10 +1,7 @@
 // js/podcasts-api.js
-// PodcastIndex.org API integration for Echoes
+// PodcastIndex.org API integration for Echoes via secure serverless proxy
 
-const PODCASTINDEX_API_BASE = 'https://api.podcastindex.org/api/1.0';
-
-const PODCAST_API_KEY = 'YU5HMSDYBQQVYDF6QN4P';
-const PODCAST_API_SECRET = '8hCvpjSL7T$S7^5ftnf5MhqQwYUYVjM^fmUL3Ld$';
+const PODCASTS_PROXY_BASE = '/api/podcasts';
 
 export class PodcastsAPI {
     constructor() {
@@ -12,40 +9,18 @@ export class PodcastsAPI {
         this.cacheTimeout = 1000 * 60 * 5;
     }
 
-    async getAuthHeaders() {
-        const apiHeaderTime = Math.floor(Date.now() / 1000).toString();
-        const combined = PODCAST_API_KEY + PODCAST_API_SECRET + apiHeaderTime;
-        const authHeader = await this.sha1(combined);
-        return {
-            'User-Agent': 'Echoes/1.0',
-            'X-Auth-Key': PODCAST_API_KEY,
-            'X-Auth-Date': apiHeaderTime,
-            Authorization: authHeader,
-        };
-    }
-
-    async sha1(str) {
-        const encoder = new TextEncoder();
-        const data = encoder.encode(str);
-        const hashBuffer = await crypto.subtle.digest('SHA-1', data);
-        const hashArray = Array.from(new Uint8Array(hashBuffer));
-        const hashHex = hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
-        return hashHex;
-    }
-
     async fetchWithRetry(endpoint, options = {}) {
-        const url = `${PODCASTINDEX_API_BASE}${endpoint}`;
-        const cacheKey = url;
+        const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+        const url = `${PODCASTS_PROXY_BASE}?endpoint=${encodeURIComponent(cleanEndpoint)}`;
+        const cacheKey = cleanEndpoint;
         const cached = this.cache.get(cacheKey);
         if (cached && Date.now() - cached.timestamp < this.cacheTimeout) {
             return cached.data;
         }
 
         try {
-            const headers = await this.getAuthHeaders();
             const response = await fetch(url, {
                 method: 'GET',
-                headers: headers,
                 signal: options.signal,
             });
 

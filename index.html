@@ -351,6 +351,7 @@
                                     <span id="fs-total-duration">0:00</span>
                                 </div>
                                 <div class="fullscreen-buttons">
+                                    <button id="fs-podcast-speed-btn" class="podcast-control-btn" title="Playback speed" style="display: none; font-size: 0.8rem; font-weight: 700; width: auto; min-width: 36px; padding: 4px 8px; border-radius: 8px; border: 1px solid var(--border); background: var(--secondary); color: var(--foreground);" aria-label="Playback speed">1x</button>
                                     <button id="fs-like-btn" class="btn-icon like-btn" title="Like">
                                         <use svg="!lucide/heart.svg" class="heart-icon" size="24" />
                                     </button>
@@ -360,8 +361,16 @@
                                     <button id="fs-prev-btn" title="Previous">
                                         <use svg="!lucide/arrow-left-to-line.svg" size="24" />
                                     </button>
+                                    <button id="fs-podcast-skip-back-btn" class="podcast-control-btn" title="Rewind 15 seconds" style="display: none;" aria-label="Rewind 15s">
+                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 17l-5-5 5-5M18 17l-5-5 5-5"/></svg>
+                                        <span style="font-size: 10px; font-weight: 800; margin-left: 2px;">15</span>
+                                    </button>
                                     <button id="fs-play-pause-btn" class="play-pause-btn" title="Play">
                                         <use svg="./images/play-large.svg" size="32" />
+                                    </button>
+                                    <button id="fs-podcast-skip-forward-btn" class="podcast-control-btn" title="Fast forward 30 seconds" style="display: none;" aria-label="Fast forward 30s">
+                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 17l5-5-5-5M6 17l5-5-5-5"/></svg>
+                                        <span style="font-size: 10px; font-weight: 800; margin-left: 2px;">30</span>
                                     </button>
                                     <button id="fs-next-btn" title="Next">
                                         <use svg="!lucide/arrow-right-to-line.svg" size="24" />
@@ -1353,6 +1362,12 @@
                                     <span>Home</span>
                                 </a>
                             </li>
+                            <li class="nav-item" id="sidebar-nav-podcasts">
+                                <a href="/podcasts">
+                                    <use svg="!lucide/podcast.svg" size="24" />
+                                    <span>Podcasts</span>
+                                </a>
+                            </li>
                             <li class="nav-item" id="sidebar-nav-library">
                                 <a href="/library">
                                     <use svg="!lucide/library.svg" size="24" />
@@ -1515,6 +1530,7 @@
                 <div id="page-home" class="page">
                     <div class="home-header-tabs">
                         <button class="home-tab active" data-tab="for-you">Home</button>
+                        <button class="home-tab" data-tab="podcasts">Podcasts</button>
                         <button class="home-tab" data-tab="explore">Hot & New</button>
                         <button class="home-tab" data-tab="editors-picks">Editor's Picks</button>
                         <button class="home-tab" data-tab="aoty">AOTY</button>
@@ -6630,13 +6646,22 @@
                         <span>Finding more songs for you...</span>
                     </div>
                     <div class="buttons">
+                        <button id="podcast-speed-btn" class="podcast-control-btn" title="Playback speed (1x, 1.2x, 1.5x, 2x)" style="display: none; font-size: 0.72rem; font-weight: 700; width: auto; min-width: 32px; padding: 0 6px; border-radius: 6px; border: 1px solid var(--border); background: var(--secondary); color: var(--foreground);" aria-label="Playback speed">1x</button>
                         <button id="shuffle-btn" title="Shuffle">
                             <use svg="!lucide/shuffle.svg" size="24" />
                         </button>
                         <button id="prev-btn" title="Previous">
                             <use svg="!lucide/arrow-left-to-line.svg" size="24" />
                         </button>
+                        <button id="podcast-skip-back-btn" class="podcast-control-btn" title="Rewind 15 seconds" style="display: none;" aria-label="Rewind 15s">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 17l-5-5 5-5M18 17l-5-5 5-5"/></svg>
+                            <span style="font-size: 9px; font-weight: 800; margin-left: 1px;">15</span>
+                        </button>
                         <button class="play-pause-btn" title="Play"></button>
+                        <button id="podcast-skip-forward-btn" class="podcast-control-btn" title="Fast forward 30 seconds" style="display: none;" aria-label="Fast forward 30s">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 17l5-5-5-5M6 17l5-5-5-5"/></svg>
+                            <span style="font-size: 9px; font-weight: 800; margin-left: 1px;">30</span>
+                        </button>
                         <button id="next-btn" title="Next">
                             <use svg="!lucide/arrow-right-to-line.svg" size="24" />
                         </button>

@@ -2700,6 +2700,7 @@ export const sidebarSectionSettings = {
     ORDER_KEY: 'sidebar-menu-order',
     DEFAULT_ORDER: [
         'sidebar-nav-home',
+        'sidebar-nav-podcasts',
         'sidebar-nav-library',
         'sidebar-nav-recent',
         'sidebar-nav-recap',
@@ -2903,6 +2904,7 @@ export const sidebarSectionSettings = {
         this.applySidebarOrder();
         const items = [
             { id: 'sidebar-nav-home', check: this.shouldShowHome() },
+            { id: 'sidebar-nav-podcasts', check: true },
             { id: 'sidebar-nav-library', check: this.shouldShowLibrary() },
             { id: 'sidebar-nav-recent', check: this.shouldShowRecent() },
             { id: 'sidebar-nav-recap', check: this.shouldShowRecap() },

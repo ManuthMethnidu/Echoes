@@ -229,6 +229,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             (f: any) => f.type && f.type.startsWith('audio') && f.url && !isFormatExpired(f.url)
         );
 
+        let fallbackStreamUrl: string = directCompanion?.streamUrl || '';
+
         // 2. Try direct video audio formats if unexpired
         if (!audioRes && unexpiredAudio.length > 0) {
             unexpiredAudio.sort((a: any, b: any) => (parseInt(b.bitrate) || 0) - (parseInt(a.bitrate) || 0));
@@ -241,6 +243,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 hash = (hash << 5) - hash + videoId.charCodeAt(i);
             }
             const preferred = HEALTHY_COMPANIONS[Math.abs(hash) % HEALTHY_COMPANIONS.length];
+            fallbackStreamUrl = fallbackStreamUrl || buildCompanionUrl(bestAudio.url, preferred);
+
             const fetchResult = await fetchCompanionWithFailover(bestAudio.url, isHead, preferred, clientRange);
             if (fetchResult && (fetchResult.response.ok || fetchResult.response.status === 206)) {
                 audioRes = fetchResult.response;
@@ -296,6 +300,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                                     return {
                                         response: candidateFetch.response,
                                         format: bestCandidateAudio,
+                                        streamUrl: buildCompanionUrl(bestCandidateAudio.url, candidateFetch.companion),
                                     };
                                 }
                             } catch (_) {}
@@ -305,6 +310,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
                     if (match) {
                         audioRes = match.response;
+                        fallbackStreamUrl = match.streamUrl || fallbackStreamUrl;
                         mimeType = match.format.type?.split(';')[0] || 'audio/webm';
                         ext = mimeType.includes('mp4') || mimeType.includes('m4a') ? 'm4a' : 'opus';
                         break;
@@ -314,6 +320,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
 
         if (!audioRes || (!audioRes.ok && audioRes.status !== 206)) {
+            // Client redirect fallback: redirect client directly to the companion stream URL
+            // (Client residential/browser IPs are not subject to datacenter IP blocks)
+            if (fallbackStreamUrl) {
+                res.setHeader('Access-Control-Allow-Origin', '*');
+                return res.redirect(302, fallbackStreamUrl);
+            }
             const status = audioRes ? audioRes.status : 404;
             return res.status(status).json({ error: `Failed to download audio stream (HTTP ${status})` });
         }

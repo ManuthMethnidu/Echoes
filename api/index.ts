@@ -82,31 +82,28 @@ const STATIC_ROUTES: Record<string, ApiHandler> = {
     'test-innertube': async (req: VercelRequest, res: VercelResponse) => {
         const videoId = '6r5Fsq7cK9w';
         try {
-            const ytRes = await fetch('https://www.youtube.com/youtubei/v1/player?prettyPrint=false', {
-                method: 'POST',
+            const vRes = await fetch(`https://yt.chocolatemoo53.com/api/v1/videos/${videoId}`);
+            const data = await vRes.json();
+            const f = (data.adaptiveFormats || []).find((x: any) => x.itag === '140');
+            const parsed = new URL(f.url);
+            const origHost = parsed.hostname;
+            parsed.searchParams.set('host', origHost);
+            const comp = 'yt-comp1.chocolatemoo53.com';
+            const testUrl = `https://${comp}${parsed.pathname}${parsed.search}`;
+
+            const aRes = await fetch(testUrl, {
                 headers: {
-                    'Content-Type': 'application/json',
-                    'User-Agent': 'com.google.android.youtube/20.10.38 (Linux; U; Android 14) gzip'
-                },
-                body: JSON.stringify({
-                    context: {
-                        client: {
-                            clientName: 'ANDROID',
-                            clientVersion: '20.10.38',
-                            androidSdkVersion: 34
-                        }
-                    },
-                    videoId
-                })
+                    'Range': 'bytes=0-1024',
+                    'User-Agent': 'Mozilla/5.0',
+                    'Referer': 'https://yt.chocolatemoo53.com/'
+                }
             });
-            const json = await ytRes.json();
-            const formats = json.streamingData?.adaptiveFormats || [];
-            const audio = formats.filter((f: any) => f.mimeType && f.mimeType.startsWith('audio'));
+            const text = aRes.status !== 206 ? await aRes.text() : '';
             return res.status(200).json({
-                status: json.playabilityStatus?.status,
-                reason: json.playabilityStatus?.reason,
-                audioFormatsCount: audio.length,
-                hasUrls: audio.some((f: any) => !!f.url)
+                compStatus: aRes.status,
+                compContentType: aRes.headers.get('content-type'),
+                compContentLength: aRes.headers.get('content-length'),
+                errorBody: text.slice(0, 200)
             });
         } catch (e: any) {
             return res.status(500).json({ error: e.message });

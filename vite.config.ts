@@ -95,16 +95,16 @@ export default defineConfig(({ mode }) => {
             blobAssetPlugin(),
             svgUse(),
             VitePWA({
-                registerType: 'autoUpdate',
+                registerType: 'prompt',
                 devOptions: {
-                    enabled: true,
+                    enabled: false,
                     type: 'classic',
                     disableRuntimeConfig: true,
                     suppressWarnings: true,
                 },
                 workbox: {
-                    skipWaiting: true,
-                    clientsClaim: true,
+                    skipWaiting: false,
+                    clientsClaim: false,
                     globPatterns: ['index.html', 'manifest.json'],
                     cleanupOutdatedCaches: true,
                     maximumFileSizeToCacheInBytes: 3 * 1024 * 1024, // 3 MiB limit

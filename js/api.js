@@ -1790,7 +1790,8 @@ export class LosslessAPI {
                 const cleanId = String(id).replace(/^yt:/, '');
                 const res = await fetch(`/api/yt/radio?id=${encodeURIComponent(cleanId)}`);
                 if (res.ok) {
-                    const tracks = await res.json();
+                    const data = await res.json();
+                    const tracks = data.results || (Array.isArray(data) ? data : []);
                     if (Array.isArray(tracks) && tracks.length > 0) {
                         const prepared = tracks.map((t) => this.prepareTrack(t));
                         await this.cache.set('recommendations', id, prepared);
@@ -1848,7 +1849,8 @@ export class LosslessAPI {
                 const cleanId = String(id).replace(/^yt:/, '');
                 const res = await fetch(`/api/yt/radio?id=${encodeURIComponent(cleanId)}`);
                 if (res.ok) {
-                    const tracks = await res.json();
+                    const data = await res.json();
+                    const tracks = data.results || (Array.isArray(data) ? data : []);
                     if (Array.isArray(tracks) && tracks.length > 0) {
                         const prepared = tracks.map((t) => this.prepareTrack(t));
                         await this.cache.set('recommendations', id, prepared);

@@ -67,7 +67,14 @@ app.get('/health', (req, res) => {
 });
 
 // High-throughput audio stream proxy
-app.get('/stream', async (req, res) => {
+app.all('/stream', async (req, res) => {
+  if (req.method === 'OPTIONS') {
+    return res.status(204).end();
+  }
+  if (req.method !== 'GET' && req.method !== 'HEAD') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
   const rawUrl = req.query.url;
   if (!rawUrl || typeof rawUrl !== 'string') {
     return res.status(400).json({ error: 'Missing ?url=' });
@@ -135,10 +142,14 @@ app.get('/stream', async (req, res) => {
 
     res.status(upstream.status);
 
+    if (req.method === 'HEAD') {
+      return res.end();
+    }
+
     if (upstream.body) {
       const nodeStream = Readable.fromWeb(upstream.body);
       nodeStream.on('error', (err) => {
-        if (err.name !== 'AbortError') {
+        if (err.name !== 'AbortError' && !controller.signal.aborted) {
           console.error('[Stream Error]:', err.message);
         }
       });
@@ -147,7 +158,7 @@ app.get('/stream', async (req, res) => {
       res.end();
     }
   } catch (err) {
-    if (err.name === 'AbortError') {
+    if (err.name === 'AbortError' || controller.signal.aborted) {
       return;
     }
     console.error('[StreamProxy Error]:', err.message);

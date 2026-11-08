@@ -2927,8 +2927,18 @@ export function initializeTrackInteractions(player, api, mainContent, contextMen
                     if (trackItem.dataset.type === 'video') {
                         player.playVideo(clickedTrack);
                     } else {
-                        player.setQueue([clickedTrack], 0);
-                        document.getElementById('shuffle-btn').classList.remove('active');
+                        const parentList = trackItem.closest('.track-list');
+                        const allTrackElements = parentList ? Array.from(parentList.querySelectorAll('.track-item')) : [];
+                        const trackList = allTrackElements.map((el) => trackDataStore.get(el)).filter(Boolean);
+
+                        if (trackList.length > 0) {
+                            const startIndex = trackList.findIndex((t) => String(t.id) === String(clickedTrack.id));
+                            player.setQueue(trackList, startIndex >= 0 ? startIndex : 0);
+                        } else {
+                            player.setQueue([clickedTrack], 0);
+                        }
+
+                        document.getElementById('shuffle-btn')?.classList.remove('active');
                         player.playTrackFromQueue();
 
                         const { autoplaySettings } = await import('./storage.js');

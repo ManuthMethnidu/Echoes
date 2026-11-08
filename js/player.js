@@ -1157,11 +1157,6 @@ export class Player {
     }
 
     async playTrackFromQueue(startTime = 0, recursiveCount = 0, isRetry = false, options = {}) {
-        // Do not block playback on Shaka Player; Shaka is only required for DASH streams
-        await Promise.race([
-            this.shakaReady,
-            new Promise((resolve) => setTimeout(resolve, 200)),
-        ]).catch(() => {});
         const { preserveGestureToken = false, preparedPlayback = null } = options;
         if (!isRetry) {
             this.isFallbackRetry = false;

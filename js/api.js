@@ -1784,6 +1784,25 @@ export class LosslessAPI {
         const cached = await this.cache.get('recommendations', id);
         if (cached) return cached;
 
+        const isYtTrack = String(id).startsWith('yt:') || !/^\d+$/.test(String(id));
+        if (isYtTrack) {
+            try {
+                const cleanId = String(id).replace(/^yt:/, '');
+                const res = await fetch(`/api/yt/radio?id=${encodeURIComponent(cleanId)}`);
+                if (res.ok) {
+                    const tracks = await res.json();
+                    if (Array.isArray(tracks) && tracks.length > 0) {
+                        const prepared = tracks.map((t) => this.prepareTrack(t));
+                        await this.cache.set('recommendations', id, prepared);
+                        return prepared;
+                    }
+                }
+            } catch (ytErr) {
+                console.warn('Failed to fetch YouTube radio recommendations:', ytErr);
+            }
+            return [];
+        }
+
         try {
             const token = await HiFiClient.instance?.fetchToken?.().catch(() => null);
             const headers = token ? { Authorization: `Bearer ${token}` } : {};
@@ -1824,7 +1843,19 @@ export class LosslessAPI {
             await this.cache.set('recommendations', id, tracks);
             return tracks;
         } catch (error) {
-            console.error('Failed to fetch recommendations via track mix API:', error);
+            console.warn('Failed to fetch recommendations via track mix API, trying YouTube radio fallback:', error);
+            try {
+                const cleanId = String(id).replace(/^yt:/, '');
+                const res = await fetch(`/api/yt/radio?id=${encodeURIComponent(cleanId)}`);
+                if (res.ok) {
+                    const tracks = await res.json();
+                    if (Array.isArray(tracks) && tracks.length > 0) {
+                        const prepared = tracks.map((t) => this.prepareTrack(t));
+                        await this.cache.set('recommendations', id, prepared);
+                        return prepared;
+                    }
+                }
+            } catch (_) {}
             return [];
         }
     }

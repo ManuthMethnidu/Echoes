@@ -15,10 +15,22 @@ function extractIssuer(rawUrl: string): string | null {
 
 function resolveStreamUrl(rawUrl: string, instance?: string): string {
     if (!rawUrl) return rawUrl;
-    const issuer = extractIssuer(rawUrl);
-    if (issuer) {
-        return rawUrl.replace(/^https:\/\/[^\/]+/, `https://${issuer}`);
-    }
+    try {
+        const parsed = new URL(rawUrl);
+        const issuer = extractIssuer(rawUrl);
+        if (issuer) {
+            let origHost = parsed.hostname;
+            if (!origHost.includes('googlevideo.com')) {
+                const mvi = parsed.searchParams.get('mvi') || '1';
+                const mn = parsed.searchParams.get('mn')?.split(',')[0];
+                if (mn) {
+                    origHost = `rr${mvi}---${mn}.googlevideo.com`;
+                }
+            }
+            parsed.searchParams.set('host', origHost);
+            return `https://${issuer}${parsed.pathname}${parsed.search}`;
+        }
+    } catch {}
     if (instance) {
         return rawUrl.replace(/^https:\/\/[^\/]+/, instance);
     }
@@ -40,6 +52,49 @@ function cleanSearchQuery(q: string): string {
         .replace(/[^\w\s\u00C0-\u024F\u0400-\u04FF\u0600-\u06FF\u4E00-\u9FFF]/gi, ' ')
         .replace(/\s+/g, ' ')
         .trim();
+}
+
+function scoreCandidate(candidate: any, cleanTit: string, cleanArt: string, targetDuration: number): number {
+    let score = 0;
+    const cTitle = (candidate.title || '').toLowerCase();
+    const tTitle = cleanTit.toLowerCase();
+
+    // Exact title match or word-boundary match
+    if (tTitle) {
+        if (cTitle === tTitle) {
+            score += 60;
+        } else if (
+            new RegExp(`(^|\\s|[-_\\[(])${tTitle.replace(/[.*+?^${}()|[\\]\\]/g, '\\$&')}($|\\s|[-_\\])])`, 'i').test(
+                cTitle
+            )
+        ) {
+            score += 50;
+        } else if (cTitle.includes(tTitle)) {
+            score += 25;
+        }
+    }
+
+    // Artist match
+    if (cleanArt && cTitle.includes(cleanArt.toLowerCase())) {
+        score += 20;
+    }
+
+    // Duration closeness (if within 5 seconds, big bonus)
+    const cDuration = Number(candidate.lengthSeconds) || 0;
+    if (targetDuration > 0 && cDuration > 0) {
+        const diff = Math.abs(cDuration - targetDuration);
+        if (diff <= 3) score += 40;
+        else if (diff <= 10) score += 25;
+        else if (diff <= 30) score += 10;
+        else if (diff > 120) score -= 25;
+    }
+
+    // Penalize compilations or multi-track mixes
+    if (/full\s*(ost|album|soundtrack)|all\s*songs|playlist/i.test(cTitle)) {
+        score -= 40;
+    }
+
+    return score;
 }
 
 function findPlayableAudio(videoData: any): { format: any; streamUrl: string; issuer: string } | null {
@@ -115,10 +170,14 @@ function formatResponse(
     const rawDuration = videoData?.lengthSeconds || fallbackDuration || 0;
     const duration = typeof rawDuration === 'number' ? rawDuration : parseInt(rawDuration) || 0;
 
+    // Route through our CORS-enabled Vercel proxy stream to guarantee seamless browser playback and Web Audio compatibility
+    const proxyUrl = `/api/yt/proxy-stream?url=${encodeURIComponent(streamUrl)}`;
+
     return {
         id: videoId,
-        streamUrl,
-        url: streamUrl,
+        streamUrl: proxyUrl,
+        url: proxyUrl,
+        directUrl: streamUrl,
         mimeType: audioFormat.type || 'audio/webm',
         codec: audioFormat.type?.includes('opus') ? 'OPUS' : 'AAC',
         bitrate: audioFormat.bitrate || 160000,
@@ -175,12 +234,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const searchQueries: string[] = [];
     if (albumParam && albumParam.toLowerCase() !== cleanTit.toLowerCase()) {
         searchQueries.push(`${albumParam} ${cleanTit} ${cleanArt}`);
+        searchQueries.push(`${cleanTit} ${albumParam}`);
     }
     if (cleanTit && cleanArt) {
         searchQueries.push(`${cleanTit} ${cleanArt}`);
-    } else if (cleanTit) {
+    }
+    if (cleanTit.length <= 2 && albumParam) {
+        const mainAlbum = albumParam.split(/[-:]/)[0].trim();
+        searchQueries.push(`${cleanTit} ${mainAlbum}`);
+    }
+    if (cleanTit) {
         searchQueries.push(cleanTit);
-    } else if (cleanArt) {
+    }
+    if (cleanArt) {
         searchQueries.push(cleanArt);
     }
     if (cleanTit.length > 2 && cleanArt) {
@@ -205,31 +271,45 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
             if (candidates.length === 0) continue;
 
-            // Concurrently inspect top candidates and race to return the first verified stream
-            const candidateLookups = candidates.slice(0, 8).map(async (candidate: any) => {
-                const cid = candidate.videoId || candidate.id;
-                try {
-                    const cRes = await fetchWithFailover(
-                        (base) => `${base}/api/v1/videos/${cid}`,
-                        2500
-                    );
-                    const playable = findPlayableAudio(cRes.data);
-                    if (playable) {
-                        return {
-                            format: playable.format,
-                            streamUrl: playable.streamUrl,
-                            data: cRes.data,
-                            cid,
-                            instance: cRes.instance,
-                        };
-                    }
-                } catch {}
-                return null;
-            });
+            const targetDuration = Number(data?.lengthSeconds) || 0;
+            candidates.sort(
+                (a: any, b: any) =>
+                    scoreCandidate(b, cleanTit, cleanArt, targetDuration) -
+                    scoreCandidate(a, cleanTit, cleanArt, targetDuration)
+            );
 
-            const valid = await findFirstValid(candidateLookups);
-            if (valid) {
-                console.log(`[YouTube Stream] Failover matched candidate ${valid.cid} for ${videoId} (${cleanTerms})`);
+            // Concurrently inspect top candidates and score them
+            const candidateLookups = await Promise.all(
+                candidates.slice(0, 6).map(async (candidate: any) => {
+                    const cid = candidate.videoId || candidate.id;
+                    try {
+                        const cRes = await fetchWithFailover(
+                            (base) => `${base}/api/v1/videos/${cid}`,
+                            2500
+                        );
+                        const playable = findPlayableAudio(cRes.data);
+                        if (playable) {
+                            return {
+                                format: playable.format,
+                                streamUrl: playable.streamUrl,
+                                data: cRes.data,
+                                cid,
+                                instance: cRes.instance,
+                                score: scoreCandidate(candidate, cleanTit, cleanArt, targetDuration),
+                            };
+                        }
+                    } catch {}
+                    return null;
+                })
+            );
+
+            const validCandidates = candidateLookups.filter(Boolean) as any[];
+            if (validCandidates.length > 0) {
+                validCandidates.sort((a, b) => b.score - a.score);
+                const valid = validCandidates[0];
+                console.log(
+                    `[YouTube Stream] Failover matched candidate ${valid.cid} ("${valid.data?.title}") with score ${valid.score} for ${videoId}`
+                );
                 return res.status(200).json(
                     formatResponse(
                         valid.format,

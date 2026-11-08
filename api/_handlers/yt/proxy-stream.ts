@@ -63,6 +63,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             headers['range'] = req.headers.range;
         }
 
+        const parsedInitial = new URL(validatedUrl);
+        if (parsedInitial.hostname.includes('chocolatemoo53.com')) {
+            headers['Referer'] = 'https://yt.chocolatemoo53.com/';
+        }
+
         let currentUrl = validatedUrl;
         let redirectCount = 0;
         const maxRedirects = 3;

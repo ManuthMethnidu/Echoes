@@ -1049,6 +1049,12 @@ export async function initializePlayerEvents(player, audioPlayer, scrobbler, ui)
             player.updateMediaSessionPositionState();
         });
 
+        element.addEventListener('durationchange', () => {
+            if (player.activeElement !== element) return;
+            player.syncDurationUI(element);
+            player.updateMediaSessionPositionState();
+        });
+
         element.addEventListener('error', (e) => {
             if (player.activeElement !== element) return;
 

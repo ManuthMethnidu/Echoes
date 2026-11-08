@@ -52,7 +52,6 @@ export class Player {
         this.audio = audioElement;
         const crossfadeAudio = document.createElement('audio');
         crossfadeAudio.id = 'audio-player-crossfade';
-        crossfadeAudio.crossOrigin = 'anonymous';
         crossfadeAudio.preload = 'auto';
         crossfadeAudio.style.display = 'none';
         try {

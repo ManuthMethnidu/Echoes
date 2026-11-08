@@ -1,7 +1,8 @@
-// js/recap.js - ArchiveTune-inspired Music Recap & Listening Analytics
+// js/recap.js - Music Recap & Listening Analytics
 import { db } from './db.js';
 import { listeningTracker } from './listening-tracker.js';
 import { escapeHtml, formatTime } from './utils.js';
+import { GooeyNav } from './gooey-nav.js';
 
 function formatHoursMinutes(totalSeconds) {
     if (!totalSeconds || totalSeconds <= 0) return '0 mins';
@@ -145,48 +146,85 @@ export async function getRecapData(timeframe = 'all') {
             ...entry,
         }));
 
-    // Derive Music Persona / Archetype
+    // Calculate percentage breakdown for time of day and habits (Spotify-style)
+    const totalPlays = filtered.length;
+    const todSum = Object.values(timeOfDayCounts).reduce((a, b) => a + b, 0) || Math.max(1, totalPlays);
+    const morningPct = Math.round((timeOfDayCounts.morning / todSum) * 100);
+    const afternoonPct = Math.round((timeOfDayCounts.afternoon / todSum) * 100);
+    const eveningPct = Math.round((timeOfDayCounts.evening / todSum) * 100);
+    const nightPct = Math.round((timeOfDayCounts.night / todSum) * 100);
+
+    // Derive Music Persona / Archetype backed by exact percentages (no emojis)
     let persona = {
-        title: 'The Sonic Wanderer',
-        tagline: 'You explore far and wide across a vast musical landscape.',
+        title: 'The Sonic Explorer',
+        percentStat: '75% Variety',
+        tagline: 'You explore far and wide, sampling diverse artists and tracks across your musical library.',
         icon: 'compass',
     };
 
-    const totalPlays = filtered.length;
     if (totalPlays > 0) {
         const topArtist = sortedArtists[0];
         const topArtistRatio = topArtist ? topArtist.playCount / totalPlays : 0;
+        const topArtistPct = Math.round(topArtistRatio * 100);
         const maxTimeOfDay = Object.entries(timeOfDayCounts).sort((a, b) => b[1] - a[1])[0][0];
+        const loopPct = sortedTracks[0] ? Math.round((sortedTracks[0].playCount / totalPlays) * 100) : 0;
+        const varietyRatio = Math.min(99, Math.round((sortedArtists.length / totalPlays) * 100));
 
         if (topArtistRatio >= 0.35) {
             persona = {
-                title: 'The Devoted Fan',
-                tagline: `Unconditionally dedicated to ${topArtist.name}, streaming them on heavy rotation.`,
+                title: 'The Superfan',
+                percentStat: `${topArtistPct}% Dedicated`,
+                tagline: `${topArtistPct}% of all your listening was dedicated to ${topArtist.name}, putting you in their top 1% of listeners.`,
                 icon: 'heart',
             };
-        } else if (maxTimeOfDay === 'night' && timeOfDayCounts.night / totalPlays > 0.4) {
+        } else if (maxTimeOfDay === 'night' && nightPct >= 35) {
             persona = {
                 title: 'The Night Owl',
-                tagline: 'Your finest listening sessions happen under the stars while the world sleeps.',
+                percentStat: `${nightPct}% Late Night`,
+                tagline: `${nightPct}% of your listening took place during late-night hours between 11 PM and 6 AM while the world slept.`,
                 icon: 'moon',
             };
-        } else if (maxTimeOfDay === 'morning' && timeOfDayCounts.morning / totalPlays > 0.4) {
+        } else if (maxTimeOfDay === 'morning' && morningPct >= 35) {
             persona = {
-                title: 'The Morning Riser',
-                tagline: 'Fueling your days with early beats and morning melodies.',
+                title: 'The Early Riser',
+                percentStat: `${morningPct}% Morning`,
+                tagline: `${morningPct}% of your listening powered your morning routine between 6 AM and 12 PM.`,
                 icon: 'sun',
             };
-        } else if (sortedTracks[0] && sortedTracks[0].playCount / totalPlays >= 0.25) {
+        } else if (loopPct >= 25 && sortedTracks[0]) {
             persona = {
                 title: 'The Heavy Looper',
-                tagline: 'When a track hits, you play it until the grooves wear down.',
+                percentStat: `${loopPct}% On Repeat`,
+                tagline: `${loopPct}% of your total plays were locked on "${sortedTracks[0].title}", spinning it on continuous repeat.`,
                 icon: 'repeat',
             };
-        } else if (sortedArtists.length >= 15 && totalPlays >= 30) {
+        } else if (sortedArtists.length >= 10) {
             persona = {
-                title: 'The Trailblazer',
-                tagline: 'Crate-digging and genre-hopping are in your DNA.',
-                icon: 'sparkles',
+                title: 'The Sonic Explorer',
+                percentStat: `${varietyRatio}% Variety`,
+                tagline: `High sonic discovery: you traversed ${sortedArtists.length} distinct artists across ${totalPlays} streams.`,
+                icon: 'compass',
+            };
+        } else if (afternoonPct >= 35) {
+            persona = {
+                title: 'Daytime Navigator',
+                percentStat: `${afternoonPct}% Daytime`,
+                tagline: `${afternoonPct}% of your listening accompanied your afternoon hours between 12 PM and 6 PM.`,
+                icon: 'sun',
+            };
+        } else if (eveningPct >= 35) {
+            persona = {
+                title: 'Evening Unwinder',
+                percentStat: `${eveningPct}% Evening`,
+                tagline: `${eveningPct}% of your listening was soundtracked during evening hours between 6 PM and 11 PM.`,
+                icon: 'sunset',
+            };
+        } else {
+            persona = {
+                title: 'The Sonic Explorer',
+                percentStat: `${varietyRatio}% Variety`,
+                tagline: `You balanced ${sortedArtists.length} artists across ${totalPlays} streams for an eclectic musical mix.`,
+                icon: 'compass',
             };
         }
     }
@@ -207,30 +245,29 @@ export async function getRecapData(timeframe = 'all') {
 
 export async function renderRecapPage(container, ui, timeframe = 'all') {
     if (!container) return;
+
+    // Destroy existing GooeyNav instance if re-rendering parent container
+    if (container._recapGooeyNav) {
+        try {
+            container._recapGooeyNav.destroy();
+        } catch {}
+        container._recapGooeyNav = null;
+    }
+
     container.innerHTML = `
         <div class="recap-container" style="max-width: 1040px; margin: 0 auto; padding: 1.5rem 1rem;">
             <div class="recap-header" style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 1rem; margin-bottom: 2rem;">
                 <div>
-                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
-                        <span style="display: inline-flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.12); padding: 4px 10px; border-radius: 999px; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase;">
-                            ArchiveTune Edition
-                        </span>
-                    </div>
-                    <h1 style="font-size: 2.25rem; font-weight: 800; letter-spacing: -0.03em; margin: 0; background: linear-gradient(135deg, #ffffff 40%, rgba(255,255,255,0.55)); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+                    <h1 style="font-size: 2.25rem; font-weight: 800; letter-spacing: -0.03em; margin: 0; background: linear-gradient(135deg, var(--foreground, #ffffff) 40%, var(--muted-foreground, rgba(255,255,255,0.55))); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
                         Echoes Recap
                     </h1>
                     <p style="color: var(--muted-foreground, #a1a1aa); font-size: 0.95rem; margin: 6px 0 0 0;">
                         Your personalized listening highlights, stats, and musical journey.
                     </p>
                 </div>
-                <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                    <div class="recap-timeframe-selector" style="display: flex; background: var(--secondary, #27272a); padding: 3px; border-radius: 10px; border: 1px solid var(--border, rgba(255,255,255,0.1));">
-                        <button class="recap-tf-btn ${timeframe === 'all' ? 'active' : ''}" data-tf="all" style="padding: 6px 14px; font-size: 0.85rem; border-radius: 8px; border: none; background: ${timeframe === 'all' ? 'var(--primary, #ffffff)' : 'transparent'}; color: ${timeframe === 'all' ? '#000000' : 'var(--foreground, #ffffff)'}; font-weight: 600; cursor: pointer; transition: all 0.2s;">All Time</button>
-                        <button class="recap-tf-btn ${timeframe === 'year' ? 'active' : ''}" data-tf="year" style="padding: 6px 14px; font-size: 0.85rem; border-radius: 8px; border: none; background: ${timeframe === 'year' ? 'var(--primary, #ffffff)' : 'transparent'}; color: ${timeframe === 'year' ? '#000000' : 'var(--foreground, #ffffff)'}; font-weight: 600; cursor: pointer; transition: all 0.2s;">2026</button>
-                        <button class="recap-tf-btn ${timeframe === '6m' ? 'active' : ''}" data-tf="6m" style="padding: 6px 14px; font-size: 0.85rem; border-radius: 8px; border: none; background: ${timeframe === '6m' ? 'var(--primary, #ffffff)' : 'transparent'}; color: ${timeframe === '6m' ? '#000000' : 'var(--foreground, #ffffff)'}; font-weight: 600; cursor: pointer; transition: all 0.2s;">6 Months</button>
-                        <button class="recap-tf-btn ${timeframe === '30d' ? 'active' : ''}" data-tf="30d" style="padding: 6px 14px; font-size: 0.85rem; border-radius: 8px; border: none; background: ${timeframe === '30d' ? 'var(--primary, #ffffff)' : 'transparent'}; color: ${timeframe === '30d' ? '#000000' : 'var(--foreground, #ffffff)'}; font-weight: 600; cursor: pointer; transition: all 0.2s;">30 Days</button>
-                    </div>
-                    <button id="recap-share-btn" class="btn-primary" style="display: flex; align-items: center; gap: 8px; padding: 8px 16px; border-radius: 10px; font-weight: 600; cursor: pointer;">
+                <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                    <div id="recap-timeframe-selector"></div>
+                    <button id="recap-share-btn" class="btn-primary" style="display: flex; align-items: center; gap: 8px; padding: 8px 16px; border-radius: 999px; font-weight: 600; cursor: pointer;">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
                         <span>Share Story</span>
                     </button>
@@ -245,27 +282,74 @@ export async function renderRecapPage(container, ui, timeframe = 'all') {
         </div>
     `;
 
-    // Timeframe selector listeners
-    container.querySelectorAll('.recap-tf-btn').forEach((btn) => {
-        btn.addEventListener('click', async () => {
-            const tf = btn.dataset.tf;
-            await renderRecapPage(container, ui, tf);
+    const tfContainer = container.querySelector('#recap-timeframe-selector');
+    const contentBody = container.querySelector('#recap-content-body');
+
+    const TF_ITEMS = [
+        { label: 'All Time', value: 'all' },
+        { label: '2026', value: 'year' },
+        { label: '6 Months', value: '6m' },
+        { label: '30 Days', value: '30d' },
+    ];
+    const initialIndex = Math.max(0, TF_ITEMS.findIndex((item) => item.value === timeframe));
+
+    // Mount GooeyNav component from React Bits
+    if (tfContainer) {
+        container._recapGooeyNav = new GooeyNav(tfContainer, {
+            items: TF_ITEMS,
+            initialActiveIndex: initialIndex,
+            size: 'sm',
+            frame: true,
+            spread: 48,
+            particleCount: 14,
+            animationTime: 550,
+            gooeyness: 0.5,
+            wobble: 0.45,
+            onChange: async (idx, item) => {
+                await renderRecapContent(contentBody, item.value, ui);
+            },
         });
-    });
+    }
+
+    await renderRecapContent(contentBody, timeframe, ui);
+
+    // Attach share story button listener
+    const shareBtn = container.querySelector('#recap-share-btn');
+    if (shareBtn) {
+        shareBtn.addEventListener('click', async () => {
+            const activeTf = container._activeRecapTimeframe || timeframe;
+            const recapData = await getRecapData(activeTf);
+            openShareStoryModal(recapData);
+        });
+    }
+}
+
+async function renderRecapContent(contentBody, timeframe, ui) {
+    if (!contentBody) return;
+
+    // Track active timeframe for share modal
+    if (contentBody.closest('.recap-container')) {
+        contentBody.closest('.recap-container')._activeRecapTimeframe = timeframe;
+    }
+
+    contentBody.innerHTML = `
+        <div style="text-align: center; padding: 4rem 1rem; color: var(--muted-foreground);">
+            <div class="skeleton" style="height: 140px; width: 100%; border-radius: 16px; margin-bottom: 1.5rem;"></div>
+            <div class="skeleton" style="height: 280px; width: 100%; border-radius: 16px;"></div>
+        </div>
+    `;
 
     const recapData = await getRecapData(timeframe);
-    const contentBody = container.querySelector('#recap-content-body');
-    if (!contentBody) return;
 
     if (recapData.totalPlays === 0 && recapData.totalDurationSeconds === 0) {
         contentBody.innerHTML = `
             <div style="text-align: center; padding: 5rem 2rem; background: var(--card, #18181b); border-radius: 20px; border: 1px dashed var(--border, rgba(255,255,255,0.15));">
-                <div style="width: 72px; height: 72px; margin: 0 auto 1.5rem auto; background: rgba(255,255,255,0.08); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 2rem;">
-                    🎧
+                <div style="width: 64px; height: 64px; margin: 0 auto 1.5rem auto; background: var(--secondary); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--foreground); border: 1px solid var(--border);">
+                    <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 14h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a9 9 0 0 1 18 0v7a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3"></path></svg>
                 </div>
-                <h3 style="font-size: 1.4rem; font-weight: 700; margin-bottom: 0.5rem;">Your Recap is Waiting</h3>
+                <h3 style="font-size: 1.4rem; font-weight: 700; margin-bottom: 0.5rem; color: var(--foreground);">Your Recap is Waiting</h3>
                 <p style="color: var(--muted-foreground); max-width: 440px; margin: 0 auto 1.5rem auto; font-size: 0.95rem; line-height: 1.5;">
-                    You haven't played any tracks during this period. Put on your favorite tracks, explore new albums, and your personalized stats will appear right here!
+                    You have not played any tracks during this period. Put on your favorite tracks, explore new albums, and your personalized stats will appear right here.
                 </p>
                 <a href="/" class="btn-primary" style="display: inline-flex; align-items: center; gap: 8px; text-decoration: none; padding: 10px 24px; border-radius: 12px; font-weight: 600;">
                     Explore Music
@@ -316,10 +400,15 @@ export async function renderRecapPage(container, ui, timeframe = 'all') {
                 <div style="font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted-foreground); margin-bottom: 0.5rem; font-weight: 600;">
                     Listening Archetype
                 </div>
-                <div style="font-size: 1.7rem; font-weight: 800; letter-spacing: -0.02em; color: #ffffff; line-height: 1.2;">
-                    ✨ ${recapData.persona.title}
+                <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; flex-wrap: wrap;">
+                    <div style="font-size: 1.7rem; font-weight: 800; letter-spacing: -0.02em; color: var(--foreground); line-height: 1.2;">
+                        ${recapData.persona.title}
+                    </div>
+                    <div style="display: inline-flex; align-items: center; padding: 4px 12px; border-radius: 999px; background: var(--secondary); border: 1px solid var(--border); font-size: 0.82rem; font-weight: 700; color: var(--foreground);">
+                        ${recapData.persona.percentStat}
+                    </div>
                 </div>
-                <p style="font-size: 0.9rem; color: var(--muted-foreground); margin: 6px 0 0 0; line-height: 1.4;">
+                <p style="font-size: 0.9rem; color: var(--muted-foreground); margin: 8px 0 0 0; line-height: 1.45;">
                     ${recapData.persona.tagline}
                 </p>
             </div>
@@ -331,15 +420,15 @@ export async function renderRecapPage(container, ui, timeframe = 'all') {
             <div style="font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted-foreground); margin-bottom: 0.75rem; font-weight: 700;">
                 #1 Most Played Track
             </div>
-            <div style="display: flex; flex-wrap: wrap; gap: 1.5rem; align-items: center; background: linear-gradient(135deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02)); border: 1px solid var(--border, rgba(255,255,255,0.15)); border-radius: 20px; padding: 1.5rem; backdrop-filter: blur(16px);">
+            <div style="display: flex; flex-wrap: wrap; gap: 1.5rem; align-items: center; background: var(--secondary); border: 1px solid var(--border); border-radius: 20px; padding: 1.5rem;">
                 <div style="position: relative; width: 140px; height: 140px; border-radius: 14px; overflow: hidden; flex-shrink: 0; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
                     <img src="${escapeHtml(topTrack.cover || '/images/default-cover.png')}" alt="" style="width: 100%; height: 100%; object-fit: cover;" />
-                    <div style="position: absolute; top: 8px; left: 8px; background: #eab308; color: #000; font-size: 0.75rem; font-weight: 800; padding: 2px 8px; border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.4);">
+                    <div style="position: absolute; top: 8px; left: 8px; background: var(--foreground); color: var(--background); font-size: 0.75rem; font-weight: 800; padding: 2px 8px; border-radius: 6px;">
                         #1
                     </div>
                 </div>
                 <div style="flex: 1; min-width: 240px;">
-                    <div style="font-size: 1.4rem; font-weight: 800; color: #ffffff; margin-bottom: 4px; line-height: 1.3;">
+                    <div style="font-size: 1.4rem; font-weight: 800; color: var(--foreground); margin-bottom: 4px; line-height: 1.3;">
                         ${escapeHtml(topTrack.title)}
                     </div>
                     <div style="font-size: 1rem; color: var(--muted-foreground); margin-bottom: 12px;">
@@ -363,13 +452,13 @@ export async function renderRecapPage(container, ui, timeframe = 'all') {
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 2rem; margin-bottom: 2.5rem;">
             <!-- Top 5 Tracks -->
             <div>
-                <h3 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 1rem; display: flex; align-items: center; gap: 8px;">
+                <h3 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 1rem; display: flex; align-items: center; gap: 8px; color: var(--foreground);">
                     <span>Top Tracks</span>
                 </h3>
                 <div style="display: flex; flex-direction: column; gap: 8px;">
                     ${recapData.topTracks.slice(0, 5).map((track, i) => `
-                        <div class="recap-track-row" style="display: flex; align-items: center; gap: 12px; padding: 8px 12px; background: var(--secondary, rgba(255,255,255,0.03)); border-radius: 12px; border: 1px solid var(--border, rgba(255,255,255,0.06));">
-                            <span style="font-size: 0.9rem; font-weight: 800; min-width: 20px; color: ${i === 0 ? '#eab308' : i === 1 ? '#94a3b8' : i === 2 ? '#b45309' : 'var(--muted-foreground)'}; text-align: center;">
+                        <div class="recap-track-row" style="display: flex; align-items: center; gap: 12px; padding: 8px 12px; background: var(--secondary); border-radius: 12px; border: 1px solid var(--border);">
+                            <span style="font-size: 0.9rem; font-weight: 800; min-width: 20px; color: ${i === 0 ? 'var(--foreground)' : 'var(--muted-foreground)'}; text-align: center;">
                                 ${i + 1}
                             </span>
                             <img src="${escapeHtml(track.cover || '/images/default-cover.png')}" alt="" style="width: 44px; height: 44px; border-radius: 8px; object-fit: cover; flex-shrink: 0;" />
@@ -394,16 +483,16 @@ export async function renderRecapPage(container, ui, timeframe = 'all') {
 
             <!-- Top Artists -->
             <div>
-                <h3 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 1rem; display: flex; align-items: center; gap: 8px;">
+                <h3 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 1rem; display: flex; align-items: center; gap: 8px; color: var(--foreground);">
                     <span>Top Artists</span>
                 </h3>
                 <div style="display: flex; flex-direction: column; gap: 8px;">
                     ${recapData.topArtists.slice(0, 5).map((artist, i) => `
-                        <div style="display: flex; align-items: center; gap: 12px; padding: 8px 12px; background: var(--secondary, rgba(255,255,255,0.03)); border-radius: 12px; border: 1px solid var(--border, rgba(255,255,255,0.06));">
-                            <span style="font-size: 0.9rem; font-weight: 800; min-width: 20px; color: ${i === 0 ? '#eab308' : i === 1 ? '#94a3b8' : i === 2 ? '#b45309' : 'var(--muted-foreground)'}; text-align: center;">
+                        <div style="display: flex; align-items: center; gap: 12px; padding: 8px 12px; background: var(--secondary); border-radius: 12px; border: 1px solid var(--border);">
+                            <span style="font-size: 0.9rem; font-weight: 800; min-width: 20px; color: ${i === 0 ? 'var(--foreground)' : 'var(--muted-foreground)'}; text-align: center;">
                                 ${i + 1}
                             </span>
-                            <div style="width: 44px; height: 44px; border-radius: 50%; overflow: hidden; flex-shrink: 0; background: rgba(255,255,255,0.1);">
+                            <div style="width: 44px; height: 44px; border-radius: 50%; overflow: hidden; flex-shrink: 0; background: var(--secondary); border: 1px solid var(--border);">
                                 <img src="${escapeHtml(artist.artwork || '/images/default-avatar.png')}" alt="" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.src='/images/default-avatar.png'" />
                             </div>
                             <div style="flex: 1; min-width: 0;">
@@ -420,52 +509,52 @@ export async function renderRecapPage(container, ui, timeframe = 'all') {
             </div>
         </div>
 
-        <!-- Listening Clock & Daypart Breakdown -->
+        <!-- Listening Clock & Daypart Breakdown (Clean percentages, zero emojis) -->
         <div style="background: var(--card, #18181b); border: 1px solid var(--border, rgba(255,255,255,0.1)); border-radius: 20px; padding: 1.5rem; margin-bottom: 2rem;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem;">
                 <div>
-                    <h3 style="font-size: 1.2rem; font-weight: 700; margin: 0 0 4px 0;">Listening Clock</h3>
+                    <h3 style="font-size: 1.2rem; font-weight: 700; margin: 0 0 4px 0; color: var(--foreground);">Listening Clock</h3>
                     <p style="color: var(--muted-foreground); font-size: 0.85rem; margin: 0;">When you hit play most often during the day</p>
                 </div>
             </div>
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem;">
-                <div style="background: rgba(255,255,255,0.03); padding: 1rem; border-radius: 12px; border: 1px solid var(--border, rgba(255,255,255,0.05));">
-                    <div style="display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 6px;">
-                        <span>🌅 Morning (6am-12pm)</span>
+                <div style="background: var(--secondary); padding: 1rem; border-radius: 12px; border: 1px solid var(--border);">
+                    <div style="display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 6px; color: var(--foreground);">
+                        <span>Morning (6 AM - 12 PM)</span>
                         <strong>${morningPct}%</strong>
                     </div>
-                    <div style="height: 6px; background: rgba(255,255,255,0.1); border-radius: 999px; overflow: hidden;">
-                        <div style="height: 100%; width: ${morningPct}%; background: #38bdf8; border-radius: 999px;"></div>
+                    <div style="height: 6px; background: rgba(255,255,255,0.08); border-radius: 999px; overflow: hidden;">
+                        <div style="height: 100%; width: ${morningPct}%; background: var(--foreground); border-radius: 999px;"></div>
                     </div>
                 </div>
 
-                <div style="background: rgba(255,255,255,0.03); padding: 1rem; border-radius: 12px; border: 1px solid var(--border, rgba(255,255,255,0.05));">
-                    <div style="display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 6px;">
-                        <span>☀️ Afternoon (12pm-6pm)</span>
+                <div style="background: var(--secondary); padding: 1rem; border-radius: 12px; border: 1px solid var(--border);">
+                    <div style="display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 6px; color: var(--foreground);">
+                        <span>Afternoon (12 PM - 6 PM)</span>
                         <strong>${afternoonPct}%</strong>
                     </div>
-                    <div style="height: 6px; background: rgba(255,255,255,0.1); border-radius: 999px; overflow: hidden;">
-                        <div style="height: 100%; width: ${afternoonPct}%; background: #f59e0b; border-radius: 999px;"></div>
+                    <div style="height: 6px; background: rgba(255,255,255,0.08); border-radius: 999px; overflow: hidden;">
+                        <div style="height: 100%; width: ${afternoonPct}%; background: var(--foreground); border-radius: 999px;"></div>
                     </div>
                 </div>
 
-                <div style="background: rgba(255,255,255,0.03); padding: 1rem; border-radius: 12px; border: 1px solid var(--border, rgba(255,255,255,0.05));">
-                    <div style="display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 6px;">
-                        <span>🌆 Evening (6pm-11pm)</span>
+                <div style="background: var(--secondary); padding: 1rem; border-radius: 12px; border: 1px solid var(--border);">
+                    <div style="display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 6px; color: var(--foreground);">
+                        <span>Evening (6 PM - 11 PM)</span>
                         <strong>${eveningPct}%</strong>
                     </div>
-                    <div style="height: 6px; background: rgba(255,255,255,0.1); border-radius: 999px; overflow: hidden;">
-                        <div style="height: 100%; width: ${eveningPct}%; background: #ec4899; border-radius: 999px;"></div>
+                    <div style="height: 6px; background: rgba(255,255,255,0.08); border-radius: 999px; overflow: hidden;">
+                        <div style="height: 100%; width: ${eveningPct}%; background: var(--foreground); border-radius: 999px;"></div>
                     </div>
                 </div>
 
-                <div style="background: rgba(255,255,255,0.03); padding: 1rem; border-radius: 12px; border: 1px solid var(--border, rgba(255,255,255,0.05));">
-                    <div style="display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 6px;">
-                        <span>🌙 Night Owl (11pm-6am)</span>
+                <div style="background: var(--secondary); padding: 1rem; border-radius: 12px; border: 1px solid var(--border);">
+                    <div style="display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 6px; color: var(--foreground);">
+                        <span>Late Night (11 PM - 6 AM)</span>
                         <strong>${nightPct}%</strong>
                     </div>
-                    <div style="height: 6px; background: rgba(255,255,255,0.1); border-radius: 999px; overflow: hidden;">
-                        <div style="height: 100%; width: ${nightPct}%; background: #8b5cf6; border-radius: 999px;"></div>
+                    <div style="height: 6px; background: rgba(255,255,255,0.08); border-radius: 999px; overflow: hidden;">
+                        <div style="height: 100%; width: ${nightPct}%; background: var(--foreground); border-radius: 999px;"></div>
                     </div>
                 </div>
             </div>
@@ -483,14 +572,6 @@ export async function renderRecapPage(container, ui, timeframe = 'all') {
             }
         });
     });
-
-    // Attach share story button listener
-    const shareBtn = container.querySelector('#recap-share-btn');
-    if (shareBtn) {
-        shareBtn.addEventListener('click', () => {
-            openShareStoryModal(recapData);
-        });
-    }
 }
 
 export function openShareStoryModal(recapData) {
@@ -503,11 +584,11 @@ export function openShareStoryModal(recapData) {
             <div class="modal-overlay"></div>
             <div class="modal-content" style="max-width: 480px; text-align: center; padding: 24px; border-radius: 20px;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                    <h3 style="margin: 0; font-size: 1.25rem; font-weight: 700;">Share Your Recap</h3>
-                    <button id="close-recap-share-btn" class="modal-close" style="border: none; background: transparent; font-size: 1.5rem; cursor: pointer;">&times;</button>
+                    <h3 style="margin: 0; font-size: 1.25rem; font-weight: 700; color: var(--foreground);">Share Your Recap</h3>
+                    <button id="close-recap-share-btn" class="modal-close" style="border: none; background: transparent; font-size: 1.5rem; cursor: pointer; color: var(--foreground);">&times;</button>
                 </div>
                 <div style="margin-bottom: 1.5rem; display: flex; justify-content: center;">
-                    <canvas id="recap-story-canvas" width="720" height="960" style="max-width: 100%; height: auto; border-radius: 14px; box-shadow: 0 12px 36px rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.1);"></canvas>
+                    <canvas id="recap-story-canvas" width="720" height="960" style="max-width: 100%; height: auto; border-radius: 14px; box-shadow: 0 12px 36px rgba(0,0,0,0.6); border: 1px solid var(--border);"></canvas>
                 </div>
                 <div style="display: flex; gap: 10px; justify-content: center;">
                     <button id="download-recap-img-btn" class="btn-primary" style="flex: 1; padding: 10px 18px; border-radius: 10px; font-weight: 600; cursor: pointer;">
@@ -569,150 +650,209 @@ function drawStoryCard(canvas, data) {
     const w = canvas.width;
     const h = canvas.height;
 
-    // Background gradient
-    const bgGradient = ctx.createLinearGradient(0, 0, w, h);
-    bgGradient.addColorStop(0, '#0f172a');
-    bgGradient.addColorStop(0.5, '#020617');
-    bgGradient.addColorStop(1, '#1e1b4b');
-    ctx.fillStyle = bgGradient;
-    ctx.fillRect(0, 0, w, h);
+    const theme = document.documentElement.getAttribute('data-theme') || 'monochrome';
+    const isLight = theme === 'white' || theme === 'latte';
+    const computed = getComputedStyle(document.documentElement);
 
-    // Decorative ambient circles
-    ctx.save();
-    ctx.filter = 'blur(60px)';
-    ctx.fillStyle = 'rgba(56, 189, 248, 0.25)';
-    ctx.beginPath();
-    ctx.arc(w * 0.2, h * 0.2, 140, 0, Math.PI * 2);
-    ctx.fill();
+    // Dynamic active theme palette (solid, zero gradients)
+    const bgColor = computed.getPropertyValue('--background').trim() || (isLight ? '#f4f4f5' : '#090a0f');
+    const cardColor = computed.getPropertyValue('--card').trim() || computed.getPropertyValue('--secondary').trim() || (isLight ? '#ffffff' : '#12131a');
+    const fgColor = computed.getPropertyValue('--foreground').trim() || (isLight ? '#18181b' : '#ffffff');
+    const mutedColor = computed.getPropertyValue('--muted-foreground').trim() || (isLight ? '#71717a' : '#a1a1aa');
+    const borderColor = computed.getPropertyValue('--border').trim() || (isLight ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.12)');
+    const secondaryColor = computed.getPropertyValue('--secondary').trim() || (isLight ? '#e4e4e7' : '#1c1d24');
 
-    ctx.fillStyle = 'rgba(168, 85, 247, 0.25)';
-    ctx.beginPath();
-    ctx.arc(w * 0.8, h * 0.7, 160, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
+    const render = (logoImg = null) => {
+        // Solid themed background (no gradient)
+        ctx.fillStyle = bgColor;
+        ctx.fillRect(0, 0, w, h);
 
-    // Echoes Branding Header
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 28px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-    ctx.fillText('ECHOES', 48, 70);
+        // Elegant outer card stroke
+        ctx.strokeStyle = borderColor;
+        ctx.lineWidth = 2;
+        ctx.strokeRect(24, 24, w - 48, h - 48);
 
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
-    ctx.font = '600 16px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-    ctx.fillText('MUSIC RECAP 2026', 48, 98);
+        // Echoes Logo
+        if (logoImg && logoImg.complete && logoImg.naturalWidth > 0) {
+            ctx.save();
+            ctx.beginPath();
+            ctx.roundRect(48, 48, 44, 44, 10);
+            ctx.clip();
+            ctx.drawImage(logoImg, 48, 48, 44, 44);
+            ctx.restore();
+        }
 
-    // Persona badge
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 36px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-    ctx.fillText(data.persona.title, 48, 160);
+        // Header Branding
+        const textStartX = (logoImg && logoImg.complete && logoImg.naturalWidth > 0) ? 104 : 48;
+        ctx.fillStyle = fgColor;
+        ctx.font = 'bold 26px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+        ctx.fillText('ECHOES', textStartX, 74);
 
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
-    ctx.font = '16px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-    ctx.fillText(data.persona.tagline, 48, 192);
+        ctx.fillStyle = mutedColor;
+        ctx.font = '600 13px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+        ctx.fillText('MUSIC RECAP 2026', textStartX, 94);
 
-    // Stats Grid Box
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.roundRect(48, 225, w - 96, 110, 16);
-    ctx.fill();
-    ctx.stroke();
+        // Persona Title & Percentage Pill
+        ctx.fillStyle = fgColor;
+        ctx.font = 'bold 34px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+        ctx.fillText(data.persona.title, 48, 160);
 
-    // Total Time
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
-    ctx.font = '600 14px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-    ctx.fillText('TOTAL LISTENING', 72, 260);
+        if (data.persona.percentStat) {
+            ctx.font = 'bold 14px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+            const pillText = data.persona.percentStat;
+            const textWidth = ctx.measureText(pillText).width;
+            const titleWidth = ctx.measureText(data.persona.title).width;
+            const pillX = Math.min(w - 180, 48 + titleWidth + 16);
+            ctx.fillStyle = secondaryColor;
+            ctx.strokeStyle = borderColor;
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.roundRect(pillX, 137, textWidth + 20, 28, 999);
+            ctx.fill();
+            ctx.stroke();
 
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 32px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-    ctx.fillText(formatHoursMinutes(data.totalDurationSeconds), 72, 305);
+            ctx.fillStyle = fgColor;
+            ctx.fillText(pillText, pillX + 10, 156);
+        }
 
-    // Total Plays
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
-    ctx.font = '600 14px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-    ctx.fillText('PLAYS', 360, 260);
+        // Tagline text
+        ctx.fillStyle = mutedColor;
+        ctx.font = '15px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+        const tagline = data.persona.tagline || '';
+        if (ctx.measureText(tagline).width > w - 96) {
+            const words = tagline.split(' ');
+            let line1 = '';
+            let line2 = '';
+            for (const word of words) {
+                if (ctx.measureText(line1 + word + ' ').width < w - 96 && !line2) {
+                    line1 += word + ' ';
+                } else {
+                    line2 += word + ' ';
+                }
+            }
+            ctx.fillText(line1.trim(), 48, 192);
+            ctx.fillText(line2.trim(), 48, 212);
+        } else {
+            ctx.fillText(tagline, 48, 192);
+        }
 
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 32px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-    ctx.fillText(String(data.totalPlays), 360, 305);
-
-    // Unique Artists
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
-    ctx.font = '600 14px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-    ctx.fillText('ARTISTS', 530, 260);
-
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 32px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-    ctx.fillText(String(data.uniqueArtistsCount), 530, 305);
-
-    // Top Songs List
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 20px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-    ctx.fillText('TOP TRACKS', 48, 380);
-
-    const tracksToShow = data.topTracks.slice(0, 3);
-    let trackY = 415;
-    tracksToShow.forEach((t, i) => {
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.04)';
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+        // Stats Grid Box
+        ctx.fillStyle = cardColor;
+        ctx.strokeStyle = borderColor;
+        ctx.lineWidth = 1;
         ctx.beginPath();
-        ctx.roundRect(48, trackY, w - 96, 60, 12);
+        ctx.roundRect(48, 235, w - 96, 105, 16);
         ctx.fill();
         ctx.stroke();
 
-        ctx.fillStyle = i === 0 ? '#eab308' : '#cbd5e1';
-        ctx.font = 'bold 18px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-        ctx.fillText(`#${i + 1}`, 68, trackY + 36);
+        // Total Time
+        ctx.fillStyle = mutedColor;
+        ctx.font = '600 13px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+        ctx.fillText('TOTAL LISTENING', 72, 268);
 
-        ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 16px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-        const titleText = t.title.length > 32 ? t.title.slice(0, 32) + '...' : t.title;
-        ctx.fillText(titleText, 110, trackY + 28);
+        ctx.fillStyle = fgColor;
+        ctx.font = 'bold 30px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+        ctx.fillText(formatHoursMinutes(data.totalDurationSeconds), 72, 312);
 
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+        // Total Plays
+        ctx.fillStyle = mutedColor;
+        ctx.font = '600 13px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+        ctx.fillText('PLAYS', 350, 268);
+
+        ctx.fillStyle = fgColor;
+        ctx.font = 'bold 30px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+        ctx.fillText(String(data.totalPlays), 350, 312);
+
+        // Unique Artists
+        ctx.fillStyle = mutedColor;
+        ctx.font = '600 13px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+        ctx.fillText('ARTISTS', 520, 268);
+
+        ctx.fillStyle = fgColor;
+        ctx.font = 'bold 30px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+        ctx.fillText(String(data.uniqueArtistsCount), 520, 312);
+
+        // Top Songs List
+        ctx.fillStyle = fgColor;
+        ctx.font = 'bold 20px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+        ctx.fillText('TOP TRACKS', 48, 385);
+
+        const tracksToShow = data.topTracks.slice(0, 3);
+        let trackY = 415;
+        tracksToShow.forEach((t, i) => {
+            ctx.fillStyle = cardColor;
+            ctx.strokeStyle = borderColor;
+            ctx.beginPath();
+            ctx.roundRect(48, trackY, w - 96, 60, 12);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = fgColor;
+            ctx.font = 'bold 18px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+            ctx.fillText(`#${i + 1}`, 68, trackY + 36);
+
+            ctx.fillStyle = fgColor;
+            ctx.font = 'bold 16px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+            const titleText = t.title.length > 32 ? t.title.slice(0, 32) + '...' : t.title;
+            ctx.fillText(titleText, 110, trackY + 28);
+
+            ctx.fillStyle = mutedColor;
+            ctx.font = '14px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+            const artistName = t.artist?.name || (t.artists && t.artists[0]?.name) || 'Unknown';
+            ctx.fillText(artistName, 110, trackY + 48);
+
+            ctx.fillStyle = mutedColor;
+            ctx.font = '600 14px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+            ctx.fillText(`${t.playCount} plays`, w - 140, trackY + 36);
+
+            trackY += 72;
+        });
+
+        // Top Artists List
+        ctx.fillStyle = fgColor;
+        ctx.font = 'bold 20px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+        ctx.fillText('TOP ARTISTS', 48, trackY + 25);
+
+        const artistsToShow = data.topArtists.slice(0, 3);
+        let artistY = trackY + 55;
+        artistsToShow.forEach((a, i) => {
+            ctx.fillStyle = cardColor;
+            ctx.strokeStyle = borderColor;
+            ctx.beginPath();
+            ctx.roundRect(48, artistY, w - 96, 52, 12);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = fgColor;
+            ctx.font = 'bold 16px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+            ctx.fillText(`#${i + 1}`, 68, artistY + 32);
+
+            ctx.fillStyle = fgColor;
+            ctx.font = 'bold 16px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+            ctx.fillText(a.name, 110, artistY + 32);
+
+            ctx.fillStyle = mutedColor;
+            ctx.font = '600 14px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+            ctx.fillText(`${a.playCount} plays`, w - 140, artistY + 32);
+
+            artistY += 62;
+        });
+
+        // Clean Footer Watermark (site URL, no ArchiveTune)
+        ctx.fillStyle = mutedColor;
+        ctx.font = '600 15px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+        ctx.fillText('echoes.mteck.tech', 48, h - 44);
+
         ctx.font = '14px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-        const artistName = t.artist?.name || (t.artists && t.artists[0]?.name) || 'Unknown';
-        ctx.fillText(artistName, 110, trackY + 48);
+        ctx.fillStyle = mutedColor;
+        const subFooter = 'Echoes Music Streaming & DSP Engine';
+        const subWidth = ctx.measureText(subFooter).width;
+        ctx.fillText(subFooter, w - 48 - subWidth, h - 44);
+    };
 
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
-        ctx.font = '600 14px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-        ctx.fillText(`${t.playCount} plays`, w - 140, trackY + 36);
-
-        trackY += 72;
-    });
-
-    // Top Artists List
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 20px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-    ctx.fillText('TOP ARTISTS', 48, trackY + 25);
-
-    const artistsToShow = data.topArtists.slice(0, 3);
-    let artistY = trackY + 55;
-    artistsToShow.forEach((a, i) => {
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.04)';
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
-        ctx.beginPath();
-        ctx.roundRect(48, artistY, w - 96, 52, 12);
-        ctx.fill();
-        ctx.stroke();
-
-        ctx.fillStyle = i === 0 ? '#eab308' : '#cbd5e1';
-        ctx.font = 'bold 16px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-        ctx.fillText(`#${i + 1}`, 68, artistY + 32);
-
-        ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 16px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-        ctx.fillText(a.name, 110, artistY + 32);
-
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
-        ctx.font = '600 14px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-        ctx.fillText(`${a.playCount} plays`, w - 140, artistY + 32);
-
-        artistY += 62;
-    });
-
-    // Footer Watermark
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
-    ctx.font = '14px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-    ctx.fillText('echoes.mteck.tech &bull; ArchiveTune Edition', 48, h - 36);
+    const logoImg = new Image();
+    logoImg.crossOrigin = 'anonymous';
+    logoImg.src = isLight ? '/images/echoes_logo_black.png' : '/images/echoes_logo_white.png';
+    logoImg.onload = () => render(logoImg);
+    render(logoImg.complete && logoImg.naturalWidth > 0 ? logoImg : null);
 }

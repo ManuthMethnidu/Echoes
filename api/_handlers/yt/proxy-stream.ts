@@ -31,12 +31,19 @@ function isAllowedDomain(hostname: string): boolean {
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+    if (req.method === 'OPTIONS') {
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
+        res.setHeader('Access-Control-Allow-Headers', 'Range, Content-Type');
+        return res.status(204).end();
+    }
+
     const { url } = req.query;
     if (!url || typeof url !== 'string') {
         return res.status(400).json({ error: 'Missing ?url=' });
     }
 
-    const validatedUrl = sanitizeUrl(url);
+    const validatedUrl = sanitizeUrl(url, 8192);
     if (!validatedUrl) {
         return res.status(400).json({ error: 'Invalid URL format' });
     }
@@ -77,7 +84,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 const loc = upstream.headers.get('location');
                 if (!loc) break;
                 const nextUrl = new URL(loc, currentUrl).toString();
-                const sanitizedNext = sanitizeUrl(nextUrl);
+                const sanitizedNext = sanitizeUrl(nextUrl, 8192);
                 if (!sanitizedNext) {
                     return res.status(400).json({ error: 'Invalid redirect URL format' });
                 }

@@ -5,7 +5,7 @@ async function isStreamPlayable(url: string): Promise<boolean> {
     try {
         const testRes = await fetch(url, {
             headers: { 'Range': 'bytes=0-10' },
-            signal: AbortSignal.timeout(2000),
+            signal: AbortSignal.timeout(4000),
         });
         return testRes.status === 200 || testRes.status === 206;
     } catch {
@@ -109,7 +109,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                   })
                 : [];
 
-            for (const candidate of candidates.slice(0, 4)) {
+            for (const candidate of candidates.slice(0, 2)) {
                 const cid = candidate.videoId || candidate.id;
                 try {
                     const candidateVideo = await fetchWithFailover(

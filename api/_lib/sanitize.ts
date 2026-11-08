@@ -42,7 +42,7 @@ export function sanitizeString(val: unknown, maxLength = 255): string {
 }
 
 // Strict URL validator for HTTP/HTTPS only
-export function sanitizeUrl(val: unknown, maxLength = 1024): string | null {
+export function sanitizeUrl(val: unknown, maxLength = 8192): string | null {
     if (!val || typeof val !== 'string') return null;
     const trimmed = val.trim();
     if (!trimmed || trimmed.length > maxLength) return null;

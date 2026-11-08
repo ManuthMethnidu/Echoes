@@ -686,11 +686,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Save sidebar state to localStorage
         sidebarSettings.setCollapsed(isCollapsed);
 
-        // Smoothly reflow Lenis and layout without sudden jumps
-        setTimeout(() => {
-            window.__lenis?.resize();
-            window.dispatchEvent(new Event('resize'));
-        }, 150);
+        // Reflow Lenis and layout once transition completes
         setTimeout(() => {
             window.__lenis?.resize();
             window.dispatchEvent(new Event('resize'));

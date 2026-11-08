@@ -1221,32 +1221,72 @@ export class MusicAPI {
             safeTitle
         )}&title=${encodeURIComponent(title)}&artist=${encodeURIComponent(artist)}`;
 
-        let response;
+        let response = null;
+
+        // 1. Direct companion fetch: resolve stream via ytEngine and fetch audio directly in browser
+        // Companion nodes provide Access-Control-Allow-Origin: * and allow direct browser streaming
         try {
-            response = await fetch(downloadUrl, {
-                cache: 'no-store',
-                signal: options.signal,
-            });
-            if (!response.ok) {
-                throw new Error(`Server returned HTTP ${response.status}`);
+            const stream = await ytEngine.resolveStream(track || videoId);
+            const rawUrl = stream?.streamUrl || stream?.url || stream?.directUrl;
+            if (rawUrl) {
+                try {
+                    const directRes = await fetch(rawUrl, {
+                        cache: 'no-store',
+                        signal: options.signal,
+                    });
+                    if (directRes.ok || directRes.status === 206) {
+                        response = directRes;
+                    }
+                } catch (netErr) {
+                    if (netErr.name === 'AbortError') throw netErr;
+                    console.warn('[downloadYouTubeTrack] Direct companion fetch failed, falling back:', netErr);
+                }
             }
-        } catch (fetchErr) {
-            if (fetchErr.name === 'AbortError') throw fetchErr;
-            // Fallback: resolve stream directly via ytEngine and proxy if needed
+        } catch (resErr) {
+            if (resErr.name === 'AbortError') throw resErr;
+            console.warn('[downloadYouTubeTrack] Stream resolution failed:', resErr);
+        }
+
+        // 2. Server download endpoint fallback
+        if (!response) {
             try {
-                const stream = await ytEngine.resolveStream(track || videoId);
-                const rawUrl = stream?.streamUrl || stream?.url;
-                if (!rawUrl) throw fetchErr;
-                const proxyUrl = `/api/yt/proxy-stream?url=${encodeURIComponent(rawUrl)}`;
-                response = await fetch(proxyUrl, {
+                const downloadUrl = `/api/yt/download?id=${encodeURIComponent(videoId)}&filename=${encodeURIComponent(
+                    safeTitle
+                )}&title=${encodeURIComponent(title)}&artist=${encodeURIComponent(artist)}`;
+                const dlRes = await fetch(downloadUrl, {
                     cache: 'no-store',
                     signal: options.signal,
                 });
-                if (!response.ok) throw fetchErr;
-            } catch (fallbackErr) {
-                if (fallbackErr.name === 'AbortError') throw fallbackErr;
-                throw new Error(`Failed to download YouTube track: ${fetchErr.message}`);
+                if (dlRes.ok || dlRes.status === 206) {
+                    response = dlRes;
+                }
+            } catch (dlErr) {
+                if (dlErr.name === 'AbortError') throw dlErr;
             }
+        }
+
+        // 3. Proxy-stream fallback
+        if (!response) {
+            try {
+                const stream = await ytEngine.resolveStream(track || videoId);
+                const rawUrl = stream?.streamUrl || stream?.url;
+                if (rawUrl) {
+                    const proxyUrl = `/api/yt/proxy-stream?url=${encodeURIComponent(rawUrl)}`;
+                    const pRes = await fetch(proxyUrl, {
+                        cache: 'no-store',
+                        signal: options.signal,
+                    });
+                    if (pRes.ok || pRes.status === 206) {
+                        response = pRes;
+                    }
+                }
+            } catch (pErr) {
+                if (pErr.name === 'AbortError') throw pErr;
+            }
+        }
+
+        if (!response || (!response.ok && response.status !== 206)) {
+            throw new Error('Unable to retrieve YouTube audio stream from any source');
         }
 
         const contentLengthHeader = response.headers.get('Content-Length');

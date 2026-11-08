@@ -1016,11 +1016,10 @@ ul {
     min-height: 0;
     background-color: var(--background);
     border-right: 1px solid var(--border);
-    padding: 1.25rem;
+    padding: 1.25rem 0.75rem;
     display: flex;
     flex-direction: column;
     gap: 2rem;
-    transition: width 0.3s cubic-bezier(0.2, 0, 0, 1), padding 0.3s cubic-bezier(0.2, 0, 0, 1), transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     overflow-x: hidden;
     box-sizing: border-box;
 }
@@ -1153,8 +1152,8 @@ ul {
     z-index: 2100;
 
     /* Floating bar overrides */
-    width: calc(96% - 190px) !important;
-    left: calc(190px + 2%);
+    width: calc(96% - 210px) !important;
+    left: calc(210px + 2%) !important;
     bottom: max(15px, env(safe-area-inset-bottom)) !important;
     border-radius: var(--radius);
 
@@ -1240,13 +1239,14 @@ ul {
     max-width: 160px;
     opacity: 1;
     transform: translateX(0);
-    transition: opacity 0.22s cubic-bezier(0.2, 0, 0, 1), max-width 0.3s cubic-bezier(0.2, 0, 0, 1), transform 0.22s ease, margin 0.22s ease;
+    transition: opacity 0.22s cubic-bezier(0.2, 0, 0, 1), transform 0.22s ease;
 }
 
 #sidebar-toggle {
     padding: 0;
     flex-shrink: 0;
     margin-left: auto;
+    margin-right: 0;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -1256,7 +1256,8 @@ ul {
     color: var(--muted-foreground);
     background: transparent;
     cursor: pointer;
-    transition: color var(--transition-fast), background-color var(--transition-fast), transform 0.3s cubic-bezier(0.2, 0, 0, 1), margin 0.3s cubic-bezier(0.2, 0, 0, 1);
+    border: none;
+    transition: color var(--transition-fast), background-color var(--transition-fast), margin-right 0.3s cubic-bezier(0.2, 0, 0, 1);
 }
 
 #sidebar-toggle svg {
@@ -1273,13 +1274,11 @@ ul {
     display: flex;
     align-items: center;
     gap: 0.75rem;
-    padding: 0.75rem;
+    padding: 0.625rem 0.75rem;
     border-radius: var(--radius);
     color: var(--muted-foreground);
     font-weight: 500;
     transition:
-        padding 0.3s cubic-bezier(0.2, 0, 0, 1),
-        gap 0.3s cubic-bezier(0.2, 0, 0, 1),
         background-color var(--transition-fast),
         color var(--transition-fast),
         transform var(--transition-fast);
@@ -1315,8 +1314,9 @@ ul {
 
 .sidebar-nav .nav-item a svg,
 .sidebar-nav .nav-item button svg {
-    width: 20px;
-    height: 20px;
+    width: 24px;
+    height: 24px;
+    min-width: 24px;
     flex-shrink: 0;
 }
 
@@ -8747,56 +8747,42 @@ body:has(#fullscreen-cover-overlay:not([style*='display: none'])) .now-playing-b
 
 @media (min-width: 769px) {
     body.sidebar-collapsed .app-container {
-        grid-template-columns: 80px 1fr;
+        grid-template-columns: 72px 1fr;
     }
 
     body.sidebar-collapsed .sidebar {
-        padding: 1.25rem 0.5rem;
+        padding: 1.25rem 0.75rem;
     }
 
-    body.sidebar-collapsed .sidebar-logo-link,
+    body.sidebar-collapsed .sidebar-logo-link {
+        max-width: 0;
+        opacity: 0;
+        pointer-events: none;
+        transform: translateX(-8px);
+    }
+
     body.sidebar-collapsed .sidebar-logo span,
     body.sidebar-collapsed .sidebar-nav span,
     body.sidebar-collapsed .pinned-items-header,
     body.sidebar-collapsed #pinned-items-list .nav-item a .pinned-item-name,
     body.sidebar-collapsed .sidebar-donate-goal {
         opacity: 0;
-        max-width: 0;
-        margin: 0 !important;
-        padding: 0 !important;
         pointer-events: none;
-        overflow: hidden;
         transform: translateX(-8px);
     }
 
     body.sidebar-collapsed #sidebar-toggle {
         margin-left: auto;
-        margin-right: auto;
+        margin-right: 8px;
     }
 
     body.sidebar-collapsed #sidebar-toggle svg {
         transform: rotate(180deg);
     }
 
-    body.sidebar-collapsed .sidebar-nav .nav-item a,
-    body.sidebar-collapsed .sidebar-nav .nav-item button {
-        padding: 0.75rem calc((100% - 20px) / 2);
-        gap: 0;
-    }
-
-    body.sidebar-collapsed #pinned-items-list .nav-item a {
-        padding: 0.5rem calc((100% - 24px) / 2);
-        gap: 0;
-    }
-
-    body.sidebar-collapsed .sidebar-nav.bottom .nav-item a {
-        padding: 0.5rem calc((100% - 17px) / 2);
-        gap: 0;
-    }
-
     body.sidebar-collapsed .now-playing-bar {
-        width: calc(96% - 80px) !important;
-        left: calc(80px + 2%) !important;
+        width: calc(96% - 72px) !important;
+        left: calc(72px + 2%) !important;
     }
 }
 

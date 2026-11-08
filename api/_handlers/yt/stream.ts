@@ -10,6 +10,54 @@ const HEALTHY_COMPANIONS = [
     'yt-comp6.chocolatemoo53.com',
 ];
 
+async function fetchCompanionDirectStream(
+    videoId: string,
+    preferM4a: boolean = false
+): Promise<{ streamUrl: string; mimeType: string; companion: string } | null> {
+    const itag = preferM4a ? 140 : 251;
+    let hash = 0;
+    for (let i = 0; i < videoId.length; i++) {
+        hash = (hash << 5) - hash + videoId.charCodeAt(i);
+    }
+    const startIndex = Math.abs(hash) % HEALTHY_COMPANIONS.length;
+    const companionsToTry = [
+        ...HEALTHY_COMPANIONS.slice(startIndex),
+        ...HEALTHY_COMPANIONS.slice(0, startIndex),
+    ];
+
+    for (const comp of companionsToTry) {
+        try {
+            const controller = new AbortController();
+            const timer = setTimeout(() => controller.abort(), 2500);
+            const res = await fetch(`https://${comp}/companion/latest_version?id=${videoId}&itag=${itag}`, {
+                method: 'GET',
+                redirect: 'manual',
+                signal: controller.signal,
+                headers: {
+                    'User-Agent':
+                        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+                },
+            });
+            clearTimeout(timer);
+
+            const location = res.headers.get('location');
+            if (res.status === 302 && location) {
+                const u = new URL(location);
+                const origHost = u.hostname;
+                u.hostname = comp;
+                u.searchParams.set('host', origHost);
+                u.searchParams.delete('issuer');
+                return {
+                    streamUrl: u.toString(),
+                    mimeType: preferM4a ? 'audio/mp4; codecs="mp4a.40.2"' : 'audio/webm; codecs="opus"',
+                    companion: comp,
+                };
+            }
+        } catch (_) {}
+    }
+    return null;
+}
+
 function resolveStreamUrl(rawUrl: string, videoId?: string): string {
     if (!rawUrl) return rawUrl;
     try {
@@ -236,18 +284,38 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     let data: any = null;
     let instance: string = '';
 
-    try {
-        const videoRes = await fetchWithFailover(
-            (base) => `${base}/api/v1/videos/${videoId}`,
-            3500
-        );
-        data = videoRes.data;
-        instance = videoRes.instance;
-    } catch (directErr) {
-        console.warn(`[YouTube Stream] Direct video lookup failed for ${videoId}:`, directErr);
+    // Query direct companion stream and video metadata in parallel for maximum speed and resilience
+    const [compResult, vidResult] = await Promise.allSettled([
+        fetchCompanionDirectStream(videoId, preferM4a),
+        fetchWithFailover((base) => `${base}/api/v1/videos/${videoId}`, 3000),
+    ]);
+
+    const directCompanion = compResult.status === 'fulfilled' ? compResult.value : null;
+    if (vidResult.status === 'fulfilled' && vidResult.value) {
+        data = vidResult.value.data;
+        instance = vidResult.value.instance;
     }
 
-    // 1. Direct Playable Check: If this video has playable formats, return immediately
+    // 1. Direct companion stream fast-path (unexpired, IP-bound to companion, CORS enabled)
+    if (directCompanion) {
+        const rawDuration = data?.lengthSeconds || 0;
+        const duration = typeof rawDuration === 'number' ? rawDuration : parseInt(rawDuration) || 0;
+        return res.status(200).json({
+            id: videoId,
+            streamUrl: directCompanion.streamUrl,
+            url: directCompanion.streamUrl,
+            directUrl: directCompanion.streamUrl,
+            mimeType: directCompanion.mimeType,
+            codec: preferM4a ? 'AAC' : 'OPUS',
+            bitrate: preferM4a ? 128000 : 160000,
+            duration,
+            title: titleParam || data?.title || 'Unknown Title',
+            author: artistParam || data?.author || 'Unknown Artist',
+            instance: directCompanion.companion,
+        });
+    }
+
+    // 2. Direct Invidious Format Check: If direct companion lookup failed, check unexpired formats
     if (data) {
         const playable = findPlayableAudio(data, preferM4a, videoId);
         if (playable) {

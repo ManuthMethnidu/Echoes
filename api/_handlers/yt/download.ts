@@ -12,6 +12,78 @@ const HEALTHY_COMPANIONS = [
     'yt-comp6.chocolatemoo53.com',
 ];
 
+async function fetchCompanionDirectStream(
+    videoId: string,
+    preferM4a: boolean = false
+): Promise<{ streamUrl: string; mimeType: string; companion: string } | null> {
+    const itag = preferM4a ? 140 : 251;
+    let hash = 0;
+    for (let i = 0; i < videoId.length; i++) {
+        hash = (hash << 5) - hash + videoId.charCodeAt(i);
+    }
+    const startIndex = Math.abs(hash) % HEALTHY_COMPANIONS.length;
+    const companionsToTry = [
+        ...HEALTHY_COMPANIONS.slice(startIndex),
+        ...HEALTHY_COMPANIONS.slice(0, startIndex),
+    ];
+
+    for (const comp of companionsToTry) {
+        try {
+            const controller = new AbortController();
+            const timer = setTimeout(() => controller.abort(), 2500);
+            const res = await fetch(`https://${comp}/companion/latest_version?id=${videoId}&itag=${itag}`, {
+                method: 'GET',
+                redirect: 'manual',
+                signal: controller.signal,
+                headers: {
+                    'User-Agent':
+                        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+                },
+            });
+            clearTimeout(timer);
+
+            const location = res.headers.get('location');
+            if (res.status === 302 && location) {
+                const u = new URL(location);
+                const origHost = u.hostname;
+                u.hostname = comp;
+                u.searchParams.set('host', origHost);
+                u.searchParams.delete('issuer');
+                return {
+                    streamUrl: u.toString(),
+                    mimeType: preferM4a ? 'audio/mp4; codecs="mp4a.40.2"' : 'audio/webm; codecs="opus"',
+                    companion: comp,
+                };
+            }
+        } catch (_) {}
+    }
+    return null;
+}
+
+async function fetchStreamFromUrl(
+    streamUrl: string,
+    isHead: boolean,
+    clientRange?: string
+): Promise<Response | null> {
+    try {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 6000);
+        const res = await fetch(streamUrl, {
+            method: isHead ? 'HEAD' : 'GET',
+            signal: controller.signal,
+            headers: {
+                'User-Agent':
+                    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+                'Referer': 'https://yt.chocolatemoo53.com/',
+                'Range': clientRange || 'bytes=0-',
+            },
+        });
+        clearTimeout(timer);
+        if (res.ok || res.status === 206) return res;
+    } catch (_) {}
+    return null;
+}
+
 function buildCompanionUrl(rawUrl: string, companion: string): string {
     const parsed = new URL(rawUrl);
     let origHost = parsed.hostname;
@@ -127,12 +199,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const isHead = req.method === 'HEAD';
 
     try {
+        let audioRes: Response | null = null;
+        let mimeType = 'audio/webm';
+        let ext = 'opus';
+
+        // 1. Direct companion stream fast-path (unexpired, IP-bound to companion)
+        const directCompanion = await fetchCompanionDirectStream(videoId, false);
+        if (directCompanion) {
+            const streamRes = await fetchStreamFromUrl(directCompanion.streamUrl, isHead, clientRange);
+            if (streamRes && (streamRes.ok || streamRes.status === 206)) {
+                audioRes = streamRes;
+                mimeType = directCompanion.mimeType.split(';')[0];
+                ext = 'opus';
+            }
+        }
+
         let data: any = null;
-        try {
-            const vidResult = await fetchWithFailover((base) => `${base}/api/v1/videos/${videoId}`, 3500);
-            data = vidResult.data;
-        } catch (directErr) {
-            console.warn(`[YouTube Download] Direct lookup failed for ${videoId}:`, directErr);
+        if (!audioRes) {
+            try {
+                const vidResult = await fetchWithFailover((base) => `${base}/api/v1/videos/${videoId}`, 3500);
+                data = vidResult.data;
+            } catch (directErr) {
+                console.warn(`[YouTube Download] Direct lookup failed for ${videoId}:`, directErr);
+            }
         }
 
         const adaptiveFormats = data?.adaptiveFormats || [];
@@ -140,12 +229,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             (f: any) => f.type && f.type.startsWith('audio') && f.url && !isFormatExpired(f.url)
         );
 
-        let audioRes: Response | null = null;
-        let mimeType = 'audio/webm';
-        let ext = 'opus';
-
-        // 1. Try direct video audio formats if unexpired
-        if (unexpiredAudio.length > 0) {
+        // 2. Try direct video audio formats if unexpired
+        if (!audioRes && unexpiredAudio.length > 0) {
             unexpiredAudio.sort((a: any, b: any) => (parseInt(b.bitrate) || 0) - (parseInt(a.bitrate) || 0));
             const bestAudio = unexpiredAudio[0];
             mimeType = bestAudio.type?.split(';')[0] || 'audio/webm';
@@ -162,7 +247,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             }
         }
 
-        // 2. Candidate failover: if direct audio was expired or companion fetch failed, search matching uploads
+        // 3. Candidate failover: if direct audio was expired or companion fetch failed, search matching uploads
         if (!audioRes || (!audioRes.ok && audioRes.status !== 206)) {
             console.log(`[YouTube Download] Direct audio unavailable for ${videoId}; initiating candidate failover search`);
             const cleanTitle = (titleParam || data?.title || '').trim();

@@ -1,16 +1,19 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { fetchWithFailover } from '../../_lib/invidious.js';
 
-async function isStreamPlayable(url: string): Promise<boolean> {
+function resolveStreamUrl(rawUrl: string, instance: string): string {
+    if (!rawUrl) return rawUrl;
     try {
-        const testRes = await fetch(url, {
-            headers: { 'Range': 'bytes=0-10' },
-            signal: AbortSignal.timeout(4000),
-        });
-        return testRes.status === 200 || testRes.status === 206;
-    } catch {
-        return false;
+        const parsed = new URL(rawUrl);
+        const issuer = parsed.searchParams.get('issuer');
+        if (issuer) {
+            return rawUrl.replace(/^https:\/\/[^\/]+/, `https://${issuer}`);
+        }
+    } catch {}
+    if (instance) {
+        return rawUrl.replace(/^https:\/\/[^\/]+/, instance);
     }
+    return rawUrl;
 }
 
 function formatResponse(audioFormat: any, streamUrl: string, videoData: any, videoId: string, instance: string) {
@@ -66,28 +69,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (audioFormats.length > 0) {
             audioFormats.sort((a: any, b: any) => (parseInt(b.bitrate) || 0) - (parseInt(a.bitrate) || 0));
             const bestAudio = audioFormats[0];
-
-            let streamUrl = bestAudio.url;
-            if (streamUrl && instance) {
-                streamUrl = streamUrl.replace(/^https:\/\/[^\/]+/, instance);
-            }
-
-            const playable = await isStreamPlayable(streamUrl);
-            if (playable) {
-                return res.status(200).json(formatResponse(bestAudio, streamUrl, data, videoId, instance));
-            }
+            const streamUrl = resolveStreamUrl(bestAudio.url, instance);
+            return res.status(200).json(formatResponse(bestAudio, streamUrl, data, videoId, instance));
         } else {
             const formatStreams = (data.formatStreams || []).filter((f: any) => f.url);
             if (formatStreams.length > 0) {
                 const stream = formatStreams[0];
-                let streamUrl = stream.url;
-                if (streamUrl && instance) {
-                    streamUrl = streamUrl.replace(/^https:\/\/[^\/]+/, instance);
-                }
-                const playable = await isStreamPlayable(streamUrl);
-                if (playable) {
-                    return res.status(200).json(formatResponse(stream, streamUrl, data, videoId, instance));
-                }
+                const streamUrl = resolveStreamUrl(stream.url, instance);
+                return res.status(200).json(formatResponse(stream, streamUrl, data, videoId, instance));
             }
         }
     }
@@ -123,21 +112,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                         cAudioFormats.sort(
                             (a: any, b: any) => (parseInt(b.bitrate) || 0) - (parseInt(a.bitrate) || 0)
                         );
-                        let cStreamUrl = cAudioFormats[0].url;
-                        if (cStreamUrl && candidateVideo.instance) {
-                            cStreamUrl = cStreamUrl.replace(/^https:\/\/[^\/]+/, candidateVideo.instance);
-                        }
-                        if (await isStreamPlayable(cStreamUrl)) {
-                            return res.status(200).json(
-                                formatResponse(
-                                    cAudioFormats[0],
-                                    cStreamUrl,
-                                    candidateVideo.data,
-                                    cid,
-                                    candidateVideo.instance
-                                )
-                            );
-                        }
+                        const cStreamUrl = resolveStreamUrl(cAudioFormats[0].url, candidateVideo.instance);
+                        return res.status(200).json(
+                            formatResponse(
+                                cAudioFormats[0],
+                                cStreamUrl,
+                                candidateVideo.data,
+                                cid,
+                                candidateVideo.instance
+                            )
+                        );
                     }
                 } catch {}
             }
@@ -153,10 +137,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (audioFormats.length > 0) {
             audioFormats.sort((a: any, b: any) => (parseInt(b.bitrate) || 0) - (parseInt(a.bitrate) || 0));
             const bestAudio = audioFormats[0];
-            let streamUrl = bestAudio.url;
-            if (streamUrl && instance) {
-                streamUrl = streamUrl.replace(/^https:\/\/[^\/]+/, instance);
-            }
+            const streamUrl = resolveStreamUrl(bestAudio.url, instance);
             return res.status(200).json(formatResponse(bestAudio, streamUrl, data, videoId, instance));
         }
     }

@@ -30,25 +30,43 @@ function buildCompanionUrl(rawUrl: string, companion: string): string {
 async function fetchCompanionWithFailover(
     rawUrl: string,
     isHead: boolean,
-    preferredCompanion?: string
+    preferredCompanion?: string,
+    clientRange?: string
 ): Promise<{ response: Response; companion: string } | null> {
-    const companionsToTry =
-        preferredCompanion && HEALTHY_COMPANIONS.includes(preferredCompanion)
-            ? [preferredCompanion, ...HEALTHY_COMPANIONS.filter((c) => c !== preferredCompanion)]
-            : [...HEALTHY_COMPANIONS];
+    const parsed = new URL(rawUrl);
+    const existingIssuer = parsed.searchParams.get('issuer');
+    const firstChoice =
+        existingIssuer && HEALTHY_COMPANIONS.includes(existingIssuer)
+            ? existingIssuer
+            : preferredCompanion && HEALTHY_COMPANIONS.includes(preferredCompanion)
+            ? preferredCompanion
+            : null;
+
+    const companionsToTry = firstChoice
+        ? [firstChoice, ...HEALTHY_COMPANIONS.filter((c) => c !== firstChoice)]
+        : [...HEALTHY_COMPANIONS];
+
+    const rangeValue = clientRange || 'bytes=0-';
 
     for (const companion of companionsToTry) {
         try {
             const compUrl = buildCompanionUrl(rawUrl, companion);
+            const controller = new AbortController();
+            const timer = setTimeout(() => controller.abort(), 4000);
+
             const res = await fetch(compUrl, {
                 method: isHead ? 'HEAD' : 'GET',
+                signal: controller.signal,
                 headers: {
                     'User-Agent':
                         'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
                     'Referer': 'https://yt.chocolatemoo53.com/',
+                    'Range': rangeValue,
                 },
             });
-            if (res.ok) {
+            clearTimeout(timer);
+
+            if (res.ok || res.status === 206) {
                 return { response: res, companion };
             }
             if (res.status !== 403 && res.status !== 429 && res.status !== 503) {
@@ -57,6 +75,32 @@ async function fetchCompanionWithFailover(
         } catch (_) {}
     }
     return null;
+}
+
+// Early-resolving helper: returns first truthy candidate
+async function findFirstValid<T>(promises: Promise<T | null>[]): Promise<T | null> {
+    return new Promise((resolve) => {
+        let remaining = promises.length;
+        if (remaining === 0) return resolve(null);
+        let resolved = false;
+
+        promises.forEach((p) => {
+            p.then((val) => {
+                if (resolved) return;
+                if (val) {
+                    resolved = true;
+                    resolve(val);
+                } else {
+                    remaining--;
+                    if (remaining === 0) resolve(null);
+                }
+            }).catch(() => {
+                if (resolved) return;
+                remaining--;
+                if (remaining === 0) resolve(null);
+            });
+        });
+    });
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -79,11 +123,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const titleParam = typeof req.query.title === 'string' ? req.query.title.trim() : '';
     const artistParam = typeof req.query.artist === 'string' ? req.query.artist.trim() : '';
+    const clientRange = typeof req.headers.range === 'string' ? req.headers.range : undefined;
+    const isHead = req.method === 'HEAD';
 
     try {
         let data: any = null;
         try {
-            const vidResult = await fetchWithFailover((base) => `${base}/api/v1/videos/${videoId}`, 4000);
+            const vidResult = await fetchWithFailover((base) => `${base}/api/v1/videos/${videoId}`, 3500);
             data = vidResult.data;
         } catch (directErr) {
             console.warn(`[YouTube Download] Direct lookup failed for ${videoId}:`, directErr);
@@ -97,7 +143,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         let audioRes: Response | null = null;
         let mimeType = 'audio/webm';
         let ext = 'opus';
-        const isHead = req.method === 'HEAD';
 
         // 1. Try direct video audio formats if unexpired
         if (unexpiredAudio.length > 0) {
@@ -111,14 +156,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 hash = (hash << 5) - hash + videoId.charCodeAt(i);
             }
             const preferred = HEALTHY_COMPANIONS[Math.abs(hash) % HEALTHY_COMPANIONS.length];
-            const fetchResult = await fetchCompanionWithFailover(bestAudio.url, isHead, preferred);
-            if (fetchResult && fetchResult.response.ok) {
+            const fetchResult = await fetchCompanionWithFailover(bestAudio.url, isHead, preferred, clientRange);
+            if (fetchResult && (fetchResult.response.ok || fetchResult.response.status === 206)) {
                 audioRes = fetchResult.response;
             }
         }
 
         // 2. Candidate failover: if direct audio was expired or companion fetch failed, search matching uploads
-        if (!audioRes || !audioRes.ok) {
+        if (!audioRes || (!audioRes.ok && audioRes.status !== 206)) {
             console.log(`[YouTube Download] Direct audio unavailable for ${videoId}; initiating candidate failover search`);
             const cleanTitle = (titleParam || data?.title || '').trim();
             const cleanArt = (artistParam || data?.author || '').replace(/\s*-\s*Topic\b/gi, '').trim();
@@ -131,42 +176,59 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 try {
                     const searchRes = await fetchWithFailover(
                         (base) => `${base}/api/v1/search?q=${encodeURIComponent(query)}&type=video`,
-                        3500
+                        3000
                     );
                     const candidates = Array.isArray(searchRes.data)
                         ? searchRes.data.filter((item: any) => (item.videoId || item.id) !== videoId)
                         : [];
 
-                    for (const candidate of candidates.slice(0, 4)) {
-                        const cid = candidate.videoId || candidate.id;
-                        if (!cid) continue;
-                        try {
-                            const cVideo = await fetchWithFailover(
-                                (base) => `${base}/api/v1/videos/${cid}`,
-                                3500
-                            );
-                            const cAdaptive = (cVideo.data?.adaptiveFormats || []).filter(
-                                (f: any) => f.type && f.type.startsWith('audio') && f.url && !isFormatExpired(f.url)
-                            );
-                            if (cAdaptive.length > 0) {
+                    if (candidates.length === 0) continue;
+
+                    // Query candidate videos in parallel with early exit
+                    const match = await findFirstValid(
+                        candidates.slice(0, 5).map(async (candidate: any) => {
+                            const cid = candidate.videoId || candidate.id;
+                            if (!cid) return null;
+                            try {
+                                const cVideo = await fetchWithFailover(
+                                    (base) => `${base}/api/v1/videos/${cid}`,
+                                    3500
+                                );
+                                const cAdaptive = (cVideo.data?.adaptiveFormats || []).filter(
+                                    (f: any) => f.type && f.type.startsWith('audio') && f.url && !isFormatExpired(f.url)
+                                );
+                                if (cAdaptive.length === 0) return null;
+
                                 cAdaptive.sort((a: any, b: any) => (parseInt(b.bitrate) || 0) - (parseInt(a.bitrate) || 0));
                                 const bestCandidateAudio = cAdaptive[0];
-                                const candidateFetch = await fetchCompanionWithFailover(bestCandidateAudio.url, isHead);
-                                if (candidateFetch && candidateFetch.response.ok) {
-                                    audioRes = candidateFetch.response;
-                                    mimeType = bestCandidateAudio.type?.split(';')[0] || 'audio/webm';
-                                    ext = mimeType.includes('mp4') || mimeType.includes('m4a') ? 'm4a' : 'opus';
-                                    break;
+                                const candidateFetch = await fetchCompanionWithFailover(
+                                    bestCandidateAudio.url,
+                                    isHead,
+                                    undefined,
+                                    clientRange
+                                );
+                                if (candidateFetch && (candidateFetch.response.ok || candidateFetch.response.status === 206)) {
+                                    return {
+                                        response: candidateFetch.response,
+                                        format: bestCandidateAudio,
+                                    };
                                 }
-                            }
-                        } catch (_) {}
+                            } catch (_) {}
+                            return null;
+                        })
+                    );
+
+                    if (match) {
+                        audioRes = match.response;
+                        mimeType = match.format.type?.split(';')[0] || 'audio/webm';
+                        ext = mimeType.includes('mp4') || mimeType.includes('m4a') ? 'm4a' : 'opus';
+                        break;
                     }
-                    if (audioRes && audioRes.ok) break;
                 } catch (_) {}
             }
         }
 
-        if (!audioRes || !audioRes.ok) {
+        if (!audioRes || (!audioRes.ok && audioRes.status !== 206)) {
             const status = audioRes ? audioRes.status : 404;
             return res.status(status).json({ error: `Failed to download audio stream (HTTP ${status})` });
         }
@@ -179,7 +241,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         );
         const safeFilename = `${cleanBase}.${ext}`;
 
-        res.status(audioRes.status);
+        const hasClientRange = Boolean(req.headers.range);
+        const finalStatus = hasClientRange ? audioRes.status : audioRes.status === 206 ? 200 : audioRes.status;
+        res.status(finalStatus);
         res.setHeader('Content-Type', mimeType);
         res.setHeader(
             'Content-Disposition',
@@ -189,7 +253,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         );
         res.setHeader('Access-Control-Allow-Origin', '*');
         res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
-        res.setHeader('Access-Control-Expose-Headers', 'Content-Length, Content-Disposition, Content-Type');
+        res.setHeader(
+            'Access-Control-Expose-Headers',
+            'Content-Length, Content-Disposition, Content-Type, Content-Range, Accept-Ranges'
+        );
+        res.setHeader('Accept-Ranges', 'bytes');
+
+        const cr = audioRes.headers.get('content-range');
+        if (cr && hasClientRange) res.setHeader('Content-Range', cr);
 
         const cl = audioRes.headers.get('content-length');
         if (cl) res.setHeader('Content-Length', cl);

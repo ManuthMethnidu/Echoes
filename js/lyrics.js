@@ -24,25 +24,16 @@ function applyBlurEffectsPreferenceToLyrics() {
 window.addEventListener('disable-blur-effects-changed', applyBlurEffectsPreferenceToLyrics);
 
 const loadAmLyrics = () => {
-    const images = Array.from(document.images).filter((img) => !img.complete);
-    if (images.length === 0) {
-        import('@uimaxbai/am-lyrics/am-lyrics.js').catch(console.error);
-    } else {
-        Promise.all(
-            images.map(
-                (img) =>
-                    new Promise((res) => {
-                        img.onload = img.onerror = res;
-                    })
-            )
-        ).then(() => import('@uimaxbai/am-lyrics/am-lyrics.js').catch(console.error));
-    }
+    import('@uimaxbai/am-lyrics/am-lyrics.js').catch(console.error);
 };
 
-if (document.readyState === 'complete') {
-    loadAmLyrics();
-} else {
-    window.addEventListener('load', loadAmLyrics);
+if (typeof window !== 'undefined') {
+    if (document.readyState === 'complete') {
+        loadAmLyrics();
+    } else {
+        window.addEventListener('load', loadAmLyrics, { once: true });
+        setTimeout(loadAmLyrics, 2000);
+    }
 }
 
 export const SUPPORTED_TRANSLATION_LANGUAGES = [

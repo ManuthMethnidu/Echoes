@@ -222,28 +222,10 @@ export class Player {
 
     async _initShaka() {
         try {
-            const waitForImagesLoading = () => {
-                const images = Array.from(document.images).filter((img) => !img.complete);
-                if (images.length === 0) return Promise.resolve();
-                return Promise.all(
-                    images.map(
-                        (img) =>
-                            new Promise((res) => {
-                                img.onload = img.onerror = res;
-                            })
-                    )
-                );
-            };
-
-            if (document.readyState !== 'complete') {
-                await new Promise((resolve) => window.addEventListener('load', resolve));
-            }
-            await waitForImagesLoading();
-
             const shaka = await import('shaka-player');
             shaka.polyfill.installAll();
             if (!shaka.Player.isBrowserSupported()) {
-                console.error('Browser not supported for Shaka Player');
+                console.warn('Browser not supported for Shaka Player');
                 return;
             }
 
@@ -1175,7 +1157,11 @@ export class Player {
     }
 
     async playTrackFromQueue(startTime = 0, recursiveCount = 0, isRetry = false, options = {}) {
-        await this.shakaReady;
+        // Do not block playback on Shaka Player; Shaka is only required for DASH streams
+        await Promise.race([
+            this.shakaReady,
+            new Promise((resolve) => setTimeout(resolve, 200)),
+        ]).catch(() => {});
         const { preserveGestureToken = false, preparedPlayback = null } = options;
         if (!isRetry) {
             this.isFallbackRetry = false;
@@ -1694,6 +1680,10 @@ export class Player {
                         activeElement.dispatchEvent(new Event('play'));
                     }
                 } else if (shouldUseShaka) {
+                    await this.shakaReady;
+                    if (!this.shakaPlayer) {
+                        throw new Error('Shaka Player is not available');
+                    }
                     // It's likely a DASH manifest URL
                     if (this.shakaPlayer.getMediaElement() !== activeElement) {
                         await this.shakaPlayer.attach(activeElement);

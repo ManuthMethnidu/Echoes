@@ -493,7 +493,16 @@ class AudioContextManager {
                 this.audioContext = new AudioContext();
             }
 
-            if (true) {
+            if (typeof navigator !== 'undefined' && 'audioSession' in navigator) {
+                try {
+                    navigator.audioSession.type = 'playback';
+                } catch {}
+            }
+
+            const isApple = isIos || isSafari;
+            const needsDsp = this.isEQEnabled || this.isGraphicEQEnabled || this.isMonoAudioEnabled || this.isBinauralEnabled;
+
+            if (!isApple || needsDsp) {
                 if (!this.sources.has(audioElement)) {
                     const src = this.audioContext.createMediaElementSource(audioElement);
                     this.sources.set(audioElement, src);
@@ -513,6 +522,8 @@ class AudioContextManager {
 
                 this.binauralDsp = new BinauralDSP(this.audioContext);
                 void this._loadBinauralSettings();
+            } else {
+                this.source = null;
             }
 
             this.analyser = this.audioContext.createAnalyser();
@@ -563,7 +574,11 @@ class AudioContextManager {
         }
         if (this.audio === audioElement) return;
 
-        if (true) {
+        this.audio = audioElement;
+        const isApple = isIos || isSafari;
+        const needsDsp = this.isEQEnabled || this.isGraphicEQEnabled || this.isMonoAudioEnabled || this.isBinauralEnabled;
+
+        if (!isApple || needsDsp) {
             try {
                 if (this.source) {
                     try {
@@ -571,11 +586,6 @@ class AudioContextManager {
                     } catch {
                         // node may already be disconnected
                     }
-                }
-
-                this.audio = audioElement;
-                if (audioElement && !audioElement.crossOrigin) {
-                    audioElement.crossOrigin = 'anonymous';
                 }
 
                 if (!this.sources.has(audioElement)) {
@@ -590,7 +600,12 @@ class AudioContextManager {
                 console.warn('changeSource failed:', e);
             }
         } else {
-            this.audio = audioElement;
+            if (this.source) {
+                try {
+                    this.source.disconnect();
+                } catch {}
+                this.source = null;
+            }
         }
     }
 
@@ -630,6 +645,17 @@ class AudioContextManager {
      * the new chain is wired up first, then the old connections are torn down.
      */
     _connectGraph() {
+        const needsDsp = this.isEQEnabled || this.isGraphicEQEnabled || this.isMonoAudioEnabled || this.isBinauralEnabled;
+        if (!this.source && this.audioContext && this.audio && needsDsp) {
+            try {
+                if (!this.sources.has(this.audio)) {
+                    this.sources.set(this.audio, this.audioContext.createMediaElementSource(this.audio));
+                }
+                this.source = this.sources.get(this.audio);
+            } catch (e) {
+                console.warn('[AudioContext] Could not attach media element source for DSP:', e);
+            }
+        }
         if (!this.isInitialized || !this.source || !this.audioContext) return;
 
         if (this.geqFilters.length === 0 && this.isGraphicEQEnabled) {

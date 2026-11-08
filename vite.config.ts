@@ -95,7 +95,7 @@ export default defineConfig(({ mode }) => {
             blobAssetPlugin(),
             svgUse(),
             VitePWA({
-                registerType: 'prompt',
+                registerType: 'autoUpdate',
                 devOptions: {
                     enabled: false,
                     type: 'classic',
@@ -103,8 +103,8 @@ export default defineConfig(({ mode }) => {
                     suppressWarnings: true,
                 },
                 workbox: {
-                    skipWaiting: false,
-                    clientsClaim: false,
+                    skipWaiting: true,
+                    clientsClaim: true,
                     globPatterns: ['index.html', 'manifest.json'],
                     cleanupOutdatedCaches: true,
                     maximumFileSizeToCacheInBytes: 3 * 1024 * 1024, // 3 MiB limit
@@ -115,12 +115,12 @@ export default defineConfig(({ mode }) => {
                         {
                             urlPattern: ({ request }) =>
                                 request.destination === 'script' || request.destination === 'worker',
-                            handler: isDev ? 'NetworkFirst' : 'CacheFirst',
+                            handler: 'NetworkFirst',
                             options: {
                                 cacheName: 'scripts',
                                 expiration: {
                                     maxEntries: 200,
-                                    maxAgeSeconds: 60 * 24 * 60 * 60,
+                                    maxAgeSeconds: 7 * 24 * 60 * 60,
                                 },
                             },
                         },
@@ -145,19 +145,6 @@ export default defineConfig(({ mode }) => {
                                     maxEntries: 500,
                                     maxAgeSeconds: 30 * 24 * 60 * 60, // 30 Days
                                 },
-                            },
-                        },
-                        {
-                            urlPattern: ({ request }) =>
-                                request.destination === 'audio' || request.destination === 'video',
-                            handler: 'CacheFirst',
-                            options: {
-                                cacheName: 'media',
-                                expiration: {
-                                    maxEntries: 50,
-                                    maxAgeSeconds: 60 * 24 * 60 * 60, // 60 Days
-                                },
-                                rangeRequests: true, // Support scrubbing
                             },
                         },
                     ],

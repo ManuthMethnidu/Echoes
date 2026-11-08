@@ -297,6 +297,11 @@ async function clearDevPwaRuntimeCaches() {
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
+    // Clear any stale media cache poisoned by previous Service Worker configurations
+    if (typeof window !== 'undefined' && 'caches' in window) {
+        caches.delete('media').catch(() => {});
+    }
+
     await modernSettings.waitPending();
 
     // Initialize Lenis smooth scrolling and motion

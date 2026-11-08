@@ -3,6 +3,49 @@ import { fetchWithFailover } from '../../_lib/invidious.js';
 import { Readable } from 'stream';
 import { sanitizeFilename } from '../../_lib/sanitize.js';
 
+const HEALTHY_COMPANIONS = [
+    'yt-comp1.chocolatemoo53.com',
+    'yt-comp2.chocolatemoo53.com',
+    'yt-comp3.chocolatemoo53.com',
+    'yt-comp4.chocolatemoo53.com',
+    'yt-comp5.chocolatemoo53.com',
+];
+
+function resolveStreamUrl(rawUrl: string, videoId?: string): string {
+    if (!rawUrl) return rawUrl;
+    try {
+        const parsed = new URL(rawUrl);
+        let origHost = parsed.hostname;
+        if (!origHost.includes('googlevideo.com')) {
+            const mvi = parsed.searchParams.get('mvi') || '1';
+            const mn = parsed.searchParams.get('mn')?.split(',')[0];
+            if (mn) {
+                origHost = `rr${mvi}---${mn}.googlevideo.com`;
+            }
+        }
+        parsed.searchParams.set('host', origHost);
+
+        let companion = '';
+        const existingIssuer = parsed.searchParams.get('issuer');
+        if (existingIssuer && HEALTHY_COMPANIONS.includes(existingIssuer)) {
+            companion = existingIssuer;
+        } else if (videoId) {
+            let hash = 0;
+            for (let i = 0; i < videoId.length; i++) {
+                hash = (hash << 5) - hash + videoId.charCodeAt(i);
+            }
+            const idx = Math.abs(hash) % HEALTHY_COMPANIONS.length;
+            companion = HEALTHY_COMPANIONS[idx];
+        } else {
+            companion = HEALTHY_COMPANIONS[Math.floor(Math.random() * HEALTHY_COMPANIONS.length)];
+        }
+
+        parsed.searchParams.delete('issuer');
+        return `https://${companion}${parsed.pathname}${parsed.search}`;
+    } catch {}
+    return rawUrl;
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method === 'OPTIONS') {
         res.setHeader('Access-Control-Allow-Origin', '*');
@@ -51,27 +94,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
 
         if (streamUrl) {
-            try {
-                const parsed = new URL(streamUrl);
-                const issuer = parsed.searchParams.get('issuer');
-                if (issuer && issuer.trim().length > 3) {
-                    streamUrl = streamUrl.replace(/^https:\/\/[^\/]+/, `https://${issuer.trim()}`);
-                } else if (instance) {
-                    if (streamUrl.startsWith('/')) {
-                        streamUrl = `${instance}${streamUrl}`;
-                    } else {
-                        streamUrl = streamUrl.replace(/^https:\/\/[^\/]+/, instance);
-                    }
-                }
-            } catch {
-                if (instance) {
-                    if (streamUrl.startsWith('/')) {
-                        streamUrl = `${instance}${streamUrl}`;
-                    } else {
-                        streamUrl = streamUrl.replace(/^https:\/\/[^\/]+/, instance);
-                    }
-                }
-            }
+            streamUrl = resolveStreamUrl(streamUrl, videoId);
         }
 
         const cleanBase = sanitizeFilename(

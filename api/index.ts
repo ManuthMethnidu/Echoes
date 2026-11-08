@@ -79,15 +79,6 @@ const STATIC_ROUTES: Record<string, ApiHandler> = {
     'upload/image': uploadImageHandler,
     'upload': uploadImageHandler,
     'artwork': artworkHandler,
-    'test-innertube': async (req: VercelRequest, res: VercelResponse) => {
-        try {
-            const ipRes = await fetch('https://ifconfig.me/ip');
-            const ip = await ipRes.text();
-            return res.status(200).json({ vercelIp: ip.trim() });
-        } catch (e: any) {
-            return res.status(500).json({ error: e.message });
-        }
-    },
 };
 
 function extractRoute(req: VercelRequest): string {

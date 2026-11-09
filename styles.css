@@ -12039,29 +12039,54 @@ body:has(#side-panel.active) #close-fullscreen-cover-btn {
     border: 0;
 }
 
-#fullscreen-cover-overlay.lyrics-unavailable .fullscreen-lyrics-pane {
-    opacity: 0.55;
-}
-
-#fullscreen-cover-overlay.lyrics-hidden .fullscreen-main-view {
-    --fs-media-column-size: minmax(420px, 760px);
-    --fs-lyrics-column-size: minmax(0, 0fr);
-
-    width: min(760px, 100%);
-    gap: 0;
-}
-
-#fullscreen-cover-overlay.lyrics-hidden .fullscreen-media-column {
-    justify-self: center;
-    width: min(520px, 100%);
-    transform: translateX(clamp(2rem, 4vw, 3.5rem));
-}
-
+#fullscreen-cover-overlay.lyrics-unavailable .fullscreen-lyrics-pane,
 #fullscreen-cover-overlay.lyrics-hidden .fullscreen-lyrics-pane {
-    opacity: 0;
-    transform: translateX(2rem);
-    visibility: hidden;
-    pointer-events: none;
+    display: none !important;
+}
+
+#fullscreen-cover-overlay.lyrics-hidden .fullscreen-main-view,
+#fullscreen-cover-overlay.lyrics-unavailable .fullscreen-main-view {
+    grid-template-columns: minmax(0, 1fr);
+    width: min(640px, 100%);
+    max-width: 100%;
+    margin: 0 auto;
+    gap: 0;
+    justify-items: center;
+    align-items: center;
+}
+
+#fullscreen-cover-overlay.lyrics-hidden .fullscreen-media-column,
+#fullscreen-cover-overlay.lyrics-unavailable .fullscreen-media-column {
+    justify-self: center;
+    align-items: center;
+    text-align: center;
+    width: min(520px, 100%);
+    margin: 0 auto;
+    transform: none;
+}
+
+#fullscreen-cover-overlay.lyrics-hidden .fullscreen-artwork-card,
+#fullscreen-cover-overlay.lyrics-unavailable .fullscreen-artwork-card {
+    margin: 0 auto;
+    align-self: center;
+}
+
+#fullscreen-cover-overlay.lyrics-hidden .fullscreen-track-info,
+#fullscreen-cover-overlay.lyrics-unavailable .fullscreen-track-info {
+    text-align: center;
+    align-items: center;
+    margin: 0 auto;
+}
+
+#fullscreen-cover-overlay.lyrics-hidden .fullscreen-track-text,
+#fullscreen-cover-overlay.lyrics-unavailable .fullscreen-track-text {
+    text-align: center;
+    justify-items: center;
+}
+
+#fullscreen-cover-overlay.lyrics-hidden .fullscreen-controls,
+#fullscreen-cover-overlay.lyrics-unavailable .fullscreen-controls {
+    margin: 0 auto;
 }
 
 @media (prefers-reduced-motion: reduce) {

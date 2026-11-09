@@ -133,6 +133,10 @@ export function createRouter(ui) {
                     await ui.renderPodcastsBrowsePage();
                 }
                 break;
+            case 'explore':
+            case 'browse':
+                await ui.renderExplorePage();
+                break;
             case 'home':
                 await ui.renderHomePage();
                 break;

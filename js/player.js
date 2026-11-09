@@ -1395,6 +1395,10 @@ export class Player {
                 this.currentRgValues = null;
                 this.applyReplayGain();
 
+                // Remove crossOrigin for podcasts since third-party podcast hosts often do not send CORS headers
+                activeElement.removeAttribute('crossorigin');
+                activeElement.crossOrigin = null;
+
                 activeElement.src = streamUrl;
                 this.applyAudioEffects();
 
@@ -1439,6 +1443,10 @@ export class Player {
 
                 this.currentRgValues = null;
                 this.applyReplayGain();
+
+                // Remove crossOrigin for podcasts since third-party podcast hosts often do not send CORS headers
+                activeElement.removeAttribute('crossorigin');
+                activeElement.crossOrigin = null;
 
                 activeElement.src = streamUrl;
                 this.applyAudioEffects();

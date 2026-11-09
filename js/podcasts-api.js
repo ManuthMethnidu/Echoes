@@ -51,10 +51,13 @@ export class PodcastsAPI {
                 return { items: [], total: 0 };
             }
 
-            const podcasts = data.feeds.map((feed) => this.transformPodcast(feed));
+            const validFeeds = data.feeds.filter(
+                (feed) => feed && (feed.episodeCount === undefined || feed.episodeCount > 0) && feed.dead !== 1
+            );
+            const podcasts = validFeeds.map((feed) => this.transformPodcast(feed));
             return {
                 items: podcasts,
-                total: data.count || podcasts.length,
+                total: validFeeds.length,
             };
         } catch (error) {
             if (error.name === 'AbortError') throw error;
@@ -76,10 +79,13 @@ export class PodcastsAPI {
                 return { items: [], total: 0 };
             }
 
-            const podcasts = data.feeds.map((feed) => this.transformPodcast(feed));
+            const validFeeds = data.feeds.filter(
+                (feed) => feed && (feed.episodeCount === undefined || feed.episodeCount > 0) && feed.dead !== 1
+            );
+            const podcasts = validFeeds.map((feed) => this.transformPodcast(feed));
             return {
                 items: podcasts,
-                total: data.count || podcasts.length,
+                total: validFeeds.length,
             };
         } catch (error) {
             if (error.name === 'AbortError') throw error;
@@ -147,10 +153,13 @@ export class PodcastsAPI {
                 return { items: [], total: 0 };
             }
 
-            const podcasts = data.feeds.map((feed) => this.transformPodcast(feed));
+            const validFeeds = data.feeds.filter(
+                (feed) => feed && (feed.episodeCount === undefined || feed.episodeCount > 0) && feed.dead !== 1
+            );
+            const podcasts = validFeeds.map((feed) => this.transformPodcast(feed));
             return {
                 items: podcasts,
-                total: data.count || podcasts.length,
+                total: validFeeds.length,
             };
         } catch (error) {
             if (error.name === 'AbortError') throw error;
@@ -174,12 +183,19 @@ export class PodcastsAPI {
     }
 
     transformPodcast(feed) {
+        const rawDesc = feed.description || '';
+        const cleanDesc = rawDesc
+            .replace(/<[^>]*>/g, '')
+            .replace(/&[a-z0-9]+;/gi, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+
         return {
             id: feed.id?.toString() || '',
             podcastGuid: feed.podcastGuid || '',
             title: feed.title || 'Unknown Podcast',
             author: feed.author || feed.ownerName || '',
-            description: feed.description || '',
+            description: cleanDesc,
             image: feed.image || feed.artwork || '',
             link: feed.link || '',
             feedUrl: feed.url || '',
@@ -203,10 +219,17 @@ export class PodcastsAPI {
     }
 
     transformEpisode(item) {
+        const rawDesc = item.description || '';
+        const cleanDesc = rawDesc
+            .replace(/<[^>]*>/g, '')
+            .replace(/&[a-z0-9]+;/gi, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+
         return {
             id: item.id?.toString() || '',
             title: item.title || 'Unknown Episode',
-            description: item.description || '',
+            description: cleanDesc,
             link: item.link || '',
             guid: item.guid || '',
             datePublished: item.datePublished || 0,
@@ -219,7 +242,7 @@ export class PodcastsAPI {
             episode: item.episode || null,
             episodeType: item.episodeType || 'full',
             season: item.season || null,
-            image: item.image || '',
+            image: item.image || item.feedImage || '',
             feedId: item.feedId || null,
             feedTitle: item.feedTitle || '',
             feedImage: item.feedImage || '',

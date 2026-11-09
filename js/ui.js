@@ -2729,7 +2729,9 @@ export class UIRenderer {
         document.querySelectorAll('.sidebar-nav a').forEach((link) => {
             link.classList.toggle(
                 'active',
-                link.pathname === `/${pageId}` || (pageId === 'home' && link.pathname === '/')
+                link.pathname === `/${pageId}` ||
+                (pageId === 'home' && link.pathname === '/') ||
+                (pageId === 'explore' && (link.pathname === '/explore' || link.pathname === '/browse'))
             );
         });
 
@@ -3427,7 +3429,9 @@ export class UIRenderer {
                     return;
                 }
                 if (tab.dataset.tab === 'explore') {
-                    await this.renderExplorePage();
+                    const { navigate } = await import('./router.js');
+                    navigate('/explore');
+                    return;
                 }
                 if (tab.dataset.tab === 'editors-picks') {
                     await this.renderHomeEditorsPicks(false, 'home-editors-picks');
@@ -3440,77 +3444,10 @@ export class UIRenderer {
     }
 
     async renderExplorePage() {
-        const container = document.getElementById('explore-grid');
-        if (!container) return;
-
-        if (container.children.length > 0) return;
-
-        container.classList.remove('card-grid');
-        container.innerHTML = `<div class="card-grid">${this.createSkeletonCards(12)}</div>`;
-
-        try {
-            container.innerHTML = '';
-
-            const GENRES = [
-                { id: 'hip_hop', name: 'Hip-Hop' },
-                { id: 'rnb', name: 'R&B / Soul' },
-                { id: 'blues', name: 'Blues' },
-                { id: 'classical', name: 'Classical' },
-                { id: 'country', name: 'Country' },
-                { id: 'dance_electronic', name: 'Dance & Electronic' },
-                { id: 'americana', name: 'Folk / Americana' },
-                { id: 'world', name: 'Global' },
-                { id: 'gospel', name: 'Gospel / Christian' },
-                { id: 'jazz', name: 'Jazz' },
-                { id: 'kpop', name: 'K-Pop' },
-                { id: 'kids', name: 'Kids' },
-                { id: 'latin', name: 'Latin' },
-                { id: 'metal', name: 'Metal' },
-                { id: 'pop', name: 'Pop' },
-                { id: 'reggae', name: 'Reggae / Dancehall' },
-                { id: 'retro', name: 'Legacy' },
-                { id: 'indierock', name: 'Rock / Indie' },
-            ];
-
-            if (GENRES.length > 0) {
-                const genresSection = document.createElement('section');
-                genresSection.className = 'content-section';
-                genresSection.innerHTML = `<h2 class="section-title">Genres</h2>`;
-
-                const genresGrid = document.createElement('div');
-                genresGrid.style.display = 'flex';
-                genresGrid.style.flexWrap = 'wrap';
-                genresGrid.style.gap = '0.5rem';
-                genresGrid.innerHTML = GENRES.map(
-                    (genre) => `
-                    <div class="card genre-card" data-genre-id="${genre.id}" data-genre-name="${escapeHtml(genre.name)}" style="cursor: pointer; background: var(--secondary); padding: 0.6rem 1rem; border-radius: var(--radius); border: 1px solid var(--border);">
-                        <h3 style="margin: 0; font-size: 0.875rem; font-weight: 600;">${escapeHtml(genre.name)}</h3>
-                    </div>
-                `
-                ).join('');
-
-                genresSection.appendChild(genresGrid);
-                container.appendChild(genresSection);
-
-                for (const card of genresGrid.querySelectorAll('.genre-card')) {
-                    card.addEventListener('click', async () => {
-                        await this.renderGenrePage(card.dataset.genreId, card.dataset.genreName);
-                    });
-                }
-            }
-
-            const trending = await this.api.searchTracks('Top Music Hits 2026');
-            if (trending?.items?.length > 0) {
-                await this.renderExploreSection(container, 'Trending Tracks', trending.items.slice(0, 20), 'track');
-            }
-
-            if (container.children.length === 0) {
-                container.innerHTML = createPlaceholder('No explore content available.');
-            }
-        } catch (e) {
-            console.error(e);
-            container.innerHTML = createPlaceholder('Failed to load explore content.');
-        }
+        await this.showPage('explore');
+        document.title = 'Browse - Echoes';
+        const { exploreFeed } = await import('./explore-feed.js');
+        await exploreFeed.render(this);
     }
 
     async renderAOTYPage() {
@@ -4534,15 +4471,14 @@ export class UIRenderer {
     }
 
     async renderGenrePage(genreId, genreName) {
-        const container = document.getElementById('explore-grid');
+        await this.showPage('explore');
+        const container = document.getElementById('explore-view-container') || document.getElementById('explore-grid');
         if (!container) return;
-
-        container.classList.remove('card-grid');
 
         container.innerHTML = `
             <div style="margin-bottom: 1.5rem; display: flex; align-items: center; gap: 1rem;">
-                <button class="btn-secondary explore-back-btn" style="display: flex; align-items: center; gap: 0.5rem;">
-                    ${SVG_LEFT_ARROW(20)}
+                <button class="btn-secondary explore-back-btn" style="display: flex; align-items: center; gap: 0.5rem; padding: 6px 14px; border-radius: 999px; cursor: pointer;">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"></polyline></svg>
                     Back
                 </button>
                 <h2 class="section-title" style="margin: 0;">${escapeHtml(genreName)}</h2>
@@ -4551,7 +4487,6 @@ export class UIRenderer {
         `;
 
         container.querySelector('.explore-back-btn').addEventListener('click', async () => {
-            container.innerHTML = '';
             await this.renderExplorePage();
         });
 
@@ -8538,7 +8473,10 @@ export class UIRenderer {
                 metaEl.textContent = `${podcastResult.episodeCount} episodes • ${podcastResult.author}`;
                 if (podcastResult.image) {
                     imageEl.src = podcastResult.image;
+                    imageEl.onerror = () => { imageEl.src = '/images/default-cover.png'; };
                     this.setPageBackground(podcastResult.image);
+                } else {
+                    imageEl.src = '/images/default-cover.png';
                 }
 
                 this.podcastState.podcastTitle = podcastResult.title;
@@ -8622,22 +8560,24 @@ export class UIRenderer {
         const title = escapeHtml(podcast.title || 'Unknown Podcast');
         const author = escapeHtml(podcast.author || '');
         const image = podcast.image || '';
-        const description = escapeHtml((podcast.description || '').substring(0, 120));
+        const rawDesc = (podcast.description || '')
+            .replace(/<[^>]*>/g, '')
+            .replace(/&[a-z0-9]+;/gi, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+        const description = escapeHtml(rawDesc.substring(0, 110));
         const episodeCount = podcast.episodeCount || 0;
 
         return `
-            <div class="card" data-podcast-id="${podcast.id}">
+            <div class="card podcast-card" data-podcast-id="${podcast.id}">
                 <div class="card-image-container">
-                    <img crossorigin="anonymous" referrerpolicy="no-referrer" src="${image}" alt="${title}" loading="lazy" onerror="this.style.display='none'" />
-                    <div class="card-image-placeholder" ${image ? 'style="display:none"' : ''}>
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect fill="%23333" width="100" height="100"/><circle cx="50" cy="45" r="20" fill="%23666"/><rect x="35" y="70" width="30" height="15" rx="3" fill="%23666"/></svg>
-                    </div>
+                    <img crossorigin="anonymous" referrerpolicy="no-referrer" src="${image}" alt="${title}" loading="lazy" onerror="this.onerror=null; this.src='/images/default-cover.png';" />
                 </div>
                 <div class="card-info">
                     <h3 class="card-title">${title}</h3>
                     <p class="card-subtitle">${author}</p>
-                    <p class="card-description">${description}${podcast.description?.length > 120 ? '...' : ''}</p>
-                    <span class="card-meta">${episodeCount} episodes</span>
+                    <p class="card-description">${description}${rawDesc.length > 110 ? '...' : ''}</p>
+                    <span class="card-meta">${episodeCount} ${episodeCount === 1 ? 'episode' : 'episodes'}</span>
                 </div>
             </div>
         `;

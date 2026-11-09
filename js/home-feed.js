@@ -3,8 +3,9 @@ import { db } from './db.js';
 import { listeningTracker } from './listening-tracker.js';
 import { smartRecommendations } from './smart-recommendations.js';
 import { podcastsAPI } from './podcasts-api.js';
-import { escapeHtml } from './utils.js';
+import { escapeHtml, trackDataStore } from './utils.js';
 import { navigate } from './router.js';
+import { Player } from './player.js';
 
 export class HomeFeed {
     constructor() {
@@ -106,7 +107,7 @@ export class HomeFeed {
                 communityPlaylists,
             ] = await Promise.allSettled([
                 this.getListenAgainItems(),
-                this.getQuickPicksTracks(this.activeMood),
+                this.getQuickPicksTracks(ui, this.activeMood),
                 this.getForgottenFavorites(),
                 this.getShowsForYou(),
                 this.getFromYourLibrary(),
@@ -275,15 +276,46 @@ export class HomeFeed {
         return items;
     }
 
-    async getQuickPicksTracks(mood = null) {
+    async getQuickPicksTracks(ui, mood = null) {
         try {
             let seeds = await smartRecommendations.getSmartSeeds(24);
+            if (!seeds || seeds.length === 0) {
+                const history = await db.getHistory();
+                seeds = history;
+            }
+            if (!seeds || seeds.length === 0) {
+                const favorites = await db.getFavorites('track');
+                seeds = favorites;
+            }
+            if (!seeds || seeds.length === 0) {
+                const playlists = await db.getPlaylists(true);
+                seeds = playlists.flatMap((p) => p.tracks || []);
+            }
+
+            // Mix in fresh recommendations from API if available
+            if (ui?.api && seeds.length > 0) {
+                try {
+                    const apiRecs = await ui.api.getRecommendedTracksForPlaylist(seeds.slice(0, 5), 18);
+                    if (apiRecs && apiRecs.length > 0) {
+                        const seen = new Set();
+                        seeds = [...seeds, ...apiRecs].filter((t) => {
+                            if (!t || !t.id || seen.has(t.id)) return false;
+                            seen.add(t.id);
+                            return true;
+                        });
+                    }
+                } catch (e) {
+                    console.warn('Could not fetch extra recommendations for quick picks:', e);
+                }
+            }
+
             if (mood) {
-                // If a mood is selected, filter seeds or fetch mood matching tracks
-                seeds = seeds.filter((t) => {
-                    const text = `${t.title} ${t.artist?.name || ''} ${t.album?.title || ''}`.toLowerCase();
-                    return true;
+                const m = mood.toLowerCase();
+                const matched = seeds.filter((t) => {
+                    const text = `${t.title || ''} ${t.artist?.name || ''} ${t.album?.title || ''}`.toLowerCase();
+                    return text.includes(m);
                 });
+                if (matched.length >= 3) return matched.slice(0, 18);
             }
             return seeds.slice(0, 18);
         } catch {
@@ -494,16 +526,16 @@ export class HomeFeed {
                     ${tracks
                         .map(
                             (track) => `
-                        <div class="ytm-quick-pick-item" data-track-id="${escapeHtml(track.id)}">
+                        <div class="ytm-quick-pick-item" data-track-id="${escapeHtml(String(track.id))}">
                             <div class="ytm-qp-cover-wrap">
-                                <img crossorigin="anonymous" referrerpolicy="no-referrer" src="${escapeHtml(track.cover || track.image || '/images/default-cover.png')}" alt="" class="ytm-qp-cover" loading="lazy" onerror="this.src='/images/default-cover.png';this.onerror=null;" />
+                                <img crossorigin="anonymous" referrerpolicy="no-referrer" src="${escapeHtml(track.cover || track.album?.cover || track.image || '/images/default-cover.png')}" alt="" class="ytm-qp-cover" loading="lazy" onerror="this.src='/images/default-cover.png';this.onerror=null;" />
                                 <div class="ytm-qp-play-hover">
                                     <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
                                 </div>
                             </div>
                             <div class="ytm-qp-info">
-                                <div class="ytm-qp-title">${escapeHtml(track.title)}</div>
-                                <div class="ytm-qp-meta">${escapeHtml(track.artist?.name || (track.artists && track.artists[0]?.name) || 'Artist')}</div>
+                                <div class="ytm-qp-title">${escapeHtml(track.title || 'Unknown Title')}</div>
+                                <div class="ytm-qp-meta">${escapeHtml(track.artist?.name || (track.artists && track.artists[0]?.name) || (typeof track.artist === 'string' ? track.artist : '') || 'Artist')}</div>
                             </div>
                         </div>
                     `
@@ -669,6 +701,31 @@ export class HomeFeed {
     }
 
     attachCarouselControls(container, ui, datasets) {
+        const getPlayer = () => {
+            if (ui && ui.player) return ui.player;
+            try {
+                return Player.instance;
+            } catch {
+                return null;
+            }
+        };
+
+        const playQueue = async (tracks, startIndex = 0) => {
+            const player = getPlayer();
+            if (!player || !tracks || tracks.length === 0) {
+                console.warn('Cannot play: player or tracks missing', { player: !!player, count: tracks?.length });
+                return;
+            }
+            try {
+                const validIndex = Math.max(0, Math.min(startIndex, tracks.length - 1));
+                await player.setQueue(tracks, validIndex);
+                document.getElementById('shuffle-btn')?.classList.remove('active');
+                await player.playTrackFromQueue();
+            } catch (err) {
+                console.error('Failed to play track queue from home:', err);
+            }
+        };
+
         // Wire all Prev / Next chevron buttons
         container.querySelectorAll('.ytm-section').forEach((section) => {
             const carousel = section.querySelector('.ytm-carousel, .ytm-quick-picks-carousel');
@@ -688,48 +745,74 @@ export class HomeFeed {
         // Wire "Play all" on Quick Picks
         const playAllBtn = document.getElementById('ytm-quick-picks-play-all');
         if (playAllBtn && datasets.quickPicksData?.length > 0) {
-            playAllBtn.addEventListener('click', async () => {
-                if (ui.player) {
-                    await ui.player.setQueue(datasets.quickPicksData, 0);
-                    await ui.player.playTrack(datasets.quickPicksData[0]);
-                }
+            playAllBtn.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                await playQueue(datasets.quickPicksData, 0);
             });
         }
 
         // Wire individual Quick Pick tracks
         container.querySelectorAll('.ytm-quick-pick-item').forEach((item) => {
-            item.addEventListener('click', async () => {
-                const trackId = item.dataset.trackId;
-                const track = datasets.quickPicksData?.find((t) => t.id === trackId);
-                if (track && ui.player) {
-                    await ui.player.playTrack(track);
-                }
+            const trackId = item.dataset.trackId;
+            const track = datasets.quickPicksData?.find((t) => String(t.id) === String(trackId));
+            if (track) {
+                trackDataStore.set(item, track);
+            }
+
+            item.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                const trackIndex = datasets.quickPicksData?.findIndex((t) => String(t.id) === String(trackId));
+                await playQueue(datasets.quickPicksData, trackIndex >= 0 ? trackIndex : 0);
             });
         });
 
         // Wire Listen Again cards
         container.querySelectorAll('#ytm-section-listen-again .ytm-card').forEach((card) => {
-            card.addEventListener('click', async () => {
-                const itemId = card.dataset.itemId;
-                const itemType = card.dataset.itemType;
-                const match = datasets.listenAgainData?.find((i) => String(i.id) === itemId);
-                if (match) {
-                    if (itemType === 'playlist') {
-                        navigate(`/playlist/${itemId}`);
-                    } else if (match.data && ui.player) {
-                        await ui.player.playTrack(match.data);
+            const itemId = card.dataset.itemId;
+            const itemType = card.dataset.itemType;
+            const match = datasets.listenAgainData?.find((i) => String(i.id) === String(itemId));
+            if (match?.data && itemType === 'track') {
+                trackDataStore.set(card, match.data);
+            }
+
+            card.addEventListener('click', async (e) => {
+                if (!match) return;
+
+                if (itemType === 'playlist') {
+                    if (e.target.closest('.ytm-play-badge')) {
+                        e.stopPropagation();
+                        const playlist = (await db.getPlaylist(itemId)) || match.data;
+                        if (playlist?.tracks?.length > 0) {
+                            await playQueue(playlist.tracks, 0);
+                            return;
+                        }
                     }
+                    navigate(`/playlist/${itemId}`);
+                } else if (match.data) {
+                    e.stopPropagation();
+                    const trackList = datasets.listenAgainData
+                        .filter((i) => i.type === 'track' && i.data)
+                        .map((i) => i.data);
+                    const startIndex = trackList.findIndex((t) => String(t.id) === String(match.id));
+                    await playQueue(trackList.length > 0 ? trackList : [match.data], startIndex >= 0 ? startIndex : 0);
                 }
             });
         });
 
         // Wire Forgotten Favorites cards
         container.querySelectorAll('#ytm-section-forgotten-favorites .ytm-wide-card').forEach((card) => {
-            card.addEventListener('click', async () => {
-                const itemId = card.dataset.itemId;
-                const match = datasets.forgottenData?.find((i) => String(i.id) === itemId);
-                if (match && match.data && ui.player) {
-                    await ui.player.playTrack(match.data);
+            const itemId = card.dataset.itemId;
+            const match = datasets.forgottenData?.find((i) => String(i.id) === String(itemId));
+            if (match?.data) {
+                trackDataStore.set(card, match.data);
+            }
+
+            card.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                if (match && match.data) {
+                    const trackList = datasets.forgottenData.filter((i) => i.data).map((i) => i.data);
+                    const startIndex = trackList.findIndex((t) => String(t.id) === String(match.id));
+                    await playQueue(trackList.length > 0 ? trackList : [match.data], startIndex >= 0 ? startIndex : 0);
                 }
             });
         });
@@ -744,24 +827,59 @@ export class HomeFeed {
 
         // Wire Library cards
         container.querySelectorAll('#ytm-section-from-library .ytm-card').forEach((card) => {
-            card.addEventListener('click', () => {
+            card.addEventListener('click', async (e) => {
                 const playlistId = card.dataset.itemId;
+                const match = datasets.libraryData?.find((i) => String(i.id) === String(playlistId));
+                if (e.target.closest('.ytm-play-badge')) {
+                    e.stopPropagation();
+                    const playlist = (await db.getPlaylist(playlistId)) || match?.data;
+                    if (playlist?.tracks?.length > 0) {
+                        await playQueue(playlist.tracks, 0);
+                        return;
+                    }
+                }
                 if (playlistId) navigate(`/playlist/${playlistId}`);
             });
         });
 
         // Wire Album cards
         container.querySelectorAll('.ytm-album-card').forEach((card) => {
-            card.addEventListener('click', () => {
+            card.addEventListener('click', async (e) => {
                 const albumId = card.dataset.albumId;
+                if (e.target.closest('.ytm-play-badge') && albumId) {
+                    e.stopPropagation();
+                    try {
+                        const res = await ui.api?.getAlbum(albumId);
+                        const tracks = res?.tracks || res?.items || res?.album?.tracks;
+                        if (tracks && tracks.length > 0) {
+                            await playQueue(tracks, 0);
+                            return;
+                        }
+                    } catch (err) {
+                        console.warn('Failed to load album tracks to play:', err);
+                    }
+                }
                 if (albumId) navigate(`/album/${albumId}`);
             });
         });
 
         // Wire Community Playlist cards
         container.querySelectorAll('.ytm-community-card').forEach((card) => {
-            card.addEventListener('click', () => {
+            card.addEventListener('click', async (e) => {
                 const playlistId = card.dataset.playlistId;
+                if (e.target.closest('.ytm-play-badge') && playlistId) {
+                    e.stopPropagation();
+                    try {
+                        const res = await ui.api?.getPlaylist(playlistId);
+                        const tracks = res?.tracks || res?.items || res?.playlist?.tracks;
+                        if (tracks && tracks.length > 0) {
+                            await playQueue(tracks, 0);
+                            return;
+                        }
+                    } catch (err) {
+                        console.warn('Failed to load playlist tracks to play:', err);
+                    }
+                }
                 if (playlistId) navigate(`/playlist/${playlistId}`);
             });
         });

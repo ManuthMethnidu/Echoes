@@ -14024,6 +14024,12 @@ body.is-tv-device #sidebar-toggle-btn {
     transform: scale(0.8);
     transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    cursor: pointer;
+    z-index: 2;
+}
+
+.ytm-play-badge:hover {
+    transform: scale(1.1);
 }
 
 .ytm-card:hover .ytm-play-badge,
@@ -14098,6 +14104,8 @@ body.is-tv-device #sidebar-toggle-btn {
     justify-content: center;
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
     transition: all 0.2s ease;
+    cursor: pointer;
+    z-index: 2;
 }
 
 .ytm-wide-card:hover .ytm-wide-play-badge {
@@ -14165,6 +14173,7 @@ body.is-tv-device #sidebar-toggle-btn {
     color: white;
     opacity: 0;
     transition: opacity 0.15s ease;
+    pointer-events: none;
 }
 
 .ytm-quick-pick-item:hover .ytm-qp-play-hover {

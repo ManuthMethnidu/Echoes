@@ -1,5 +1,5 @@
 {
-    "name": "Monochrome Dev Container",
+    "name": "Echoes Dev Container",
     "build": {
         "context": "..",
         "dockerfile": "./Dockerfile"

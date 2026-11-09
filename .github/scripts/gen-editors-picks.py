@@ -92,7 +92,7 @@ def podcast_get(endpoint):
     raw = PODCAST_API_KEY + PODCAST_API_SECRET + api_time
     auth_hash = hashlib.sha1(raw.encode()).hexdigest()
     headers = {
-        "User-Agent": "MonochromeMusic/1.0",
+        "User-Agent": "EchoesMusic/1.0",
         "X-Auth-Key": PODCAST_API_KEY,
         "X-Auth-Date": api_time,
         "Authorization": auth_hash,

@@ -364,7 +364,9 @@ export class MusicAPI {
                     }
                 }
                 const items = Array.from(albumMap.values());
-                return { items, limit: items.length, offset: 0, totalNumberOfItems: items.length };
+                if (items.length > 0) {
+                    return { items, limit: items.length, offset: 0, totalNumberOfItems: items.length };
+                }
             }
         } catch (error) {
             if (error.name === 'AbortError') throw error;

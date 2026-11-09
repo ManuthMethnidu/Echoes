@@ -566,11 +566,13 @@ const syncManager = {
         });
         this._userRecordCache = {
             ...record,
-            ...updated,
-            banner: updated.banner_url,
+            ...(updated || {}),
+            banner: updated?.banner_url || updated?.banner || record.banner,
+            username_changed_at: updated?.username_changed_at || record.username_changed_at,
+            display_name_changed_at: updated?.display_name_changed_at || record.display_name_changed_at,
             privacy: {
-                playlists: updated.privacy_playlists || record.privacy?.playlists || 'public',
-                lastfm: updated.privacy_lastfm || record.privacy?.lastfm || 'public',
+                playlists: updated?.privacy?.playlists || updated?.privacy_playlists || record.privacy?.playlists || 'public',
+                lastfm: updated?.privacy?.lastfm || updated?.privacy_lastfm || record.privacy?.lastfm || 'public',
             },
         };
     },

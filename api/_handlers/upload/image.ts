@@ -58,7 +58,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 ON CONFLICT (id) DO NOTHING
             `;
 
-            const appUrl = (process.env.APP_URL || 'https://echoes.mteck.tech').replace(/\/+$/, '');
+            const host = req.headers['x-forwarded-host'] || req.headers.host;
+            const proto = (req.headers['x-forwarded-proto'] as string) || (host?.includes('localhost') ? 'http' : 'https');
+            const defaultAppUrl = host ? `${proto}://${host}` : 'https://echoes.mteck.tech';
+            const appUrl = (process.env.APP_URL || defaultAppUrl).replace(/\/+$/, '');
             const artworkUrl = `${appUrl}/api/artwork?id=${artId}`;
 
             return res.status(200).json({ ok: true, url: artworkUrl });

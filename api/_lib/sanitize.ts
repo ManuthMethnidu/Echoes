@@ -10,7 +10,7 @@ export function containsProfanity(val: unknown): boolean {
     if (!str) return false;
 
     // Direct check on raw input
-    const directPattern = /\b(?:nigg[aer]|fagg?ot|cunt|kike|chink|spic|whore|slut|retard|bitch|fuck(?:er|ing)?|shit(?:head)?|pussy|dickhead|cock(?:sucker)?)\b/i;
+    const directPattern = /\b(?:nigg[aer]|fagg?ot|cunt|kike|chink|spic|whore|slut|retard|bitch|fuck(?:er|ing)?|shit(?:head)?|pussy|dickhead|cock(?:sucker)?|porn(?:o|ography)?|hentai|xxx|nsfw|blowjob|handjob|dildo|vagina|penis)\b/i;
     if (directPattern.test(str)) return true;
 
     // Leetspeak normalized check (strips punctuation and space bypasses)
@@ -26,10 +26,76 @@ export function containsProfanity(val: unknown): boolean {
 
     const BAD_STEMS = [
         'nigger', 'nigga', 'faggot', 'kike', 'chink', 'spic', 'cunt',
-        'retard', 'whore', 'slut', 'bitch', 'fuck', 'shit', 'pussy', 'dickhead'
+        'retard', 'whore', 'slut', 'bitch', 'fuck', 'shit', 'pussy', 'dickhead',
+        'pornhub', 'xvideos', 'xnxx', 'hentai', 'blowjob', 'cock'
     ];
 
     return BAD_STEMS.some((bad) => normalized.includes(bad));
+}
+
+const SUS_DOMAIN_PATTERNS = [
+    /pornhub\./i,
+    /xvideos\./i,
+    /xnxx\./i,
+    /xhamster\./i,
+    /redtube\./i,
+    /youporn\./i,
+    /onlyfans\./i,
+    /chaturbate\./i,
+    /stripchat\./i,
+    /cam4\./i,
+    /livejasmin\./i,
+    /brazzers\./i,
+    /beeg\./i,
+    /spankbang\./i,
+    /tubegalore\./i,
+    /rule34\./i,
+    /nhentai\./i,
+    /e-hentai\./i,
+    /tnaflix\./i,
+    /drtuber\./i,
+    /eporner\./i,
+    /hqporner\./i,
+    /thumbzilla\./i,
+    /heavy-r\./i,
+    /bestgore\./i,
+    /motherless\./i,
+    /(?:^|\.)(?:xxx|porn|adult|sexy|cam|cams|fetish|erotic|hookup)\b/i,
+];
+
+// Check if a URL belongs to banned adult or suspicious sites
+export function isBlockedOrSusUrl(val: unknown): boolean {
+    if (!val || typeof val !== 'string') return false;
+    const str = val.trim().toLowerCase();
+    if (!str) return false;
+
+    const SUS_KEYWORDS = [
+        'pornhub',
+        'xvideos',
+        'xnxx',
+        'xhamster',
+        'redtube',
+        'youporn',
+        'onlyfans',
+        'chaturbate',
+        'stripchat',
+        'brazzers',
+        'nhentai',
+        'rule34',
+        'spankbang',
+        'livejasmin',
+    ];
+    if (SUS_KEYWORDS.some((kw) => str.includes(kw))) {
+        return true;
+    }
+
+    try {
+        const parsed = new URL(str.startsWith('http') ? str : `https://${str}`);
+        const hostname = parsed.hostname.toLowerCase();
+        return SUS_DOMAIN_PATTERNS.some((pat) => pat.test(hostname));
+    } catch {
+        return SUS_KEYWORDS.some((kw) => str.includes(kw));
+    }
 }
 
 // Strip null bytes and non-printable control characters (except standard whitespace \t, \n, \r)
@@ -41,11 +107,20 @@ export function sanitizeString(val: unknown, maxLength = 255): string {
     return cleaned.slice(0, maxLength);
 }
 
-// Strict URL validator for HTTP/HTTPS only
+// Strict URL validator for HTTP/HTTPS only (and root-relative /api/artwork endpoints)
 export function sanitizeUrl(val: unknown, maxLength = 8192): string | null {
     if (!val || typeof val !== 'string') return null;
     const trimmed = val.trim();
     if (!trimmed || trimmed.length > maxLength) return null;
+
+    if (isBlockedOrSusUrl(trimmed)) {
+        return null;
+    }
+
+    // Allow root-relative paths like /api/artwork?id=...
+    if (trimmed.startsWith('/') && !trimmed.startsWith('//')) {
+        return trimmed;
+    }
 
     try {
         const parsed = new URL(trimmed);

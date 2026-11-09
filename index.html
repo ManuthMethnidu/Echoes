@@ -666,6 +666,7 @@
                 <div style="margin-bottom: 1rem">
                     <label style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem">Username</label>
                     <input type="text" id="edit-profile-username" class="template-input" placeholder="username" maxlength="40" />
+                    <p id="username-hint" style="color: var(--muted-foreground); font-size: 0.75rem; margin-top: 0.25rem">Can be changed once every 30 days.</p>
                     <p
                         id="username-error"
                         style="color: #ef4444; font-size: 0.8rem; display: none; margin-top: 0.25rem"
@@ -674,15 +675,20 @@
                 <div style="margin-bottom: 1rem">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem">
                         <label style="font-size: 0.9rem">Display Name</label>
-                        <span id="edit-profile-display-name-count" style="font-size: 0.75rem; color: var(--muted-foreground)">0/60</span>
+                        <span id="edit-profile-display-name-count" style="font-size: 0.75rem; color: var(--muted-foreground)">0/25</span>
                     </div>
                     <input
                         type="text"
                         id="edit-profile-display-name"
                         class="template-input"
                         placeholder="Display Name"
-                        maxlength="60"
+                        maxlength="25"
                     />
+                    <p id="display-name-hint" style="color: var(--muted-foreground); font-size: 0.75rem; margin-top: 0.25rem">Can be changed once every 7 days (max 25 characters).</p>
+                    <p
+                        id="display-name-error"
+                        style="color: #ef4444; font-size: 0.8rem; display: none; margin-top: 0.25rem"
+                    ></p>
                 </div>
                 <div style="margin-bottom: 1rem">
                     <label style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem">Avatar URL</label>

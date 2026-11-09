@@ -45,6 +45,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 lastfm_username: profile.lastfm_username,
                 librefm_username: profile.librefm_username,
                 favorite_albums: profile.favorite_albums || [],
+                username_changed_at: profile.username_changed_at || null,
+                display_name_changed_at: profile.display_name_changed_at || null,
             },
         });
     } catch (err: any) {

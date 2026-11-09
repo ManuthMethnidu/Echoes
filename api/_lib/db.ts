@@ -60,7 +60,9 @@ export async function ensureSchema(sql: ReturnType<typeof neon>) {
             ADD COLUMN IF NOT EXISTS privacy JSONB DEFAULT '{"playlists":"public","lastfm":"public"}'::jsonb,
             ADD COLUMN IF NOT EXISTS lastfm_username TEXT,
             ADD COLUMN IF NOT EXISTS librefm_username TEXT,
-            ADD COLUMN IF NOT EXISTS favorite_albums JSONB DEFAULT '[]'::jsonb;
+            ADD COLUMN IF NOT EXISTS favorite_albums JSONB DEFAULT '[]'::jsonb,
+            ADD COLUMN IF NOT EXISTS username_changed_at TIMESTAMPTZ,
+            ADD COLUMN IF NOT EXISTS display_name_changed_at TIMESTAMPTZ;
         `;
 
         await sql`

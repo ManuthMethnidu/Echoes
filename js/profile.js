@@ -42,7 +42,7 @@ const bannerFileInput = document.getElementById('edit-profile-banner-file');
 
 function updateCharCounters() {
     if (displayNameCount && editDisplayName) {
-        displayNameCount.textContent = `${editDisplayName.value.length}/60`;
+        displayNameCount.textContent = `${editDisplayName.value.length}/25`;
     }
     if (aboutCount && editAbout) {
         aboutCount.textContent = `${editAbout.value.length}/1000`;
@@ -103,6 +103,13 @@ async function uploadCompressedImage(file, maxWidth, maxHeight, targetInput, but
         const data = await res.json();
         if (res.ok && data.url) {
             targetInput.value = data.url;
+            if (targetInput === editBanner) {
+                const bannerEl = document.getElementById('profile-banner');
+                if (bannerEl) bannerEl.style.backgroundImage = `url('${data.url}')`;
+            } else if (targetInput === editAvatar) {
+                const avatarEl = document.getElementById('profile-avatar');
+                if (avatarEl) avatarEl.src = data.url;
+            }
         } else {
             alert('Upload failed: ' + (data.error || 'Server error'));
         }
@@ -140,8 +147,10 @@ const api = new MusicAPI(apiSettings);
 
 function isValidHttpUrl(string) {
     if (!string) return true;
+    const trimmed = string.trim();
+    if (trimmed.startsWith('/') && !trimmed.startsWith('//')) return true;
     try {
-        const url = new URL(string.trim());
+        const url = new URL(trimmed);
         return url.protocol === 'http:' || url.protocol === 'https:';
     } catch {
         return false;
@@ -521,38 +530,46 @@ export async function loadProfile(username) {
         editProfileBtn.style.display = 'inline-flex';
     }
 
-    if (profile.privacy?.playlists !== 'private' || isOwner) {
-        const container = document.getElementById('profile-playlists-container');
-        const playlists = profile.user_playlists || {};
+    const playlistsContainer = document.getElementById('profile-playlists-container');
+    if (playlistsContainer) {
+        playlistsContainer.innerHTML = '';
+        if (profile.privacy?.playlists !== 'private' || isOwner) {
+            const playlists = profile.user_playlists || {};
+            let count = 0;
 
-        Object.values(playlists).forEach((playlist) => {
-            if (!playlist.isPublic && !isOwner) return;
+            Object.values(playlists).forEach((playlist) => {
+                if (!playlist.isPublic && !isOwner) return;
+                count++;
 
-            const card = document.createElement('div');
-            card.className = 'card';
-            card.innerHTML = `
-                <div class="card-image-wrapper">
-                    <img crossorigin="anonymous" referrerpolicy="no-referrer" class="card-image" loading="lazy">
-                </div>
-                <div class="card-info">
-                    <div class="card-title"></div>
-                    <div class="card-subtitle"></div>
-                </div>
-            `;
-            const img = card.querySelector('.card-image');
-            img.src = playlist.cover || '/images/default-cover.svg';
-            img.alt = playlist.name;
-            card.querySelector('.card-title').textContent = playlist.name;
-            card.querySelector('.card-subtitle').textContent = `${playlist.numberOfTracks || 0} tracks`;
-            card.onclick = () => {
-                window.location.hash = `/userplaylist/${playlist.id}`;
-            };
-            container.appendChild(card);
-        });
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.innerHTML = `
+                    <div class="card-image-wrapper">
+                        <img crossorigin="anonymous" referrerpolicy="no-referrer" class="card-image" loading="lazy">
+                    </div>
+                    <div class="card-info">
+                        <div class="card-title"></div>
+                        <div class="card-subtitle"></div>
+                    </div>
+                `;
+                const img = card.querySelector('.card-image');
+                img.src = playlist.cover || '/images/default-cover.svg';
+                img.alt = playlist.name;
+                card.querySelector('.card-title').textContent = playlist.name;
+                card.querySelector('.card-subtitle').textContent = `${playlist.numberOfTracks || 0} tracks`;
+                card.onclick = () => {
+                    window.location.hash = `/userplaylist/${playlist.id}`;
+                };
+                playlistsContainer.appendChild(card);
+            });
 
-        if (container.children.length === 0) {
-            container.innerHTML =
-                '<p style="color: var(--muted-foreground); grid-column: 1/-1; text-align: center;">No public playlists.</p>';
+            if (count === 0) {
+                playlistsContainer.innerHTML =
+                    '<p style="color: var(--muted-foreground); grid-column: 1/-1; text-align: center; padding: 1.5rem 0;">No public playlists.</p>';
+            }
+        } else {
+            playlistsContainer.innerHTML =
+                '<p style="color: var(--muted-foreground); grid-column: 1/-1; text-align: center; padding: 1.5rem 0;">Playlists are private.</p>';
         }
     }
 }
@@ -566,6 +583,47 @@ export async function openEditProfile() {
         editDisplayName.value = p.display_name || '';
         resetAvatarControl(p.avatar_url);
         resetBannerControl(p.banner);
+
+        // Calculate and render cooldown hints
+        const usernameHint = document.getElementById('username-hint');
+        if (usernameHint) {
+            if (p.username_changed_at) {
+                const lastChanged = new Date(p.username_changed_at).getTime();
+                const diffMs = Date.now() - lastChanged;
+                const cooldownMs = 30 * 24 * 60 * 60 * 1000;
+                if (diffMs < cooldownMs) {
+                    const daysLeft = Math.ceil((cooldownMs - diffMs) / (24 * 60 * 60 * 1000));
+                    usernameHint.textContent = `Username change locked for ${daysLeft} more day${daysLeft === 1 ? '' : 's'} (30-day cooldown).`;
+                    editUsername.disabled = true;
+                } else {
+                    usernameHint.textContent = 'Can be changed once every 30 days.';
+                    editUsername.disabled = false;
+                }
+            } else {
+                usernameHint.textContent = 'Can be changed once every 30 days.';
+                editUsername.disabled = false;
+            }
+        }
+
+        const displayNameHint = document.getElementById('display-name-hint');
+        if (displayNameHint) {
+            if (p.display_name_changed_at) {
+                const lastChanged = new Date(p.display_name_changed_at).getTime();
+                const diffMs = Date.now() - lastChanged;
+                const cooldownMs = 7 * 24 * 60 * 60 * 1000;
+                if (diffMs < cooldownMs) {
+                    const daysLeft = Math.ceil((cooldownMs - diffMs) / (24 * 60 * 60 * 1000));
+                    displayNameHint.textContent = `Display name locked for ${daysLeft} more day${daysLeft === 1 ? '' : 's'} (7-day cooldown, max 25 chars).`;
+                    editDisplayName.disabled = true;
+                } else {
+                    displayNameHint.textContent = 'Can be changed once every 7 days (max 25 characters).';
+                    editDisplayName.disabled = false;
+                }
+            } else {
+                displayNameHint.textContent = 'Can be changed once every 7 days (max 25 characters).';
+                editDisplayName.disabled = false;
+            }
+        }
 
         editStatusJson.value = p.status || '';
         editStatusSearch.value = '';
@@ -602,7 +660,7 @@ export async function openEditProfile() {
 
 const checkProfanity = (str) => {
     if (!str || typeof str !== 'string') return false;
-    const directPattern = /\b(?:nigg[aer]|fagg?ot|cunt|kike|chink|spic|whore|slut|retard|bitch|fuck(?:er|ing)?|shit(?:head)?|pussy|dickhead|cock(?:sucker)?)\b/i;
+    const directPattern = /\b(?:nigg[aer]|fagg?ot|cunt|kike|chink|spic|whore|slut|retard|bitch|fuck(?:er|ing)?|shit(?:head)?|pussy|dickhead|cock(?:sucker)?|porn|hentai|nsfw|xxx|sex)\b/i;
     if (directPattern.test(str)) return true;
     const normalized = str
         .toLowerCase()
@@ -615,9 +673,28 @@ const checkProfanity = (str) => {
         .replace(/[\s._\-*/\\]+/g, '');
     const BAD_STEMS = [
         'nigger', 'nigga', 'faggot', 'kike', 'chink', 'spic', 'cunt',
-        'retard', 'whore', 'slut', 'bitch', 'fuck', 'shit', 'pussy', 'dickhead'
+        'retard', 'whore', 'slut', 'bitch', 'fuck', 'shit', 'pussy', 'dickhead',
+        'pornhub', 'xvideos', 'xnxx', 'xhamster', 'onlyfans'
     ];
     return BAD_STEMS.some((bad) => normalized.includes(bad));
+};
+
+const checkSusWebsite = (url) => {
+    if (!url || typeof url !== 'string') return false;
+    const BLOCKED_DOMAINS = [
+        'pornhub.com', 'xvideos.com', 'xnxx.com', 'xhamster.com', 'onlyfans.com',
+        'chaturbate.com', 'redtube.com', 'youporn.com', 'stripchat.com', 'cam4.com',
+        'bongacams.com', 'livejasmin.com', 'rule34.xxx', 'gelbooru.com', 'danbooru.donmai.us',
+        'e-hentai.org', 'nhentai.net', 'spankbang.com', 'eporner.com', 'tnaflix.com',
+        'tube8.com', 'beeg.com', 'fuq.com', 'porn.com', 'brazzers.com',
+        'faphouse.com', 'hqporner.com', 'slutload.com', 'heavy-r.com', 'motherless.com'
+    ];
+    try {
+        const lower = url.trim().toLowerCase();
+        return BLOCKED_DOMAINS.some((d) => lower.includes(d));
+    } catch {
+        return false;
+    }
 };
 
 async function saveProfile() {
@@ -639,6 +716,10 @@ async function saveProfile() {
     }
 
     const displayNameVal = editDisplayName.value.trim();
+    if (displayNameVal.length > 25) {
+        alert('Display Name cannot exceed 25 characters.');
+        return;
+    }
     if (checkProfanity(displayNameVal)) {
         alert('Display Name contains prohibited words.');
         return;
@@ -649,10 +730,18 @@ async function saveProfile() {
         alert('About section contains prohibited words.');
         return;
     }
+    if (checkSusWebsite(aboutVal)) {
+        alert('About section contains prohibited website links.');
+        return;
+    }
 
     const avatarUrl = editAvatar.value.trim();
     if (avatarUrl && !isValidHttpUrl(avatarUrl)) {
         alert('Please enter a valid HTTP or HTTPS image URL for your avatar (e.g. https://example.com/avatar.jpg).');
+        return;
+    }
+    if (checkSusWebsite(avatarUrl)) {
+        alert('Avatar URL contains a prohibited domain.');
         return;
     }
 
@@ -661,15 +750,23 @@ async function saveProfile() {
         alert('Please enter a valid HTTP or HTTPS image URL for your banner.');
         return;
     }
+    if (checkSusWebsite(bannerUrl)) {
+        alert('Banner URL contains a prohibited domain.');
+        return;
+    }
 
     const websiteUrl = editWebsite.value.trim();
     if (websiteUrl && !isValidHttpUrl(websiteUrl)) {
         alert('Please enter a valid HTTP or HTTPS URL for your website.');
         return;
     }
+    if (checkSusWebsite(websiteUrl)) {
+        alert('Website contains a prohibited or adult domain.');
+        return;
+    }
 
     const currentUser = await syncManager.getUserData();
-    if (currentUser.profile.username !== newUsername) {
+    if (currentUser?.profile?.username && currentUser.profile.username !== newUsername) {
         const taken = await syncManager.isUsernameTaken(newUsername);
         if (taken) {
             usernameError.textContent = 'Username is already taken';
@@ -684,11 +781,11 @@ async function saveProfile() {
 
     const data = {
         username: newUsername,
-        display_name: editDisplayName.value.trim().slice(0, 60),
+        display_name: displayNameVal.slice(0, 25),
         avatar_url: avatarUrl,
         banner: bannerUrl,
         status: editStatusJson.value.trim() || (editStatusSearch.value.trim() ? editStatusSearch.value.trim().slice(0, 300) : ''),
-        about: editAbout.value.trim().slice(0, 1000),
+        about: aboutVal.slice(0, 1000),
         website: websiteUrl,
         favorite_albums: currentFavoriteAlbums,
         lastfm_username: editLastfm.value.trim().slice(0, 50),
@@ -707,7 +804,7 @@ async function saveProfile() {
             window.history.replaceState(null, '', `/user/@${newUsername}`);
         }
     } catch (e) {
-        alert('Failed to save profile. See console.');
+        alert(e.message || 'Failed to save profile. See console.');
         console.error(e);
     } finally {
         saveProfileBtn.disabled = false;
@@ -868,21 +965,24 @@ const performFavoriteAlbumSearch = debounce(async (query) => {
         const results = await api.searchAlbums(query, { limit: 5 });
         editFavoriteAlbumsResults.innerHTML = '';
 
-        if (results.items.length === 0) {
-            editFavoriteAlbumsResults.style.display = 'none';
+        const items = results?.items || (Array.isArray(results) ? results : []);
+        if (!items || items.length === 0) {
+            editFavoriteAlbumsResults.innerHTML = '<div style="padding: 0.75rem 1rem; color: var(--muted-foreground); font-size: 0.85rem;">No albums found</div>';
+            editFavoriteAlbumsResults.style.display = 'block';
             return;
         }
 
-        results.items.forEach((album) => {
+        items.forEach((album) => {
             const div = document.createElement('div');
             div.className = 'search-result-item';
-            const image = api.getCoverUrl(album.cover);
+            const artistName = typeof album.artist === 'string' ? album.artist : (album.artist?.name || 'Unknown Artist');
+            const image = api.getCoverUrl(album.cover) || '/images/default-cover.svg';
 
             div.innerHTML = `
-                <img crossorigin="anonymous" referrerpolicy="no-referrer" src="${image}">
+                <img crossorigin="anonymous" referrerpolicy="no-referrer" src="${image}" onerror="this.src='/images/default-cover.svg'">
                 <div class="search-result-info">
-                    <div class="search-result-title">${album.title}</div>
-                    <div class="search-result-subtitle">${album.artist?.name || 'Unknown Artist'}</div>
+                    <div class="search-result-title">${escapeHtml(album.title || '')}</div>
+                    <div class="search-result-subtitle">${escapeHtml(artistName)}</div>
                 </div>
             `;
 
@@ -890,7 +990,7 @@ const performFavoriteAlbumSearch = debounce(async (query) => {
                 currentFavoriteAlbums.push({
                     id: album.id,
                     title: album.title,
-                    artist: album.artist?.name || 'Unknown Artist',
+                    artist: artistName,
                     cover: album.cover,
                     description: '',
                 });
@@ -904,6 +1004,8 @@ const performFavoriteAlbumSearch = debounce(async (query) => {
         editFavoriteAlbumsResults.style.display = 'block';
     } catch (e) {
         console.error('Album search failed', e);
+        editFavoriteAlbumsResults.innerHTML = '<div style="padding: 0.75rem 1rem; color: var(--muted-foreground); font-size: 0.85rem;">Failed to search albums</div>';
+        editFavoriteAlbumsResults.style.display = 'block';
     }
 }, 300);
 

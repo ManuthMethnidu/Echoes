@@ -8560,7 +8560,14 @@ export class UIRenderer {
                 metaEl.textContent = `${podcastResult.episodeCount} episodes • ${podcastResult.author}`;
                 if (podcastResult.image) {
                     imageEl.src = podcastResult.image;
-                    imageEl.onerror = () => { imageEl.src = '/images/default-cover.png'; };
+                    imageEl.onerror = () => {
+                        if (!imageEl.dataset.fallback && (podcastResult.rawImage || podcastResult.image)) {
+                            imageEl.dataset.fallback = '1';
+                            imageEl.src = `/api/podcasts?image=${encodeURIComponent(podcastResult.rawImage || podcastResult.image)}`;
+                        } else {
+                            imageEl.src = '/images/default-cover.png';
+                        }
+                    };
                     this.setPageBackground(podcastResult.image);
                 } else {
                     imageEl.src = '/images/default-cover.png';
@@ -8658,7 +8665,7 @@ export class UIRenderer {
         return `
             <div class="card podcast-card" data-podcast-id="${escapeHtml(String(podcast.id))}">
                 <div class="card-image-container">
-                    <img crossorigin="anonymous" referrerpolicy="no-referrer" src="${escapeHtml(image || '/images/default-cover.png')}" alt="${title}" loading="lazy" onerror="this.onerror=null; this.src='/images/default-cover.png';" />
+                    <img referrerpolicy="no-referrer" src="${escapeHtml(image || '/images/default-cover.png')}" alt="${title}" loading="lazy" onerror="this.onerror=null;if(this.src.indexOf('/api/podcasts?image=')===-1&amp;&amp;'${encodeURIComponent(podcast.rawImage || image || '')}'){this.src='/api/podcasts?image=${encodeURIComponent(podcast.rawImage || image || '')}';}else{this.src='/images/default-cover.png';}" />
                 </div>
                 <div class="card-info">
                     <h3 class="card-title">${title}</h3>

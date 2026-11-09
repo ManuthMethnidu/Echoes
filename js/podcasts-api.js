@@ -222,6 +222,16 @@ export class PodcastsAPI {
         }
     }
 
+    getPodcastImageUrl(url) {
+        if (!url || typeof url !== 'string') return '/images/default-cover.png';
+        const trimmed = url.trim();
+        if (!trimmed) return '/images/default-cover.png';
+        if (trimmed.startsWith('http://') || trimmed.includes('streamguys1.com')) {
+            return `/api/podcasts?image=${encodeURIComponent(trimmed)}`;
+        }
+        return trimmed;
+    }
+
     transformPodcast(feed) {
         const rawDesc = feed.description || '';
         const cleanDesc = rawDesc
@@ -230,13 +240,16 @@ export class PodcastsAPI {
             .replace(/\s+/g, ' ')
             .trim();
 
+        const rawImg = feed.image || feed.artwork || '';
+
         return {
             id: feed.id?.toString() || '',
             podcastGuid: feed.podcastGuid || '',
             title: feed.title || 'Unknown Podcast',
             author: feed.author || feed.ownerName || '',
             description: cleanDesc,
-            image: feed.image || feed.artwork || '',
+            image: this.getPodcastImageUrl(rawImg),
+            rawImage: rawImg,
             link: feed.link || '',
             feedUrl: feed.url || '',
             language: feed.language || '',
@@ -266,6 +279,8 @@ export class PodcastsAPI {
             .replace(/\s+/g, ' ')
             .trim();
 
+        const rawImg = item.image || item.feedImage || '';
+
         return {
             id: item.id?.toString() || '',
             title: item.title || 'Unknown Episode',
@@ -282,7 +297,8 @@ export class PodcastsAPI {
             episode: item.episode || null,
             episodeType: item.episodeType || 'full',
             season: item.season || null,
-            image: item.image || item.feedImage || '',
+            image: this.getPodcastImageUrl(rawImg),
+            rawImage: rawImg,
             feedId: item.feedId || null,
             feedTitle: item.feedTitle || '',
             feedImage: item.feedImage || '',

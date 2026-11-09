@@ -263,7 +263,7 @@ export class ExploreFeed {
                             (item) => `
                         <div class="ytm-card ytm-explore-album-card" data-album-id="${escapeHtml(String(item.id))}">
                             <div class="ytm-card-cover-wrap">
-                                <img crossorigin="anonymous" referrerpolicy="no-referrer" src="${escapeHtml(item.cover)}" alt="" class="ytm-card-cover" loading="lazy" onerror="this.src='/images/default-cover.png';this.onerror=null;" />
+                                <img referrerpolicy="no-referrer" src="${escapeHtml(item.cover)}" alt="" class="ytm-card-cover" loading="lazy" onerror="this.src='/images/default-cover.png';this.onerror=null;" />
                                 <div class="ytm-play-badge">
                                     <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
                                 </div>
@@ -312,7 +312,7 @@ export class ExploreFeed {
                                 return `
                                     <div class="ytm-chart-item" data-track-id="${escapeHtml(String(track.id))}" data-index="${idx}">
                                         <div class="ytm-chart-cover-wrap">
-                                            <img crossorigin="anonymous" referrerpolicy="no-referrer" src="${escapeHtml(track.cover)}" alt="" class="ytm-chart-cover" loading="lazy" onerror="this.src='/images/default-cover.png';this.onerror=null;" />
+                                            <img referrerpolicy="no-referrer" src="${escapeHtml(track.cover)}" alt="" class="ytm-chart-cover" loading="lazy" onerror="this.src='/images/default-cover.png';this.onerror=null;" />
                                             <div class="ytm-chart-play-hover">
                                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
                                             </div>
@@ -372,7 +372,7 @@ export class ExploreFeed {
                         <p class="ytm-section-subtitle">Top trending shows and series</p>
                     </div>
                     <div class="ytm-section-actions">
-                        <a href="/podcasts" class="ytm-more-btn">More</a>
+                        <button class="ytm-more-btn" id="explore-podcasts-more">More</button>
                         <button class="ytm-nav-btn ytm-prev" aria-label="Previous">
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"></polyline></svg>
                         </button>
@@ -387,7 +387,7 @@ export class ExploreFeed {
                             (item) => `
                         <div class="ytm-card ytm-podcast-card" data-podcast-id="${escapeHtml(String(item.id))}">
                             <div class="ytm-card-cover-wrap">
-                                <img crossorigin="anonymous" referrerpolicy="no-referrer" src="${escapeHtml(item.image || '/images/default-cover.png')}" alt="" class="ytm-card-cover" loading="lazy" onerror="this.src='/images/default-cover.png';this.onerror=null;" />
+                                <img referrerpolicy="no-referrer" src="${escapeHtml(item.image || '/images/default-cover.png')}" alt="" class="ytm-card-cover" loading="lazy" onerror="this.onerror=null;if(this.src.indexOf('/api/podcasts?image=')===-1&amp;&amp;'${encodeURIComponent(item.rawImage || item.image || '')}'){this.src='/api/podcasts?image=${encodeURIComponent(item.rawImage || item.image || '')}';}else{this.src='/images/default-cover.png';}" />
                             </div>
                             <div class="ytm-card-title">${escapeHtml(item.title)}</div>
                             <div class="ytm-card-subtitle">${escapeHtml(item.author || '')} • ${item.episodeCount || 0} eps</div>
@@ -424,6 +424,41 @@ export class ExploreFeed {
                 console.error('Failed to play explore queue:', err);
             }
         };
+
+        // Enable mouse drag-to-scroll & wheel scrolling on all carousels
+        container.querySelectorAll('.ytm-carousel, .ytm-charts-grid').forEach((el) => {
+            enableHorizontalScroll(el);
+        });
+
+        // Wire "More" buttons
+        const newReleasesMoreBtn = document.getElementById('explore-new-releases-more');
+        if (newReleasesMoreBtn) {
+            newReleasesMoreBtn.addEventListener('click', () => {
+                const carousel = document.querySelector('#explore-section-new-releases .ytm-carousel');
+                if (carousel) {
+                    const isExpanded = carousel.classList.toggle('ytm-carousel-expanded');
+                    newReleasesMoreBtn.textContent = isExpanded ? 'Less' : 'More';
+                }
+            });
+        }
+
+        const chartsMoreBtn = document.getElementById('explore-charts-more');
+        if (chartsMoreBtn) {
+            chartsMoreBtn.addEventListener('click', () => {
+                const grid = document.querySelector('#explore-section-charts .ytm-charts-grid');
+                if (grid) {
+                    const isExpanded = grid.classList.toggle('ytm-charts-grid-expanded');
+                    chartsMoreBtn.textContent = isExpanded ? 'Less' : 'More';
+                }
+            });
+        }
+
+        const podcastsMoreBtn = document.getElementById('explore-podcasts-more');
+        if (podcastsMoreBtn) {
+            podcastsMoreBtn.addEventListener('click', () => {
+                navigate('/podcasts');
+            });
+        }
 
         // Wire carousel scroll buttons
         container.querySelectorAll('.ytm-section').forEach((section) => {
@@ -502,3 +537,63 @@ export class ExploreFeed {
 }
 
 export const exploreFeed = new ExploreFeed();
+
+export function enableHorizontalScroll(container) {
+    if (!container || container.dataset.hScrollInit) return;
+    container.dataset.hScrollInit = 'true';
+
+    // 1. Mouse wheel mapping: vertical wheel scrolls horizontally
+    container.addEventListener('wheel', (e) => {
+        const maxScroll = container.scrollWidth - container.clientWidth;
+        if (maxScroll > 0 && Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+            const atStart = container.scrollLeft <= 1 && e.deltaY < 0;
+            const atEnd = container.scrollLeft >= maxScroll - 1 && e.deltaY > 0;
+            if (!atStart && !atEnd) {
+                e.preventDefault();
+                container.scrollBy({ left: e.deltaY * 1.2, behavior: 'auto' });
+            }
+        }
+    }, { passive: false });
+
+    // 2. Mouse drag-to-scroll
+    let isDown = false;
+    let startX = 0;
+    let scrollLeft = 0;
+    let moved = false;
+
+    container.addEventListener('mousedown', (e) => {
+        if (e.button !== 0) return;
+        isDown = true;
+        moved = false;
+        startX = e.pageX - container.offsetLeft;
+        scrollLeft = container.scrollLeft;
+        container.style.cursor = 'grabbing';
+    });
+
+    const onMouseMove = (e) => {
+        if (!isDown) return;
+        const x = e.pageX - container.offsetLeft;
+        const walk = (x - startX) * 1.4;
+        if (Math.abs(walk) > 6) {
+            moved = true;
+            container.scrollLeft = scrollLeft - walk;
+        }
+    };
+
+    const onMouseUp = () => {
+        if (!isDown) return;
+        isDown = false;
+        container.style.cursor = '';
+    };
+
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+
+    container.addEventListener('click', (e) => {
+        if (moved) {
+            e.stopPropagation();
+            e.preventDefault();
+            moved = false;
+        }
+    }, true);
+}

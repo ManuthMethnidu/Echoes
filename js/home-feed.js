@@ -6,6 +6,7 @@ import { podcastsAPI } from './podcasts-api.js';
 import { escapeHtml, trackDataStore } from './utils.js';
 import { navigate } from './router.js';
 import { Player } from './player.js';
+import { enableHorizontalScroll } from './explore-feed.js';
 
 export class HomeFeed {
     constructor() {
@@ -389,6 +390,7 @@ export class HomeFeed {
                 title: feed.title,
                 subtitle: feed.author || 'Podcast',
                 cover: feed.image || feed.artwork || '/images/default-cover.png',
+                rawCover: feed.rawImage || feed.image || '',
                 data: feed,
             }));
         } catch (e) {
@@ -609,7 +611,7 @@ export class HomeFeed {
                             (show) => `
                         <div class="ytm-card ytm-podcast-card" data-podcast-id="${escapeHtml(String(show.id))}">
                             <div class="ytm-card-cover-wrap">
-                                <img crossorigin="anonymous" referrerpolicy="no-referrer" src="${escapeHtml(show.cover)}" alt="" class="ytm-card-cover" loading="lazy" onerror="this.src='/images/default-cover.png';this.onerror=null;" />
+                                <img referrerpolicy="no-referrer" src="${escapeHtml(show.cover)}" alt="" class="ytm-card-cover" loading="lazy" onerror="this.onerror=null;if(this.src.indexOf('/api/podcasts?image=')===-1&amp;&amp;'${encodeURIComponent(show.rawCover || show.cover || '')}'){this.src='/api/podcasts?image=${encodeURIComponent(show.rawCover || show.cover || '')}';}else{this.src='/images/default-cover.png';}" />
                             </div>
                             <div class="ytm-card-title">${escapeHtml(show.title)}</div>
                             <div class="ytm-card-subtitle">${escapeHtml(show.subtitle)}</div>
@@ -725,6 +727,11 @@ export class HomeFeed {
                 console.error('Failed to play track queue from home:', err);
             }
         };
+
+        // Enable horizontal drag & wheel scrolling on all home carousels
+        container.querySelectorAll('.ytm-carousel, .ytm-quick-picks-carousel').forEach((el) => {
+            enableHorizontalScroll(el);
+        });
 
         // Wire all Prev / Next chevron buttons
         container.querySelectorAll('.ytm-section').forEach((section) => {

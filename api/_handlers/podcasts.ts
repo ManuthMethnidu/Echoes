@@ -11,7 +11,39 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     try {
-        // Extract target endpoint from query or path
+        // 1. Podcast artwork image proxy and cache handler
+        const imageUrl = (req.query.image as string) || (req.query.artwork as string) || (req.query.cover as string);
+        if (imageUrl) {
+            try {
+                const targetImgUrl = new URL(imageUrl);
+                if (targetImgUrl.protocol !== 'http:' && targetImgUrl.protocol !== 'https:') {
+                    return res.status(400).json({ error: 'Invalid image protocol' });
+                }
+
+                const imgRes = await fetch(targetImgUrl.toString(), {
+                    headers: {
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                        'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+                    },
+                });
+
+                if (!imgRes.ok) {
+                    return res.status(imgRes.status).json({ error: 'Failed to fetch upstream podcast image' });
+                }
+
+                const contentType = imgRes.headers.get('content-type') || 'image/jpeg';
+                const buffer = Buffer.from(await imgRes.arrayBuffer());
+
+                res.setHeader('Content-Type', contentType);
+                res.setHeader('Cache-Control', 'public, max-age=604800, s-maxage=604800, stale-while-revalidate=86400');
+                res.setHeader('Access-Control-Allow-Origin', '*');
+                return res.status(200).send(buffer);
+            } catch (imgErr: any) {
+                return res.status(500).json({ error: imgErr.message || 'Image proxy failed' });
+            }
+        }
+
+        // 2. Extract target endpoint from query or path
         let endpoint = (req.query.endpoint as string) || '';
 
         if (!endpoint) {

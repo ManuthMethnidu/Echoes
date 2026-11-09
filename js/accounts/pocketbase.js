@@ -528,12 +528,14 @@ const syncManager = {
     async getProfile(username) {
         try {
             const record = await authApi(`/api/users/${encodeURIComponent(username)}`);
+            const banner = record.banner || record.banner_url || null;
             return {
                 ...record,
-                banner: record.banner_url,
+                banner: banner,
+                banner_url: banner,
                 privacy: {
-                    playlists: record.privacy_playlists || 'public',
-                    lastfm: record.privacy_lastfm || 'public',
+                    playlists: record.privacy_playlists || record.privacy?.playlists || 'public',
+                    lastfm: record.privacy_lastfm || record.privacy?.lastfm || 'public',
                 },
                 user_playlists: record.user_playlists || {},
                 favorite_albums: record.favorite_albums || [],
@@ -552,7 +554,6 @@ const syncManager = {
         const updateData = { ...data };
         if ('banner' in updateData) {
             updateData.banner_url = updateData.banner;
-            delete updateData.banner;
         }
         if (updateData.privacy) {
             updateData.privacy_playlists = updateData.privacy.playlists || 'public';

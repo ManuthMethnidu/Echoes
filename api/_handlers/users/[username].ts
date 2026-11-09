@@ -36,6 +36,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             display_name: profile.display_name,
             avatar_url: profile.avatar_url,
             banner: profile.banner,
+            banner_url: profile.banner,
             status: profile.status,
             about: profile.about,
             website: profile.website,

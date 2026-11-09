@@ -50,6 +50,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     display_name: profile.display_name || user.name || user.email.split('@')[0],
                     avatar_url: profile.avatar_url || null,
                     banner: profile.banner || null,
+                    banner_url: profile.banner || null,
                     status: profile.status || null,
                     about: profile.about || null,
                     website: profile.website || null,

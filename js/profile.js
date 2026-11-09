@@ -104,9 +104,11 @@ async function uploadCompressedImage(file, maxWidth, maxHeight, targetInput, but
         if (res.ok && data.url) {
             targetInput.value = data.url;
             if (targetInput === editBanner) {
+                resetBannerControl(data.url);
                 const bannerEl = document.getElementById('profile-banner');
                 if (bannerEl) bannerEl.style.backgroundImage = `url('${data.url}')`;
             } else if (targetInput === editAvatar) {
+                resetAvatarControl(data.url);
                 const avatarEl = document.getElementById('profile-avatar');
                 if (avatarEl) avatarEl.src = data.url;
             }
@@ -137,7 +139,7 @@ if (bannerUploadBtn && bannerFileInput) {
     bannerUploadBtn.addEventListener('click', () => bannerFileInput.click());
     bannerFileInput.addEventListener('change', (e) => {
         const file = e.target.files?.[0];
-        if (file) uploadCompressedImage(file, 900, 300, editBanner, bannerUploadBtn);
+        if (file) uploadCompressedImage(file, 1400, 600, editBanner, bannerUploadBtn);
         e.target.value = '';
     });
 }
@@ -159,11 +161,43 @@ function isValidHttpUrl(string) {
 
 const resetAvatarControl = (url) => {
     if (editAvatar) editAvatar.value = url || '';
+    const wrapper = document.getElementById('edit-profile-avatar-preview-wrapper');
+    const preview = document.getElementById('edit-profile-avatar-preview');
+    if (wrapper && preview) {
+        if (url) {
+            preview.src = url;
+            wrapper.style.display = 'flex';
+        } else {
+            wrapper.style.display = 'none';
+        }
+    }
 };
 
 const resetBannerControl = (url) => {
     if (editBanner) editBanner.value = url || '';
+    const wrapper = document.getElementById('edit-profile-banner-preview-wrapper');
+    const preview = document.getElementById('edit-profile-banner-preview');
+    if (wrapper && preview) {
+        if (url) {
+            preview.src = url;
+            wrapper.style.display = 'block';
+        } else {
+            wrapper.style.display = 'none';
+        }
+    }
 };
+
+if (editBanner) {
+    editBanner.addEventListener('input', () => {
+        resetBannerControl(editBanner.value.trim());
+    });
+}
+
+if (editAvatar) {
+    editAvatar.addEventListener('input', () => {
+        resetAvatarControl(editAvatar.value.trim());
+    });
+}
 
 function createProfileSkeletonCards(count = 4) {
     return Array.from({ length: count })
@@ -229,7 +263,8 @@ export async function loadProfile(username) {
     }
 
     document.getElementById('profile-display-name').textContent = profile.display_name || username;
-    if (profile.banner) document.getElementById('profile-banner').style.backgroundImage = `url('${profile.banner}')`;
+    const bannerUrl = profile.banner || profile.banner_url;
+    if (bannerUrl) document.getElementById('profile-banner').style.backgroundImage = `url('${bannerUrl}')`;
     if (profile.avatar_url) document.getElementById('profile-avatar').src = profile.avatar_url;
 
     if (profile.status) {
@@ -582,7 +617,7 @@ export async function openEditProfile() {
         editUsername.value = p.username || '';
         editDisplayName.value = p.display_name || '';
         resetAvatarControl(p.avatar_url);
-        resetBannerControl(p.banner);
+        resetBannerControl(p.banner || p.banner_url);
 
         // Calculate and render cooldown hints
         const usernameHint = document.getElementById('username-hint');

@@ -10588,11 +10588,13 @@ body:has(#side-panel.active) #close-fullscreen-cover-btn {
     background-color: var(--secondary);
     background-size: cover;
     background-position: center;
+    background-repeat: no-repeat;
     border-radius: 0 0 var(--radius-xl) var(--radius-xl);
     position: absolute;
     top: 0;
     left: 0;
     z-index: 0;
+    -webkit-mask-image: linear-gradient(to bottom, rgb(0, 0, 0, 1) 50%, rgb(0, 0, 0, 0));
     mask-image: linear-gradient(to bottom, rgb(0, 0, 0, 1) 50%, rgb(0, 0, 0, 0));
 }
 

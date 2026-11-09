@@ -781,7 +781,12 @@ export class HomeFeed {
                             return;
                         }
                     }
-                    navigate(`/playlist/${itemId}`);
+                    const userPl = await db.getPlaylist(itemId);
+                    if (userPl) {
+                        navigate(`/userplaylist/${itemId}`);
+                    } else {
+                        navigate(`/playlist/${itemId}`);
+                    }
                 } else if (match.data) {
                     e.stopPropagation();
                     const trackList = datasets.listenAgainData

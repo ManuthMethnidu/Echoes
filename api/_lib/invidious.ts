@@ -4,6 +4,8 @@ const CACHE_TTL_MS = 15 * 60 * 1000; // 15 mins
 
 const ORDERED_INSTANCES = [
     'https://yt.chocolatemoo53.com',
+    'https://inv.nadeko.net',
+    'https://invidious.protokolla.fi',
 ];
 
 export function isFormatExpired(url: string, bufferSeconds = 60): boolean {

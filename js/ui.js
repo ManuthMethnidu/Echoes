@@ -6389,7 +6389,7 @@ export class UIRenderer {
         }
     }
 
-    async renderPlaylistPage(playlistId, source = null, _provider = null) {
+    async renderPlaylistPage(playlistId, source = null, provider = null) {
         await this.showPage('playlist');
 
         // Reset search input for new playlist
@@ -6441,6 +6441,17 @@ export class UIRenderer {
                     } catch (e) {
                         console.warn('Failed to check public pocketbase playlists:', e);
                     }
+                }
+            } else {
+                // If accessed via /playlist/:id or without explicit source,
+                // check local database first to see if this is an owned/saved playlist
+                try {
+                    ownedPlaylist = await db.getPlaylist(playlistId);
+                    if (ownedPlaylist) {
+                        playlistData = ownedPlaylist;
+                    }
+                } catch (e) {
+                    console.warn('Failed to check local DB for playlist:', e);
                 }
             }
 
@@ -6668,19 +6679,31 @@ export class UIRenderer {
             } else {
                 if (addPlaylistBtn) addPlaylistBtn.style.display = 'flex';
 
-                // If source was explicitly 'user' and we didn't find it, fail.
+                // If source was explicitly 'user' and we didn't find it, try API before throwing
+                let apiResult = null;
                 if (source === 'user') {
-                    throw new Error('Playlist not found. If this is a custom playlist, make sure it is set to Public.');
+                    try {
+                        apiResult = await this.api.getPlaylist(playlistId, provider);
+                    } catch {
+                        throw new Error('Playlist not found. If this is a custom playlist, make sure it is set to Public.');
+                    }
+                } else {
+                    apiResult = await this.api.getPlaylist(playlistId, provider);
                 }
 
-                // Render API playlist
-                let apiResult = await this.api.getPlaylist(playlistId);
+                if (!apiResult) {
+                    throw new Error('Playlist not found');
+                }
 
-                const { playlist, tracks } = apiResult;
+                const playlist = apiResult.playlist || apiResult;
+                const tracks = apiResult.tracks || playlist.tracks || [];
 
-                const imageId = playlist.squareImage || playlist.image;
+                const imageId = playlist.squareImage || playlist.image || playlist.cover || playlist.thumbnail;
                 if (imageId) {
                     imageEl.src = this.api.getCoverUrl(imageId, '1080');
+                    imageEl.onerror = () => {
+                        imageEl.src = '/images/default-cover.svg';
+                    };
                     this.setPageBackground(imageEl.src);
 
                     await this.extractAndApplyColor(this.api.getCoverUrl(imageId, '160'));
@@ -6690,12 +6713,13 @@ export class UIRenderer {
                     this.resetVibrantColor();
                 }
 
-                titleEl.textContent = playlist.title;
-                this.adjustTitleFontSize(titleEl, playlist.title);
+                titleEl.textContent = playlist.title || playlist.name || 'Playlist';
+                this.adjustTitleFontSize(titleEl, playlist.title || playlist.name || 'Playlist');
 
                 const totalDuration = calculateTotalDuration(tracks);
+                const trackCount = playlist.numberOfTracks !== undefined ? playlist.numberOfTracks : tracks.length;
 
-                metaEl.textContent = `${playlist.numberOfTracks} tracks • ${formatDuration(totalDuration)}`;
+                metaEl.textContent = `${trackCount} tracks • ${formatDuration(totalDuration)}`;
                 descEl.textContent = playlist.description || '';
 
                 const originalTracks = [...tracks];
@@ -6725,7 +6749,8 @@ export class UIRenderer {
                 // Update header like button
                 const playlistLikeBtn = document.getElementById('like-playlist-btn');
                 if (playlistLikeBtn) {
-                    const isLiked = await db.isFavorite('playlist', playlist.uuid);
+                    const playlistUuid = playlist.uuid || playlist.id;
+                    const isLiked = await db.isFavorite('playlist', playlistUuid);
                     playlistLikeBtn.innerHTML = this.createHeartIcon(isLiked);
                     playlistLikeBtn.classList.toggle('active', isLiked);
                     playlistLikeBtn.style.display = 'flex';
@@ -6755,14 +6780,17 @@ export class UIRenderer {
                 );
 
                 recentActivityManager.addPlaylist(playlist);
-                document.title = playlist.title || 'Artist Mix';
+                document.title = `${playlist.title || 'Playlist'} - echos`;
             }
 
             // Setup playlist search
             this.setupTracklistSearch();
         } catch (error) {
             console.error('Failed to load playlist:', error);
-            tracklistContainer.innerHTML = createPlaceholder(`Could not load playlist details. ${error.message}`);
+            const msg = error?.message?.includes('404')
+                ? 'Playlist not found (404). This playlist may be private, deleted, or unavailable on this provider.'
+                : `Could not load playlist details. ${error?.message || ''}`;
+            tracklistContainer.innerHTML = createPlaceholder(msg);
         }
     }
 

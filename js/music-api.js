@@ -15,6 +15,7 @@ import { ytEngine } from './yt-music.js';
 import { sanitizeForFilename, getExtensionFromBlob } from './utils.js';
 import { DownloadProgress } from './progressEvents.ts';
 import { triggerDownload } from './download-utils.ts';
+import { db } from './db.js';
 
 /**
  * MusicAPI - Singleton class that provides a unified interface for accessing music streaming services.
@@ -145,6 +146,36 @@ export class MusicAPI {
             isUnavailable: false,
             provider: 'youtube',
             _href: `/track/${trackId}`,
+        };
+    }
+
+    _formatYtPlaylist(playlist, rawId) {
+        if (!playlist) return null;
+        const rawTracks = Array.isArray(playlist.tracks) ? playlist.tracks : [];
+        const tracks = rawTracks.map((t) => this._formatYtTrack(t) || t);
+        if (tracks.length > 0) {
+            this.cacheTracks(tracks);
+        }
+        const cover = playlist.cover || playlist.thumbnail || tracks[0]?.cover || '/images/echos_logo.svg';
+        const playlistObj = {
+            id: playlist.id || rawId,
+            uuid: playlist.id || rawId,
+            title: playlist.title || 'YouTube Playlist',
+            name: playlist.title || 'YouTube Playlist',
+            description: playlist.description || '',
+            cover,
+            image: cover,
+            squareImage: cover,
+            creator: {
+                name: playlist.author || 'YouTube Music',
+            },
+            numberOfTracks: playlist.trackCount || tracks.length,
+            provider: 'youtube',
+            tracks,
+        };
+        return {
+            playlist: playlistObj,
+            tracks,
         };
     }
 
@@ -738,19 +769,61 @@ export class MusicAPI {
     }
 
     async getPlaylist(id, provider = null) {
-        if (this.isYouTubeId(id) || String(id).startsWith('yt:playlist:') || String(id).startsWith('PL')) {
-            const playlist = await ytEngine.getPlaylist(id);
-            if (playlist) {
-                if (playlist.tracks) this.cacheTracks(playlist.tracks);
-                return playlist;
+        if (!id) throw new Error('Missing playlist ID');
+
+        const cleanId = this.stripProviderPrefix(id);
+
+        // 1. YouTube playlists: IDs starting with PL, RD, OLAK, MPREb, LM, FL, yt:playlist:, yt_alb_, or provider === 'youtube'
+        const isYT =
+            provider === 'youtube' ||
+            this.isYouTubeId(id) ||
+            String(id).startsWith('yt:playlist:') ||
+            String(id).startsWith('yt_alb_') ||
+            String(id).startsWith('PL') ||
+            String(id).startsWith('RD') ||
+            String(id).startsWith('OLAK5uy_') ||
+            String(id).startsWith('MPREb_') ||
+            String(id).startsWith('LM') ||
+            String(id).startsWith('FL');
+
+        if (isYT) {
+            try {
+                const playlist = await ytEngine.getPlaylist(cleanId);
+                if (playlist) {
+                    return this._formatYtPlaylist(playlist, id);
+                }
+            } catch (ytErr) {
+                console.warn('[MusicAPI] YouTube getPlaylist failed:', ytErr);
             }
         }
 
-        if (id?.startsWith('VL')) {
-            return getCommunityPlaylist(id);
+        // 2. Community Playlists (typically starting with VL)
+        if (String(id).startsWith('VL')) {
+            try {
+                const community = await getCommunityPlaylist(id);
+                if (community && Array.isArray(community.tracks) && community.tracks.length > 0) {
+                    this.cacheTracks(community.tracks);
+                    return community;
+                }
+            } catch (commErr) {
+                console.warn('[MusicAPI] Community playlist failed, trying YouTube fallback:', commErr);
+            }
+
+            // Many YouTube playlists have VL prefix in YouTube Music URLs (e.g. VLPL..., VLRD..., VLOLAK...).
+            // Strip 'VL' prefix and try YouTube engine:
+            try {
+                const strippedId = String(id).replace(/^VL/, '');
+                const ytPlaylist = await ytEngine.getPlaylist(strippedId);
+                if (ytPlaylist) {
+                    return this._formatYtPlaylist(ytPlaylist, id);
+                }
+            } catch (ytErr) {
+                console.warn('[MusicAPI] YouTube stripped-VL getPlaylist fallback failed:', ytErr);
+            }
         }
 
-        if (this.isAppleId(id, 'playlist', provider) || this.applePlaylistIds.has(String(id))) {
+        // 3. Apple Music playlist
+        if (provider === 'apple' || this.isAppleId(id, 'playlist', provider) || this.applePlaylistIds.has(String(id))) {
             const appleId = this.getAppleId(id, 'playlist');
             if (this.applePlaylistCache.has(String(appleId))) return this.applePlaylistCache.get(String(appleId));
             const requestKey = `playlist:${appleId}`;
@@ -765,10 +838,57 @@ export class MusicAPI {
                 })
                 .finally(() => this.appleEntityRequests.delete(requestKey));
             this.appleEntityRequests.set(requestKey, request);
-            return request;
+            try {
+                return await request;
+            } catch (appleErr) {
+                console.warn('[MusicAPI] Apple Music playlist failed, falling back:', appleErr);
+            }
         }
 
-        return this.tidalAPI.getPlaylist(id);
+        // 4. Primary Provider (Tidal API) with comprehensive failover
+        try {
+            const api = this.getAPI();
+            const result = await api.getPlaylist(cleanId);
+            if (result) return result;
+        } catch (primaryErr) {
+            console.warn(`[MusicAPI] Primary provider playlist failed for ${id} (${primaryErr?.message}), trying failovers...`);
+
+            // Failover A: YouTube Music (try clean ID or without any prefixes)
+            try {
+                const ytPlaylist = await ytEngine.getPlaylist(cleanId);
+                if (ytPlaylist && (ytPlaylist.tracks?.length > 0 || ytPlaylist.title)) {
+                    return this._formatYtPlaylist(ytPlaylist, id);
+                }
+            } catch {}
+
+            // Failover B: Apple Music (if cleanId looks like an Apple playlist or number)
+            try {
+                const appleResult = await this.appleMusicSearchAPI.playlist(cleanId);
+                if (appleResult && (appleResult.tracks?.length > 0 || appleResult.playlist)) {
+                    this.cacheAppleTracks(appleResult.tracks);
+                    return appleResult;
+                }
+            } catch {}
+
+            // Failover C: Local user database playlist
+            try {
+                const localPlaylist = await db.getPlaylist(id);
+                if (localPlaylist) {
+                    const tracks = localPlaylist.tracks || [];
+                    return {
+                        playlist: {
+                            ...localPlaylist,
+                            numberOfTracks: tracks.length,
+                            isUserPlaylist: true,
+                        },
+                        tracks,
+                    };
+                }
+            } catch {}
+
+            // If all failovers are exhausted, throw the original error with clarity
+            throw primaryErr;
+        }
     }
 
     async getMix(id) {

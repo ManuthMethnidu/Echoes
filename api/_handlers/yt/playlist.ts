@@ -14,11 +14,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         playlistInput = playlistInput.split('list=')[1].split('&')[0];
     }
 
-    const playlistId = playlistInput
+    let playlistId = playlistInput
         .replace(/^yt:playlist:/, '')
         .replace(/^yt_alb_/, '')
         .replace(/^yt:/, '')
         .trim();
+
+    if (playlistId.startsWith('VL')) {
+        playlistId = playlistId.replace(/^VL/, '');
+    }
 
     if (!/^[a-zA-Z0-9_-]{5,64}$/.test(playlistId)) {
         return res.status(400).json({ error: 'Invalid playlist ID format' });

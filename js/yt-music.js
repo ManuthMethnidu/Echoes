@@ -139,7 +139,10 @@ export class YouTubeMusicEngine {
         const id = typeof trackOrId === 'string' ? trackOrId : trackOrId?.id || trackOrId?.playlistId;
         if (!id) return null;
 
-        const cleanId = String(id).replace(/^yt:playlist:/, '').replace(/^yt_alb_/, '').replace(/^yt:/, '');
+        let cleanId = String(id).replace(/^yt:playlist:/, '').replace(/^yt_alb_/, '').replace(/^yt:/, '');
+        if (cleanId.startsWith('VL')) {
+            cleanId = cleanId.replace(/^VL/, '');
+        }
         try {
             const res = await fetch(`/api/yt/playlist?id=${encodeURIComponent(cleanId)}`);
             if (!res.ok) return null;

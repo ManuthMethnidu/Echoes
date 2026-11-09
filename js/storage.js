@@ -4,9 +4,30 @@ import { SVG_RIGHT_ARROW } from './icons';
 import { isIos, isSafari } from './platform-detection.js';
 
 export const apiSettings = {
-    STORAGE_KEY: 'monochrome-api-instances-v9',
-    INSTANCES_URLS: [],
-    defaultInstances: { api: [], streaming: [] },
+    STORAGE_KEY: 'echoes-api-instances-v10',
+    INSTANCES_URLS: ['https://tidal-uptime.props-76styles.workers.dev/', '/instances.json'],
+    defaultInstances: {
+        api: [
+            { url: 'https://monochrome-api.samidy.com', version: '2.3' },
+            { url: 'https://eu-central.monochrome.tf', version: '2.4' },
+            { url: 'https://us-west.monochrome.tf', version: '2.4' },
+            { url: 'https://arran.monochrome.tf', version: '2.4' },
+            { url: 'https://wolf.qqdl.site', version: '2.2' },
+            { url: 'https://maus.qqdl.site', version: '2.2' },
+            { url: 'https://vogel.qqdl.site', version: '2.2' },
+            { url: 'https://hund.qqdl.site', version: '2.2' },
+            { url: 'https://tidal.kinoplus.online', version: '2.2' },
+        ],
+        streaming: [
+            { url: 'https://monochrome-api.samidy.com', version: '2.3' },
+            { url: 'https://arran.monochrome.tf', version: '2.4' },
+            { url: 'https://wolf.qqdl.site', version: '2.2' },
+            { url: 'https://maus.qqdl.site', version: '2.2' },
+            { url: 'https://vogel.qqdl.site', version: '2.2' },
+            { url: 'https://katze.qqdl.site', version: '2.2' },
+            { url: 'https://hund.qqdl.site', version: '2.2' },
+        ],
+    },
     userInstances: null,
     instancesLoaded: false,
     _loadPromise: null,
@@ -40,6 +61,10 @@ export const apiSettings = {
         }
 
         this._loadPromise = (async () => {
+            try {
+                localStorage.removeItem('monochrome-api-instances-v9');
+            } catch {}
+
             const cachedData = localStorage.getItem(this.STORAGE_KEY);
             if (cachedData) {
                 try {
@@ -81,8 +106,26 @@ export const apiSettings = {
             if (!data) {
                 console.error('Failed to load instances from all uptime APIs:', fetchError);
                 this.defaultInstances = {
-                    api: [{ url: 'https://tracks.monochrome.st', version: '2.10' }],
-                    streaming: [],
+                    api: [
+                        { url: 'https://monochrome-api.samidy.com', version: '2.3' },
+                        { url: 'https://eu-central.monochrome.tf', version: '2.4' },
+                        { url: 'https://us-west.monochrome.tf', version: '2.4' },
+                        { url: 'https://arran.monochrome.tf', version: '2.4' },
+                        { url: 'https://wolf.qqdl.site', version: '2.2' },
+                        { url: 'https://maus.qqdl.site', version: '2.2' },
+                        { url: 'https://vogel.qqdl.site', version: '2.2' },
+                        { url: 'https://hund.qqdl.site', version: '2.2' },
+                        { url: 'https://tidal.kinoplus.online', version: '2.2' },
+                    ],
+                    streaming: [
+                        { url: 'https://monochrome-api.samidy.com', version: '2.3' },
+                        { url: 'https://arran.monochrome.tf', version: '2.4' },
+                        { url: 'https://wolf.qqdl.site', version: '2.2' },
+                        { url: 'https://maus.qqdl.site', version: '2.2' },
+                        { url: 'https://vogel.qqdl.site', version: '2.2' },
+                        { url: 'https://katze.qqdl.site', version: '2.2' },
+                        { url: 'https://hund.qqdl.site', version: '2.2' },
+                    ],
                 };
                 this.instancesLoaded = true;
                 this._loadPromise = null;
@@ -96,18 +139,28 @@ export const apiSettings = {
                 return url && /\.squid\.wtf/i.test(url);
             };
 
+            const normalizeInstance = (item) => {
+                if (typeof item === 'string') {
+                    return { url: item, version: '2.3' };
+                }
+                return {
+                    url: item.url,
+                    version: item.version || '2.3',
+                };
+            };
+
             if (data.api && Array.isArray(data.api)) {
-                groupedInstances.api = data.api.filter((item) => !isBlockedInstance(item));
+                groupedInstances.api = data.api.filter((item) => !isBlockedInstance(item)).map(normalizeInstance);
             }
 
             if (data.streaming && Array.isArray(data.streaming)) {
-                groupedInstances.streaming = data.streaming.filter((item) => !isBlockedInstance(item));
+                groupedInstances.streaming = data.streaming.filter((item) => !isBlockedInstance(item)).map(normalizeInstance);
             } else if (groupedInstances.api.length > 0) {
                 groupedInstances.streaming = [...groupedInstances.api];
             }
 
             if (groupedInstances.api.length === 0) {
-                groupedInstances.api = [{ url: 'https://tracks.monochrome.st', version: '2.10' }];
+                groupedInstances.api = [{ url: 'https://monochrome-api.samidy.com', version: '2.3' }];
             }
 
             this.defaultInstances = groupedInstances;
@@ -199,7 +252,7 @@ export const apiSettings = {
             const bottom = [];
             for (const item of array) {
                 const url = getUrl(item);
-                if (url.includes('hifi.geeked.wtf')) top.push(item);
+                if (url.includes('monochrome-api.samidy.com') || url.includes('hifi.geeked.wtf')) top.push(item);
                 else if (url.includes('.qqdl.site')) bottom.push(item);
                 else middle.push(item);
             }

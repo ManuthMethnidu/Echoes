@@ -883,6 +883,45 @@ export class MusicAPI {
             console.warn('[getStreamUrl] Tidal API fallback failed:', tidalErr);
         }
 
+        // Resilient audio failover: If tracks.monochrome.st and Tidal API both fail (e.g. rate limit 429 or network down),
+        // search YouTube Music for title + artist and stream audio seamlessly so playback NEVER breaks for the user!
+        const resolvedTitle = track?.title || (typeof id === 'string' && !id.startsWith('http') ? id : '');
+        const resolvedArtist =
+            track?.artist?.name ||
+            (Array.isArray(track?.artists) ? track.artists[0]?.name : '') ||
+            (typeof track?.artist === 'string' ? track.artist : '');
+
+        if (resolvedTitle) {
+            try {
+                const query = `${resolvedTitle} ${resolvedArtist}`.trim();
+                const ytResults = await ytEngine.search(query);
+                if (ytResults && ytResults.length > 0) {
+                    for (const candidate of ytResults.slice(0, 3)) {
+                        try {
+                            const stream = await ytEngine.resolveStream(candidate);
+                            if (stream?.streamUrl) {
+                                return {
+                                    url: stream.streamUrl,
+                                    streamUrl: stream.streamUrl,
+                                    mimeType: stream.mimeType || 'audio/webm',
+                                    mediaMimeType: stream.mimeType || 'audio/webm',
+                                    playbackType: 'direct',
+                                    codec: stream.codec || (stream.mimeType?.includes('opus') ? 'OPUS' : 'AAC'),
+                                    quality: 'HIGH',
+                                    lossless: false,
+                                    bitrateKbps: Math.round(Number(stream.bitrate || 160000) / 1000),
+                                    duration: stream.duration || track?.duration,
+                                    provider: 'youtube',
+                                };
+                            }
+                        } catch {}
+                    }
+                }
+            } catch (ytFallbackErr) {
+                console.warn('[getStreamUrl] YouTube audio failover failed:', ytFallbackErr);
+            }
+        }
+
         throw new Error(`Could not resolve stream URL for track: ${track?.title || id}`);
     }
 

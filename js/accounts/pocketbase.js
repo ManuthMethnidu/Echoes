@@ -378,6 +378,32 @@ const syncManager = {
             };
         }
 
+        if (type === 'podcast') {
+            const rawCover = item.customCover || item.image || item.cover || item.rawImage || null;
+            return {
+                id: String(item.id || item.podcastId || item.feedId || ''),
+                addedAt: item.addedAt || Date.now(),
+                title: item.title || item.name || '',
+                author:
+                    item.author ||
+                    (item.artist && item.artist.name) ||
+                    (typeof item.artist === 'string' ? item.artist : '') ||
+                    item.ownerName ||
+                    '',
+                description: item.description || '',
+                image: rawCover,
+                cover: rawCover,
+                rawImage: item.rawImage || null,
+                episodeCount: item.episodeCount || item.numberOfTracks || 0,
+                feedUrl: item.feedUrl || item.url || '',
+                link: item.link || '',
+                categories: item.categories || {},
+                explicit: item.explicit || false,
+                podcastGuid: item.podcastGuid || '',
+                _href: `/podcasts/${item.id || item.podcastId || item.feedId}`,
+            };
+        }
+
         return item;
     },
 
@@ -628,6 +654,7 @@ const syncManager = {
                         artists: (await database.getAll('favorites_artists')) || [],
                         playlists: (await database.getAll('favorites_playlists')) || [],
                         mixes: (await database.getAll('favorites_mixes')) || [],
+                        podcasts: (await database.getAll('favorites_podcasts')) || [],
                         history: (await database.getAll('history_tracks')) || [],
                         userPlaylists: (await database.getAll('user_playlists')) || [],
                         userFolders: (await database.getAll('user_folders')) || [],
@@ -642,6 +669,7 @@ const syncManager = {
                     if (!library.artists) library.artists = {};
                     if (!library.playlists) library.playlists = {};
                     if (!library.mixes) library.mixes = {};
+                    if (!library.podcasts) library.podcasts = {};
                     if (!userPlaylists) userPlaylists = {};
                     if (!userFolders) userFolders = {};
                     if (!history) history = [];
@@ -661,6 +689,7 @@ const syncManager = {
                     localData.artists.forEach((item) => mergeItem(library.artists, item, 'artist'));
                     localData.playlists.forEach((item) => mergeItem(library.playlists, item, 'playlist'));
                     localData.mixes.forEach((item) => mergeItem(library.mixes, item, 'mix'));
+                    localData.podcasts.forEach((item) => mergeItem(library.podcasts, item, 'podcast'));
 
                     localData.userPlaylists.forEach((playlist) => {
                         const existing = userPlaylists[playlist.id];
@@ -740,6 +769,7 @@ const syncManager = {
                         favorites_artists: Object.values(library.artists).filter((a) => a && typeof a === 'object'),
                         favorites_playlists: Object.values(library.playlists).filter((p) => p && typeof p === 'object'),
                         favorites_mixes: Object.values(library.mixes).filter((m) => m && typeof m === 'object'),
+                        favorites_podcasts: Object.values(library.podcasts).filter((p) => p && typeof p === 'object'),
                         history_tracks: history,
                         user_playlists: Object.values(userPlaylists).filter((p) => p && typeof p === 'object'),
                         user_folders: Object.values(userFolders).filter((f) => f && typeof f === 'object'),
@@ -753,6 +783,7 @@ const syncManager = {
                         localData.artists.length > 0 ||
                         localData.playlists.length > 0 ||
                         localData.mixes.length > 0 ||
+                        localData.podcasts.length > 0 ||
                         localData.history.length > 0 ||
                         localData.userPlaylists.length > 0 ||
                         localData.userFolders.length > 0;
@@ -763,6 +794,7 @@ const syncManager = {
                         convertedData.favorites_artists.length === 0 &&
                         convertedData.favorites_playlists.length === 0 &&
                         convertedData.favorites_mixes.length === 0 &&
+                        convertedData.favorites_podcasts.length === 0 &&
                         convertedData.history_tracks.length === 0 &&
                         convertedData.user_playlists.length === 0 &&
                         convertedData.user_folders.length === 0;

@@ -2202,7 +2202,13 @@ export async function handleTrackAction(
             btn.classList.toggle('active', added);
             btn.title = added ? 'Remove from Favorites' : 'Add to Favorites';
             const textSpan = btn.querySelector('span');
-            if (textSpan && (btn.id === 'like-album-btn' || btn.dataset.type === 'album')) {
+            if (
+                textSpan &&
+                (btn.id === 'like-album-btn' ||
+                    btn.dataset.type === 'album' ||
+                    btn.id === 'like-podcast-btn' ||
+                    btn.dataset.type === 'podcast')
+            ) {
                 textSpan.textContent = added ? 'Saved' : 'Save';
             }
         });
@@ -2321,6 +2327,21 @@ export async function handleTrackAction(
                                     }
                                 });
                             }
+                        }
+                    }
+                } else if (type === 'podcast') {
+                    const podcastsContainer = document.getElementById('library-podcasts-container');
+                    if (podcastsContainer) {
+                        const placeholder = podcastsContainer.querySelector('.placeholder-text');
+                        if (placeholder) podcastsContainer.innerHTML = '';
+                        const tempDiv = document.createElement('div');
+                        tempDiv.innerHTML = ui.createPodcastCardHTML(item);
+                        const newEl = tempDiv.firstElementChild;
+                        if (newEl) {
+                            podcastsContainer.prepend(newEl);
+                            trackDataStore.set(newEl, item);
+                            ui.updateLikeState(newEl, 'podcast', item.id);
+                            ui.attachPodcastCardListeners(podcastsContainer, [item]);
                         }
                     }
                 }
@@ -2878,6 +2899,9 @@ export function initializeTrackInteractions(player, api, mainContent, contextMen
                         } else if (type === 'track') {
                             const data = await api.getTrack(id);
                             item = data.track;
+                        } else if (type === 'podcast') {
+                            const { podcastsAPI } = await import('./podcasts-api.js');
+                            item = await podcastsAPI.getPodcastById(id);
                         }
                     } catch (err) {
                         console.error(err);
@@ -3197,10 +3221,13 @@ export function initializeTrackInteractions(player, api, mainContent, contextMen
                   ? 'playlist'
                   : card.dataset.mixId
                     ? 'mix'
-                    : card.dataset.href
-                      ? card.dataset.href.split('/')[1]
-                      : 'item';
-            const id = card.dataset.albumId || card.dataset.playlistId || card.dataset.mixId;
+                    : card.dataset.podcastId
+                      ? 'podcast'
+                      : card.dataset.href
+                        ? card.dataset.href.split('/')[1]
+                        : 'item';
+            const id =
+                card.dataset.albumId || card.dataset.playlistId || card.dataset.mixId || card.dataset.podcastId;
 
             const item = trackDataStore.get(card) || {
                 id,

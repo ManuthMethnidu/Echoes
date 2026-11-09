@@ -11,7 +11,7 @@ function isValidIDBKey(value) {
 export class MusicDatabase {
     constructor() {
         this.dbName = 'EchosDB';
-        this.version = 11;
+        this.version = 12;
         this.db = null;
     }
 
@@ -74,6 +74,10 @@ export class MusicDatabase {
                 }
                 if (!db.objectStoreNames.contains('favorites_mixes')) {
                     const store = db.createObjectStore('favorites_mixes', { keyPath: 'id' });
+                    store.createIndex('addedAt', 'addedAt', { unique: false });
+                }
+                if (!db.objectStoreNames.contains('favorites_podcasts')) {
+                    const store = db.createObjectStore('favorites_podcasts', { keyPath: 'id' });
                     store.createIndex('addedAt', 'addedAt', { unique: false });
                 }
                 if (!db.objectStoreNames.contains('history_tracks')) {
@@ -226,6 +230,9 @@ export class MusicDatabase {
         const plural = type === 'mix' ? 'mixes' : `${type}s`;
         const storeName = `favorites_${plural}`;
         let key = type === 'playlist' ? item.uuid : item.id;
+        if (type === 'podcast' && key != null) {
+            key = String(key);
+        }
         if (!isValidIDBKey(key)) {
             key = `${Date.now()}-${Math.random()}`;
         }
@@ -250,8 +257,12 @@ export class MusicDatabase {
     async isFavorite(type, id) {
         const plural = type === 'mix' ? 'mixes' : `${type}s`;
         const storeName = `favorites_${plural}`;
+        let lookupId = id;
+        if (type === 'podcast' && lookupId != null) {
+            lookupId = String(lookupId);
+        }
         try {
-            const result = await this.performTransaction(storeName, 'readonly', (store) => store.get(id));
+            const result = await this.performTransaction(storeName, 'readonly', (store) => store.get(lookupId));
             return !!result;
         } catch {
             return false;
@@ -405,6 +416,32 @@ export class MusicDatabase {
             };
         }
 
+        if (normalizedType === 'podcast') {
+            const rawCover = item.customCover || item.image || item.cover || item.rawImage || null;
+            return {
+                id: String(item.id || item.podcastId || item.feedId || ''),
+                addedAt: item.addedAt || null,
+                title: item.title || item.name || '',
+                author:
+                    item.author ||
+                    (item.artist && item.artist.name) ||
+                    (typeof item.artist === 'string' ? item.artist : '') ||
+                    item.ownerName ||
+                    '',
+                description: item.description || '',
+                image: rawCover,
+                cover: rawCover,
+                rawImage: item.rawImage || null,
+                episodeCount: item.episodeCount || item.numberOfTracks || 0,
+                feedUrl: item.feedUrl || item.url || '',
+                link: item.link || '',
+                categories: item.categories || {},
+                explicit: item.explicit || false,
+                podcastGuid: item.podcastGuid || '',
+                _href: `/podcasts/${item.id || item.podcastId || item.feedId}`,
+            };
+        }
+
         return item;
     }
 
@@ -435,6 +472,11 @@ export class MusicDatabase {
                 cover = item.cover;
                 images = item.images;
                 href = `/userplaylist/${id}`;
+                break;
+            case 'podcast':
+                name = item.title;
+                cover = item.image || item.cover;
+                href = `/podcasts/${id}`;
                 break;
             default:
                 return null;
@@ -496,6 +538,7 @@ export class MusicDatabase {
             'favorites_artists',
             'favorites_playlists',
             'favorites_mixes',
+            'favorites_podcasts',
             'pinned_items',
             'history_tracks'
         ];
@@ -523,6 +566,7 @@ export class MusicDatabase {
         const artists = await this.getFavorites('artist');
         const playlists = await this.getFavorites('playlist');
         const mixes = await this.getFavorites('mix');
+        const podcasts = await this.getFavorites('podcast');
         const history = await this.getHistory();
 
         const userPlaylists = await this.getPlaylists(true);
@@ -533,6 +577,7 @@ export class MusicDatabase {
             favorites_artists: artists.map((a) => this._minifyItem('artist', a)),
             favorites_playlists: playlists.map((p) => this._minifyItem('playlist', p)),
             favorites_mixes: mixes.map((m) => this._minifyItem('mix', m)),
+            favorites_podcasts: podcasts.map((p) => this._minifyItem('podcast', p)),
             history_tracks: history.map((t) => this._minifyItem('track', t)),
             user_playlists: userPlaylists,
             user_folders: userFolders,
@@ -551,6 +596,7 @@ export class MusicDatabase {
                 data.favorites_artists,
                 data.favorites_playlists,
                 data.favorites_mixes,
+                data.favorites_podcasts,
                 data.history_tracks,
                 data.user_playlists,
                 data.user_folders,
@@ -648,6 +694,7 @@ export class MusicDatabase {
             artists: data.favorites_artists?.length || 0,
             playlists: data.favorites_playlists?.length || 0,
             mixes: data.favorites_mixes?.length || 0,
+            podcasts: data.favorites_podcasts?.length || 0,
             history: data.history_tracks?.length || 0,
             userPlaylists: data.user_playlists?.length || 0,
             user_folders: data.user_folders?.length || 0,
@@ -659,6 +706,7 @@ export class MusicDatabase {
             importStore('favorites_artists', data.favorites_artists),
             importStore('favorites_playlists', data.favorites_playlists),
             importStore('favorites_mixes', data.favorites_mixes),
+            importStore('favorites_podcasts', data.favorites_podcasts),
             importStore('history_tracks', data.history_tracks),
             data.user_playlists ? importStore('user_playlists', data.user_playlists) : Promise.resolve(false),
             data.user_folders ? importStore('user_folders', data.user_folders) : Promise.resolve(false),
@@ -698,6 +746,18 @@ export class MusicDatabase {
 
     // User Playlists API
     async createPlaylist(name, tracks = [], cover = '', description = '') {
+        // Defensive check: handle non-array tracks or overloaded signature (name, description, cover, tracks)
+        if (!Array.isArray(tracks)) {
+            if (Array.isArray(description)) {
+                tracks = description;
+                description = typeof arguments[1] === 'string' ? arguments[1] : '';
+            } else if (Array.isArray(cover)) {
+                tracks = cover;
+                cover = '';
+            } else {
+                tracks = [];
+            }
+        }
         const id = crypto.randomUUID();
         const playlist = {
             id: id,

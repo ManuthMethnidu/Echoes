@@ -165,11 +165,13 @@
                 <li data-action="add-to-queue">Add to queue</li>
                 <li
                     data-action="toggle-like"
-                    data-type-filter="album,artist,playlist,mix,user-playlist"
+                    data-type-filter="album,artist,playlist,mix,user-playlist,podcast"
                     data-label-album="Save album to library"
                     data-label-unlike-album="Remove album from library"
                     data-label-playlist="Save playlist to library"
                     data-label-unlike-playlist="Remove playlist from library"
+                    data-label-podcast="Save podcast to library"
+                    data-label-unlike-podcast="Remove podcast from library"
                 >
                     Like
                 </li>
@@ -1984,6 +1986,7 @@
                             <button class="search-tab" data-tab="albums">Albums</button>
                             <button class="search-tab" data-tab="artists">Artists</button>
                             <button class="search-tab" data-tab="playlists">Playlists and Mixes</button>
+                            <button class="search-tab" data-tab="podcasts">Podcasts</button>
                             <button class="search-tab" data-tab="local">Local Files</button>
                             <button class="search-tab" data-tab="offline">Downloaded (<span id="offline-tracks-tab-count">0</span>)</button>
                         </div>
@@ -2073,6 +2076,9 @@
                         </div>
                         <div class="search-tab-content" id="library-tab-playlists">
                             <div class="card-grid" id="library-playlists-container"></div>
+                        </div>
+                        <div class="search-tab-content" id="library-tab-podcasts">
+                            <div class="card-grid" id="library-podcasts-container"></div>
                         </div>
                         <div class="search-tab-content" id="library-tab-local">
                             <div class="track-list" id="library-local-container">
@@ -2188,6 +2194,16 @@
                                 <button id="play-podcasts-btn" class="btn-primary" title="Play Latest Episode">
                                     <use svg="./images/play.svg" size="20" />
                                     <span>Play Latest</span>
+                                </button>
+                                <button
+                                    id="like-podcast-btn"
+                                    class="btn-secondary like-btn"
+                                    data-action="toggle-like"
+                                    data-type="podcast"
+                                    title="Save to Favorites"
+                                >
+                                    <use svg="!lucide/heart.svg" class="heart-icon" size="20" />
+                                    <span>Save</span>
                                 </button>
                             </div>
                         </div>

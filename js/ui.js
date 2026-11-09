@@ -3106,6 +3106,7 @@ export class UIRenderer {
         const albumsContainer = document.getElementById('library-albums-container');
         const artistsContainer = document.getElementById('library-artists-container');
         const playlistsContainer = document.getElementById('library-playlists-container');
+        const podcastsContainer = document.getElementById('library-podcasts-container');
         const localContainer = document.getElementById('library-local-container');
         const foldersContainer = document.getElementById('my-folders-container');
         const myPlaylistsContainer = document.getElementById('my-playlists-container');
@@ -3121,6 +3122,9 @@ export class UIRenderer {
         }
         if (playlistsContainer && (!playlistsContainer.children.length || playlistsContainer.querySelector('.placeholder-text'))) {
             playlistsContainer.innerHTML = this.createSkeletonCards(6, false);
+        }
+        if (podcastsContainer && (!podcastsContainer.children.length || podcastsContainer.querySelector('.placeholder-text'))) {
+            podcastsContainer.innerHTML = this.createSkeletonCards(6, false);
         }
 
         const likedTracks = await db.getFavorites('track');
@@ -3227,6 +3231,16 @@ export class UIRenderer {
             }
         } else {
             playlistsContainer.innerHTML = createPlaceholder('No liked playlists or mixes yet.');
+        }
+
+        const likedPodcasts = await db.getFavorites('podcast');
+        if (podcastsContainer) {
+            if (likedPodcasts.length) {
+                podcastsContainer.innerHTML = likedPodcasts.map((p) => this.createPodcastCardHTML(p)).join('');
+                this.attachPodcastCardListeners(podcastsContainer, likedPodcasts);
+            } else {
+                podcastsContainer.innerHTML = createPlaceholder('No liked podcasts yet.');
+            }
         }
 
         const folders = await db.getFolders();
@@ -8603,10 +8617,17 @@ export class UIRenderer {
         const metaEl = document.getElementById('podcasts-detail-meta');
         const imageEl = document.getElementById('podcasts-detail-image');
         const episodesContainer = document.getElementById('podcasts-episodes-container');
+        const podcastLikeBtn = document.getElementById('like-podcast-btn');
 
         nameEl.textContent = 'Loading...';
         metaEl.textContent = '';
         episodesContainer.innerHTML = this.createSkeletonTracks(8, true);
+        if (podcastLikeBtn) {
+            podcastLikeBtn.innerHTML = `${this.createHeartIcon(false)}<span>Save</span>`;
+            podcastLikeBtn.classList.remove('active');
+            podcastLikeBtn.title = 'Save to Favorites';
+            trackDataStore.delete(podcastLikeBtn);
+        }
 
         try {
             const { podcastsAPI } = await import('./podcasts-api.js');
@@ -8632,6 +8653,14 @@ export class UIRenderer {
 
                 this.podcastState.podcastTitle = podcastResult.title;
                 const _playBtn = document.getElementById('play-podcasts-btn');
+
+                if (podcastLikeBtn) {
+                    const isLiked = await db.isFavorite('podcast', String(podcastResult.id || podcastId));
+                    podcastLikeBtn.innerHTML = `${this.createHeartIcon(isLiked)}<span>${isLiked ? 'Saved' : 'Save'}</span>`;
+                    podcastLikeBtn.classList.toggle('active', isLiked);
+                    podcastLikeBtn.title = isLiked ? 'Remove from Favorites' : 'Save to Favorites';
+                    trackDataStore.set(podcastLikeBtn, podcastResult);
+                }
             } else {
                 this.podcastState.podcastTitle = 'Unknown Podcast';
             }
@@ -8663,7 +8692,7 @@ export class UIRenderer {
 
             const podcastTitle = this.podcastState.podcastTitle || 'Unknown Podcast';
             const tracks = result.items.map((ep) => this.transformPodcastEpisodeToTrack(ep, podcastTitle));
-            await this.renderListWithTracks(episodesContainer, tracks, true);
+            await this.renderListWithTracks(episodesContainer, tracks, true, false, false, true);
 
             const playBtn = document.getElementById('play-podcasts-btn');
             if (playBtn && result.items.length > 0) {
@@ -8721,8 +8750,11 @@ export class UIRenderer {
 
         return `
             <div class="card podcast-card" data-podcast-id="${escapeHtml(String(podcast.id))}">
-                <div class="card-image-container">
-                    <img referrerpolicy="no-referrer" src="${escapeHtml(image || '/images/default-cover.png')}" alt="${title}" loading="lazy" onerror="this.onerror=null;if(this.src.indexOf('/api/podcasts?image=')===-1&amp;&amp;'${encodeURIComponent(podcast.rawImage || image || '')}'){this.src='/api/podcasts?image=${encodeURIComponent(podcast.rawImage || image || '')}';}else{this.src='/images/default-cover.png';}" />
+                <div class="card-image-wrapper card-image-container">
+                    <img referrerpolicy="no-referrer" class="card-image" src="${escapeHtml(image || '/images/default-cover.png')}" alt="${title}" loading="lazy" onerror="this.onerror=null;if(this.src.indexOf('/api/podcasts?image=')===-1&amp;&amp;'${encodeURIComponent(podcast.rawImage || image || '')}'){this.src='/api/podcasts?image=${encodeURIComponent(podcast.rawImage || image || '')}';}else{this.src='/images/default-cover.png';}" />
+                    <button class="like-btn card-like-btn" data-action="toggle-like" data-type="podcast" title="Add to Liked">
+                        ${this.createHeartIcon(false)}
+                    </button>
                 </div>
                 <div class="card-info">
                     <h3 class="card-title">${title}</h3>
@@ -8740,7 +8772,14 @@ export class UIRenderer {
             const podcastId = card.dataset.podcastId;
             const podcast = podcasts.find((p) => String(p.id) === String(podcastId));
             if (podcast) {
-                card.addEventListener('click', () => {
+                trackDataStore.set(card, podcast);
+                const likeBtn = card.querySelector('.like-btn');
+                if (likeBtn) {
+                    trackDataStore.set(likeBtn, podcast);
+                }
+                this.updateLikeState(card, 'podcast', String(podcast.id));
+                card.addEventListener('click', (e) => {
+                    if (e.target.closest('.like-btn, .card-like-btn, .btn-icon')) return;
                     if (podcast.feedId || (podcastId && !podcastId.startsWith('podcast_'))) {
                         navigate(`/podcasts/${podcast.feedId || podcastId}`);
                     } else if (podcast.originalItem && this.player) {

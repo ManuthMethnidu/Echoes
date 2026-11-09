@@ -150,18 +150,34 @@ export class ConnectManager {
 
     /**
      * Initializes local BroadcastChannel to enable instant multi-tab sync
-     * and local testing (e.g. Tab 1 as "Phone", Tab 2 as "Smart TV").
+     * strictly scoped to the active authenticated user ID.
      */
     initBroadcastFallback() {
+        this.broadcastChannel = null;
+        this.currentUserId = null;
+    }
+
+    /**
+     * Rebinds the local BroadcastChannel strictly to the user's private account ID
+     */
+    updateBroadcastChannel(userId) {
+        if (this.broadcastChannel) {
+            try {
+                this.broadcastChannel.close();
+            } catch (_) {}
+            this.broadcastChannel = null;
+        }
+
+        if (!userId || userId === 'guest') return;
+
         if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
             try {
-                this.broadcastChannel = new BroadcastChannel('echos_connect_bus');
+                this.broadcastChannel = new BroadcastChannel(`echos_connect_bus_${userId}`);
                 this.broadcastChannel.onmessage = (event) => {
                     this.handleIncomingMessage(event.data);
                 };
             } catch (_e) {}
         }
-        this.currentUserId = null;
     }
 
     /**
@@ -186,13 +202,18 @@ export class ConnectManager {
      */
     getWsUrl(userId) {
         if (!userId || userId === 'guest') return null;
+        const normalizedUserId = String(userId).trim();
+        const userRoom = `user_${normalizedUserId}`;
+
         const override =
             localStorage.getItem('echos-connect-ws-url') ||
             (typeof window !== 'undefined' && window.__ECHOS_CONNECT_WS_URL__) ||
             'wss://stream.mteck.tech/ws';
         if (override) {
             const u = new URL(override);
-            u.searchParams.set('userId', userId);
+            u.searchParams.set('userId', normalizedUserId);
+            u.searchParams.set('room', userRoom);
+            u.searchParams.set('sessionId', userRoom);
             u.searchParams.set('deviceId', this.deviceId);
             u.searchParams.set('deviceName', this.deviceName);
             u.searchParams.set('deviceType', this.deviceType);
@@ -203,7 +224,9 @@ export class ConnectManager {
         const host = window.location.host;
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         return `${protocol}//${host}/api/connect/ws?userId=${encodeURIComponent(
-            userId
+            normalizedUserId
+        )}&room=${encodeURIComponent(userRoom)}&sessionId=${encodeURIComponent(
+            userRoom
         )}&deviceId=${encodeURIComponent(this.deviceId)}&deviceName=${encodeURIComponent(
             this.deviceName
         )}&deviceType=${encodeURIComponent(this.deviceType)}`;
@@ -223,6 +246,7 @@ export class ConnectManager {
                 this.ws = null;
             }
             this.currentUserId = null;
+            this.updateBroadcastChannel(null);
             this.stopHeartbeat();
             if (this.reconnectTimer) {
                 clearTimeout(this.reconnectTimer);
@@ -238,7 +262,8 @@ export class ConnectManager {
             return;
         }
 
-        const targetUserId = userId;
+        const targetUserId = String(userId).trim();
+        this.updateBroadcastChannel(targetUserId);
 
         // If already connected to this exact user room, no-op
         if (this.ws && this.currentUserId === targetUserId && (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING)) {
@@ -314,6 +339,11 @@ export class ConnectManager {
     }
 
     send(msg) {
+        if (!msg || typeof msg !== 'object') return;
+        if (this.currentUserId) {
+            msg.userId = this.currentUserId;
+        }
+
         // Send via WebSocket if online
         if (this.ws && this.ws.readyState === WebSocket.OPEN) {
             try {
@@ -321,7 +351,7 @@ export class ConnectManager {
             } catch (_e) {}
         }
 
-        // Also broadcast locally across browser tabs
+        // Also broadcast locally across browser tabs for this user
         if (this.broadcastChannel) {
             try {
                 this.broadcastChannel.postMessage(msg);
@@ -334,6 +364,12 @@ export class ConnectManager {
      */
     handleIncomingMessage(msg) {
         if (!msg || !msg.type) return;
+
+        // Strict security guard: Discard any message tagged with a different userId
+        if (msg.userId && this.currentUserId && String(msg.userId).trim() !== String(this.currentUserId).trim()) {
+            console.warn('[Echos Connect] Discarded cross-device message belonging to another user account.');
+            return;
+        }
 
         switch (msg.type) {
             case 'SESSION_STATE':

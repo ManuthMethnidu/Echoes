@@ -448,7 +448,30 @@ server.on('upgrade', (request, socket, head) => {
 });
 
 wss.on('connection', (ws, request, url) => {
-  const roomId = url.searchParams.get('room') || url.searchParams.get('sessionId') || 'default-room';
+  const rawUserId =
+    url.searchParams.get('userId') ||
+    url.searchParams.get('user_id') ||
+    url.searchParams.get('room') ||
+    url.searchParams.get('sessionId');
+
+  const userId = typeof rawUserId === 'string' ? rawUserId.trim() : '';
+
+  // Reject unauthenticated, guest, or insecure default rooms.
+  // Echoes Connect is strictly an authenticated private cross-device feature for the same user account.
+  if (
+    !userId ||
+    userId === 'default-room' ||
+    userId === 'guest' ||
+    userId === 'undefined' ||
+    userId === 'null' ||
+    userId === 'anonymous'
+  ) {
+    ws.close(4001, 'Unauthorized: Valid authenticated userId required for private device sync');
+    return;
+  }
+
+  // Room is strictly isolated and keyed by the authenticated user ID
+  const roomId = userId.startsWith('user_') ? userId : `user_${userId}`;
   const deviceId = url.searchParams.get('deviceId') || `dev_${Math.random().toString(36).slice(2, 10)}`;
   const deviceName = url.searchParams.get('deviceName') || 'Unknown Device';
   const deviceType = url.searchParams.get('deviceType') || 'desktop';

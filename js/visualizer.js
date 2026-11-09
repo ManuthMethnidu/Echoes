@@ -2,6 +2,14 @@
 import { visualizerSettings } from './storage.js';
 import { audioContextManager } from './audio-context.js';
 
+const PRESET_FACTORIES = {
+    lcd: async () => new (await import('./visualizers/lcd.js')).LCDPreset(),
+    particles: async () => new (await import('./visualizers/particles.js')).ParticlesPreset(),
+    'unknown-pleasures': async () => new (await import('./visualizers/unknown_pleasures_webgl.js')).UnknownPleasuresWebGL(),
+    butterchurn: async () => new (await import('./visualizers/butterchurn.js')).ButterchurnPreset(),
+    kawarp: async () => new (await import('./visualizers/kawarp.js')).KawarpPreset(),
+};
+
 export class Visualizer {
     constructor(canvas, audio) {
         this.canvas = canvas;
@@ -11,7 +19,8 @@ export class Visualizer {
         this.analyser = null;
         this.isActive = false;
         this.animationId = null;
-        this.activePresetKey = visualizerSettings.getPreset();
+        this.activePresetKey = visualizerSettings.getPreset() || 'butterchurn';
+        this.presets = {};
 
         // ---- AUDIO BUFFERS (REUSED) ----
         this.bufferLength = 0;
@@ -55,16 +64,48 @@ export class Visualizer {
     }
 
     /**
-     * Must be called after class is constructed!
+     * Load an individual preset on demand
+     */
+    async loadPreset(key) {
+        if (!key) key = 'butterchurn';
+        if (!this.presets) this.presets = {};
+        if (this.presets[key]) return this.presets[key];
+
+        const factory = PRESET_FACTORIES[key] || PRESET_FACTORIES['butterchurn'] || PRESET_FACTORIES['lcd'];
+        try {
+            const instance = await factory();
+            this.presets[key] = instance;
+            return instance;
+        } catch (e) {
+            console.error(`[Visualizer] Failed to load preset "${key}":`, e);
+            if (key !== 'lcd') {
+                return this.loadPreset('lcd');
+            }
+            return null;
+        }
+    }
+
+    /**
+     * Instantly loads ONLY the active preset for instantaneous startup.
+     * Remaining presets are pre-warmed in the background during idle time.
      */
     async initPresets() {
-        this.presets = {
-            lcd: new (await import('./visualizers/lcd.js')).LCDPreset(),
-            particles: new (await import('./visualizers/particles.js')).ParticlesPreset(),
-            'unknown-pleasures': new (await import('./visualizers/unknown_pleasures_webgl.js')).UnknownPleasuresWebGL(),
-            butterchurn: new (await import('./visualizers/butterchurn.js')).ButterchurnPreset(),
-            kawarp: new (await import('./visualizers/kawarp.js')).KawarpPreset(),
-        };
+        if (!this.presets) this.presets = {};
+        const activeKey = this.activePresetKey || visualizerSettings.getPreset() || 'butterchurn';
+        await this.loadPreset(activeKey);
+
+        const scheduleIdle =
+            typeof window !== 'undefined' && 'requestIdleCallback' in window
+                ? window.requestIdleCallback
+                : (cb) => setTimeout(cb, 1000);
+
+        scheduleIdle(() => {
+            for (const key of Object.keys(PRESET_FACTORIES)) {
+                if (key !== activeKey && !this.presets[key]) {
+                    this.loadPreset(key).catch(() => {});
+                }
+            }
+        }, { timeout: 3500 });
     }
 
     updateDimming() {
@@ -74,7 +115,7 @@ export class Visualizer {
     }
 
     get activePreset() {
-        return this.presets?.[this.activePresetKey] || this.presets?.['lcd'] || null;
+        return this.presets?.[this.activePresetKey] || (this.presets && Object.values(this.presets)[0]) || null;
     }
 
     async init() {
@@ -155,6 +196,10 @@ export class Visualizer {
     async start() {
         if (this.isActive) return true;
 
+        if (!this.activePreset) {
+            await this.initPresets();
+        }
+
         if (!this.ctx) {
             this.initContext();
         }
@@ -181,13 +226,13 @@ export class Visualizer {
         this.canvas.style.display = 'block';
 
         // Initialize presets that need lazy init (Butterchurn, Kawarp)
-        if (this.activePreset.lazyInit) {
+        if (this.activePreset?.lazyInit) {
             const sourceNode = audioContextManager.getSourceNode();
             await this.activePreset.lazyInit(this.canvas, this.audioContext, sourceNode);
             this.resize();
         }
 
-        if (this.activePreset.managesOwnContext && this.activePreset.isInitialized === false) {
+        if (this.activePreset?.managesOwnContext && this.activePreset.isInitialized === false) {
             this.isActive = false;
             this.canvas.style.display = 'none';
             window.removeEventListener('resize', this._resizeBound);
@@ -312,8 +357,13 @@ export class Visualizer {
         this.activePreset.draw(this.ctx, this.canvas, this.analyser, this.dataArray, stats);
     };
 
-    setPreset(key) {
-        if (!this.presets || !this.presets[key]) return;
+    async setPreset(key) {
+        if (!key) return;
+        if (!this.presets) this.presets = {};
+        if (!this.presets[key]) {
+            await this.loadPreset(key);
+        }
+        if (!this.presets[key]) return;
 
         const webglPresets = ['butterchurn', 'kawarp'];
         const fromPreset = this.activePresetKey;
@@ -344,8 +394,13 @@ export class Visualizer {
         }
     }
 
-    applyPresetOverride(key) {
-        if (!this.presets?.[key] || this.activePresetKey === key) return;
+    async applyPresetOverride(key) {
+        if (!key || this.activePresetKey === key) return;
+        if (!this.presets) this.presets = {};
+        if (!this.presets[key]) {
+            await this.loadPreset(key);
+        }
+        if (!this.presets[key]) return;
 
         if (this.activePreset?.destroy) {
             this.activePreset.destroy();

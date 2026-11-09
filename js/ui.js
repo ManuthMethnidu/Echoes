@@ -486,6 +486,10 @@ export class UIRenderer {
         this.currentTrack = track;
         await this.updateGlobalTheme();
 
+        if (track && visualizerSettings.isEnabled()) {
+            this.warmupVisualizer();
+        }
+
         const likeBtn = document.getElementById('now-playing-like-btn');
         const addPlaylistBtn = document.getElementById('now-playing-add-playlist-btn');
         const mobileAddPlaylistBtn = document.getElementById('mobile-add-playlist-btn');
@@ -1916,6 +1920,28 @@ export class UIRenderer {
         }
     }
 
+    warmupVisualizer(activeElement = null) {
+        if (this.visualizer || !visualizerSettings.isEnabled()) return;
+        const targetElement = activeElement || this.player?.activeElement;
+        if (!targetElement) return;
+
+        const schedule =
+            typeof window !== 'undefined' && 'requestIdleCallback' in window
+                ? window.requestIdleCallback
+                : (cb) => setTimeout(cb, 1000);
+
+        schedule(async () => {
+            try {
+                if (this.visualizer) return;
+                const canvas = document.getElementById('visualizer-canvas');
+                if (canvas && (this.player?.activeElement || targetElement)) {
+                    this.visualizer = new Visualizer(canvas, targetElement);
+                    await this.visualizer.initPresets();
+                }
+            } catch (_e) {}
+        }, { timeout: 2500 });
+    }
+
     async startFullscreenVisualizer(activeElement, overlay) {
         if (!activeElement || !overlay) return false;
 
@@ -1937,6 +1963,9 @@ export class UIRenderer {
             }
         } else {
             this.visualizer.audio = activeElement;
+            if (!this.visualizer.activePreset) {
+                await this.visualizer.initPresets();
+            }
         }
 
         if (this.visualizer) {

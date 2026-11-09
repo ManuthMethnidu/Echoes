@@ -581,7 +581,12 @@ export function initializeUIInteractions(player, api, ui) {
 
             tab.classList.add('active');
 
-            const prefix = page.id === 'page-library' ? 'library-tab-' : 'search-tab-';
+            let prefix = 'search-tab-';
+            if (page.id === 'page-library') {
+                prefix = 'library-tab-';
+            } else if (page.id === 'page-podcasts-browse') {
+                prefix = 'podcasts-tab-';
+            }
             const contentId = `${prefix}${tab.dataset.tab}`;
             document.getElementById(contentId)?.classList.add('active');
 

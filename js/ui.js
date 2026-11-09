@@ -8417,23 +8417,110 @@ export class UIRenderer {
         await this.showPage('podcasts-browse');
         const trendingContainer = document.getElementById('podcasts-trending-container');
         const recentContainer = document.getElementById('podcasts-recent-container');
-        trendingContainer.innerHTML = this.createSkeletonCards(12, true);
-        recentContainer.innerHTML = this.createSkeletonCards(12, true);
+        if (trendingContainer) trendingContainer.innerHTML = this.createSkeletonCards(12, true);
+        if (recentContainer) recentContainer.innerHTML = `<div class="card-grid">${this.createSkeletonCards(12, true)}</div>`;
 
         try {
             const { podcastsAPI } = await import('./podcasts-api.js');
-            const trendingResult = await podcastsAPI.getTrendingPodcasts({ max: 24 });
-            if (trendingResult.items.length > 0) {
-                trendingContainer.innerHTML = trendingResult.items
-                    .map((podcast) => this.createPodcastCardHTML(podcast))
-                    .join('');
-                this.attachPodcastCardListeners(trendingContainer, trendingResult.items);
-            } else {
-                trendingContainer.innerHTML = createPlaceholder('No trending podcasts found.');
-            }
+
+            const loadTrending = async () => {
+                if (!trendingContainer) return;
+                try {
+                    const trendingResult = await podcastsAPI.getTrendingPodcasts({ max: 24 });
+                    if (trendingResult.items.length > 0) {
+                        trendingContainer.innerHTML = trendingResult.items
+                            .map((podcast) => this.createPodcastCardHTML(podcast))
+                            .join('');
+                        this.attachPodcastCardListeners(trendingContainer, trendingResult.items);
+                    } else {
+                        trendingContainer.innerHTML = createPlaceholder('No trending podcasts found.');
+                    }
+                } catch (error) {
+                    console.error('Failed to load trending podcasts:', error);
+                    trendingContainer.innerHTML = createPlaceholder('Failed to load trending podcasts.');
+                }
+            };
+
+            const loadRecent = async () => {
+                if (!recentContainer) return;
+                try {
+                    let historyPodcasts = [];
+                    try {
+                        const history = (await db.getHistory()) || [];
+                        const seenKeys = new Set();
+                        for (const item of history) {
+                            if (item.isPodcast || (item.id && String(item.id).startsWith('podcast_'))) {
+                                const pid = item.podcastId || item.feedId;
+                                const title = item.feedTitle || item.album?.title || item.artist?.name || 'Podcast';
+                                const key = pid ? String(pid) : title;
+                                if (!seenKeys.has(key)) {
+                                    seenKeys.add(key);
+                                    historyPodcasts.push({
+                                        id: pid || item.id,
+                                        feedId: pid || null,
+                                        title: title,
+                                        author: item.artist?.name || 'Recently played',
+                                        image: item.customCover || item.album?.cover || item.cover || '',
+                                        description: item.title ? `Episode: ${item.title}` : 'Recently listened',
+                                        episodeCount: null,
+                                        originalItem: item,
+                                    });
+                                }
+                            }
+                        }
+                    } catch (e) {
+                        console.warn('Could not read history for podcasts:', e);
+                    }
+
+                    const recentResult = await podcastsAPI.getRecentPodcasts({ max: 24 });
+                    const recentFeeds = recentResult.items || [];
+                    const allCardsData = [];
+
+                    let html = '';
+                    if (historyPodcasts.length > 0) {
+                        html += `
+                            <div style="font-size: 1.15rem; font-weight: 600; margin-bottom: 0.75rem; color: var(--foreground);">
+                                Recently Listened
+                            </div>
+                            <div class="card-grid" style="margin-bottom: 2rem;">
+                                ${historyPodcasts.map((p) => this.createPodcastCardHTML(p)).join('')}
+                            </div>
+                        `;
+                        allCardsData.push(...historyPodcasts);
+
+                        if (recentFeeds.length > 0) {
+                            html += `
+                                <div style="font-size: 1.15rem; font-weight: 600; margin-bottom: 0.75rem; color: var(--foreground);">
+                                    Recently Added & Updated Shows
+                                </div>
+                                <div class="card-grid">
+                                    ${recentFeeds.map((p) => this.createPodcastCardHTML(p)).join('')}
+                                </div>
+                            `;
+                            allCardsData.push(...recentFeeds);
+                        }
+                    } else if (recentFeeds.length > 0) {
+                        html = `
+                            <div class="card-grid">
+                                ${recentFeeds.map((p) => this.createPodcastCardHTML(p)).join('')}
+                            </div>
+                        `;
+                        allCardsData.push(...recentFeeds);
+                    } else {
+                        html = createPlaceholder('No recent podcasts found.');
+                    }
+
+                    recentContainer.innerHTML = html;
+                    this.attachPodcastCardListeners(recentContainer, allCardsData);
+                } catch (error) {
+                    console.error('Failed to load recent podcasts:', error);
+                    recentContainer.innerHTML = createPlaceholder('Failed to load recent podcasts.');
+                }
+            };
+
+            await Promise.allSettled([loadTrending(), loadRecent()]);
         } catch (error) {
-            console.error('Failed to load trending podcasts:', error);
-            trendingContainer.innerHTML = createPlaceholder('Failed to load trending podcasts.');
+            console.error('Failed to load podcasts page:', error);
         }
 
         document.title = 'Podcasts - echos';
@@ -8558,7 +8645,7 @@ export class UIRenderer {
 
     createPodcastCardHTML(podcast) {
         const title = escapeHtml(podcast.title || 'Unknown Podcast');
-        const author = escapeHtml(podcast.author || '');
+        const author = escapeHtml(podcast.author || 'Podcast');
         const image = podcast.image || '';
         const rawDesc = (podcast.description || '')
             .replace(/<[^>]*>/g, '')
@@ -8569,15 +8656,15 @@ export class UIRenderer {
         const episodeCount = podcast.episodeCount || 0;
 
         return `
-            <div class="card podcast-card" data-podcast-id="${podcast.id}">
+            <div class="card podcast-card" data-podcast-id="${escapeHtml(String(podcast.id))}">
                 <div class="card-image-container">
-                    <img crossorigin="anonymous" referrerpolicy="no-referrer" src="${image}" alt="${title}" loading="lazy" onerror="this.onerror=null; this.src='/images/default-cover.png';" />
+                    <img crossorigin="anonymous" referrerpolicy="no-referrer" src="${escapeHtml(image || '/images/default-cover.png')}" alt="${title}" loading="lazy" onerror="this.onerror=null; this.src='/images/default-cover.png';" />
                 </div>
                 <div class="card-info">
                     <h3 class="card-title">${title}</h3>
                     <p class="card-subtitle">${author}</p>
                     <p class="card-description">${description}${rawDesc.length > 110 ? '...' : ''}</p>
-                    <span class="card-meta">${episodeCount} ${episodeCount === 1 ? 'episode' : 'episodes'}</span>
+                    <span class="card-meta">${episodeCount ? `${episodeCount} ${episodeCount === 1 ? 'episode' : 'episodes'}` : 'Podcast'}</span>
                 </div>
             </div>
         `;
@@ -8587,16 +8674,24 @@ export class UIRenderer {
         const cards = container.querySelectorAll('.card[data-podcast-id]');
         cards.forEach((card) => {
             const podcastId = card.dataset.podcastId;
-            const podcast = podcasts.find((p) => p.id === podcastId);
+            const podcast = podcasts.find((p) => String(p.id) === String(podcastId));
             if (podcast) {
                 card.addEventListener('click', () => {
-                    navigate(`/podcasts/${podcastId}`);
+                    if (podcast.feedId || (podcastId && !podcastId.startsWith('podcast_'))) {
+                        navigate(`/podcasts/${podcast.feedId || podcastId}`);
+                    } else if (podcast.originalItem && this.player) {
+                        this.player.setQueue([podcast.originalItem], 0);
+                        this.player.playTrackFromQueue();
+                    } else {
+                        navigate(`/podcasts/${podcastId}`);
+                    }
                 });
             }
         });
     }
 
     transformPodcastEpisodeToTrack(episode, podcastTitle = 'Unknown Podcast') {
+        const podcastId = this.podcastState?.id || episode.feedId || null;
         return {
             id: `podcast_${episode.id}`,
             title: episode.title,
@@ -8611,6 +8706,9 @@ export class UIRenderer {
             explicit: episode.explicit,
             dateAdded: episode.datePublished,
             isPodcast: true,
+            podcastId: podcastId,
+            feedId: podcastId,
+            feedTitle: podcastTitle,
             enclosureUrl: episode.enclosureUrl,
             enclosureType: episode.enclosureType,
             enclosureLength: episode.enclosureLength,

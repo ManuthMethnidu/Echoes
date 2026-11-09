@@ -1032,12 +1032,13 @@ export async function initializePlayerEvents(player, audioPlayer, scrobbler, ui)
 
             // Log history outside the duration gate: streams with unknown
             // duration (NaN/Infinity) would otherwise never reach Recent.
-            if (currentTime >= 10 && player.currentTrack && player.currentTrack.id !== historyLoggedTrackId) {
+            const logThreshold = (player.currentTrack?.isPodcast || String(player.currentTrack?.id || '').startsWith('podcast_')) ? 5 : 10;
+            if (currentTime >= logThreshold && player.currentTrack && player.currentTrack.id !== historyLoggedTrackId) {
                 historyLoggedTrackId = player.currentTrack.id;
                 const historyEntry = await db.addToHistory(player.currentTrack);
                 await syncManager.syncHistoryItem(historyEntry);
 
-                if (window.location.hash === '#recent') {
+                if (window.location.pathname === '/recent' || window.location.hash === '#recent' || ui.currentPage === 'recent') {
                     ui.renderRecentPage();
                 }
             }

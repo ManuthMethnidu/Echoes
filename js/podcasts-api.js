@@ -168,6 +168,46 @@ export class PodcastsAPI {
         }
     }
 
+    async getRecentPodcasts(options = {}) {
+        try {
+            const max = options.max || 24;
+            const lang = options.lang || '';
+            const cat = options.cat || '';
+            const since = options.since || '';
+            const params = new URLSearchParams({ max, pretty: '' });
+            if (lang) params.append('lang', lang);
+            if (cat) params.append('cat', cat);
+            if (since) params.append('since', since);
+            const queryString = params.toString().replace(/&pretty=$/, '');
+            const data = await this.fetchWithRetry(`/recent/feeds?${queryString}`, options);
+
+            if (data.status !== 'true' || !data.feeds) {
+                return { items: [], total: 0 };
+            }
+
+            const validFeeds = data.feeds.filter(
+                (feed) => feed && feed.dead !== 1 && (feed.episodeCount === undefined || feed.episodeCount > 0)
+            );
+            // Sort feeds with cover image first
+            validFeeds.sort((a, b) => {
+                const hasImgA = Boolean(a.image || a.artwork);
+                const hasImgB = Boolean(b.image || b.artwork);
+                if (hasImgA && !hasImgB) return -1;
+                if (!hasImgA && hasImgB) return 1;
+                return 0;
+            });
+            const podcasts = validFeeds.map((feed) => this.transformPodcast(feed));
+            return {
+                items: podcasts,
+                total: validFeeds.length,
+            };
+        } catch (error) {
+            if (error.name === 'AbortError') throw error;
+            console.error('Get recent podcasts failed:', error);
+            return { items: [], total: 0 };
+        }
+    }
+
     async testAuth() {
         console.log('Testing PodcastIndex auth...');
         try {

@@ -1766,6 +1766,9 @@ export async function showAddToPlaylistModal(track) {
             createModal._pendingTracks = [track];
 
             createModal.classList.add('active');
+            try {
+                window.history.pushState({ modal: 'playlist-modal' }, '', window.location.pathname);
+            } catch (err) {}
             document.getElementById('playlist-name-input').focus();
             return;
         }
@@ -2395,6 +2398,9 @@ export async function handleTrackAction(
                 createModal._pendingTracks = [item];
 
                 createModal.classList.add('active');
+                try {
+                    window.history.pushState({ modal: 'playlist-modal' }, '', window.location.pathname);
+                } catch (err) {}
                 document.getElementById('playlist-name-input').focus();
                 return;
             }

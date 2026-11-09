@@ -746,7 +746,40 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     initTuneMyMusicAndYouTubeUI();
 
+    function openModalWithHistory(modalId) {
+        const modal = document.getElementById(modalId);
+        if (!modal) return;
+        modal.classList.add('active');
+        try {
+            window.history.pushState({ modal: modalId }, '', window.location.pathname);
+        } catch (e) {
+            console.warn('Could not push history state for modal:', e);
+        }
+    }
+    window.openModalWithHistory = openModalWithHistory;
+
+    function closeModalWithHistory(modalId) {
+        const modal = document.getElementById(modalId);
+        if (!modal) return;
+        const wasActive = modal.classList.contains('active');
+        modal.classList.remove('active');
+        if (wasActive && window.history.state && window.history.state.modal === modalId) {
+            window._closingModalViaButton = true;
+            window.history.back();
+        }
+    }
+    window.closeModalWithHistory = closeModalWithHistory;
+
     document.getElementById('nav-back')?.addEventListener('click', () => {
+        if (modalSettings.hasOpenModalsOrPanels()) {
+            if (window.history.state?.modal) {
+                window.history.back();
+            } else {
+                sidePanelManager?.close();
+                modalSettings.closeAllModals();
+            }
+            return;
+        }
         window.history.back();
     });
 
@@ -1226,7 +1259,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (publicToggle) publicToggle.checked = false;
             if (shareBtn) shareBtn.style.display = 'none';
 
-            modal.classList.add('active');
+            openModalWithHistory('playlist-modal');
             nameInput?.focus();
         }
 
@@ -1234,7 +1267,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const modal = document.getElementById('folder-modal');
             document.getElementById('folder-name-input').value = '';
             document.getElementById('folder-cover-input').value = '';
-            modal.classList.add('active');
+            openModalWithHistory('folder-modal');
             document.getElementById('folder-name-input').focus();
         }
 
@@ -1246,14 +1279,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const folder = await db.createFolder(name, cover);
                 await syncManager.syncUserFolder(folder, 'create');
                 UIRenderer.instance.renderLibraryPage();
-                document.getElementById('folder-modal').classList.remove('active');
+                closeModalWithHistory('folder-modal');
             } else {
                 showNotification('Please enter a folder name.');
             }
         }
 
         if (e.target.closest('#folder-modal-cancel')) {
-            document.getElementById('folder-modal').classList.remove('active');
+            closeModalWithHistory('folder-modal');
         }
 
         if (e.target.closest('#library-liked-tracks-view-list')) {
@@ -1324,7 +1357,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                             if (window.location.pathname === `/userplaylist/${editingId}`) {
                                 UIRenderer.instance.renderPlaylistPage(editingId, 'user');
                             }
-                            modal.classList.remove('active');
+                            closeModalWithHistory('playlist-modal');
                             delete modal.dataset.editingId;
                         }
                     });
@@ -1848,7 +1881,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         await db.performTransaction('user_playlists', 'readwrite', (store) => store.put(playlist));
                         await syncManager.syncUserPlaylist(playlist, 'create');
                         UIRenderer.instance.renderLibraryPage();
-                        modal.classList.remove('active');
+                        closeModalWithHistory('playlist-modal');
                     });
                 }
             } else {
@@ -1857,7 +1890,22 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         if (e.target.closest('#playlist-modal-cancel')) {
-            document.getElementById('playlist-modal').classList.remove('active');
+            closeModalWithHistory('playlist-modal');
+        }
+
+        // Close on backdrop overlay click for playlist-modal & folder-modal
+        if (
+            (e.target.id === 'playlist-modal' || (e.target.classList.contains('modal-overlay') && e.target.closest('#playlist-modal'))) &&
+            document.getElementById('playlist-modal')?.classList.contains('active')
+        ) {
+            closeModalWithHistory('playlist-modal');
+        }
+
+        if (
+            (e.target.id === 'folder-modal' || (e.target.classList.contains('modal-overlay') && e.target.closest('#folder-modal'))) &&
+            document.getElementById('folder-modal')?.classList.contains('active')
+        ) {
+            closeModalWithHistory('folder-modal');
         }
 
         if (e.target.closest('.edit-playlist-btn')) {
@@ -1892,7 +1940,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                     modal.dataset.editingId = playlistId;
                     document.getElementById('import-section').style.display = 'none';
-                    modal.classList.add('active');
+                    openModalWithHistory('playlist-modal');
                     document.getElementById('playlist-name-input').focus();
                 }
             });
@@ -1948,7 +1996,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                         modal.dataset.editingId = playlistId;
                         document.getElementById('import-section').style.display = 'none';
-                        modal.classList.add('active');
+                        openModalWithHistory('playlist-modal');
                         document.getElementById('playlist-name-input').focus();
                     }
                 })
@@ -2132,7 +2180,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         // Pass tracks
                         createModal._pendingTracks = tracks;
 
-                        createModal.classList.add('active');
+                        openModalWithHistory('playlist-modal');
                         document.getElementById('playlist-name-input').focus();
                         return;
                     }
@@ -2595,17 +2643,21 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
 
+        if (window._closingModalViaButton) {
+            window._closingModalViaButton = false;
+            return;
+        }
+
         // Intercept back navigation to close modals first if setting is enabled
-        if (event && modalSettings.shouldInterceptBackToClose() && modalSettings.hasOpenModalsOrPanels()) {
-            sidePanelManager.close();
+        if (event && (modalSettings.hasOpenModalsOrPanels() || window.history.state?.modal)) {
+            sidePanelManager?.close();
             modalSettings.closeAllModals();
-            history.pushState(history.state || { app: true }, '', window.location.pathname);
             return;
         }
 
         // Close side panel (queue/lyrics) and modals on navigation if setting is enabled
         if (modalSettings.shouldCloseOnNavigation()) {
-            sidePanelManager.close();
+            sidePanelManager?.close();
             modalSettings.closeAllModals();
         }
 

@@ -425,11 +425,6 @@ export class ExploreFeed {
             }
         };
 
-        // Enable mouse drag-to-scroll & wheel scrolling on all carousels
-        container.querySelectorAll('.ytm-carousel, .ytm-charts-grid').forEach((el) => {
-            enableHorizontalScroll(el);
-        });
-
         // Wire "More" buttons
         const newReleasesMoreBtn = document.getElementById('explore-new-releases-more');
         if (newReleasesMoreBtn) {
@@ -538,62 +533,3 @@ export class ExploreFeed {
 
 export const exploreFeed = new ExploreFeed();
 
-export function enableHorizontalScroll(container) {
-    if (!container || container.dataset.hScrollInit) return;
-    container.dataset.hScrollInit = 'true';
-
-    // 1. Mouse wheel mapping: vertical wheel scrolls horizontally
-    container.addEventListener('wheel', (e) => {
-        const maxScroll = container.scrollWidth - container.clientWidth;
-        if (maxScroll > 0 && Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
-            const atStart = container.scrollLeft <= 1 && e.deltaY < 0;
-            const atEnd = container.scrollLeft >= maxScroll - 1 && e.deltaY > 0;
-            if (!atStart && !atEnd) {
-                e.preventDefault();
-                container.scrollBy({ left: e.deltaY * 1.2, behavior: 'auto' });
-            }
-        }
-    }, { passive: false });
-
-    // 2. Mouse drag-to-scroll
-    let isDown = false;
-    let startX = 0;
-    let scrollLeft = 0;
-    let moved = false;
-
-    container.addEventListener('mousedown', (e) => {
-        if (e.button !== 0) return;
-        isDown = true;
-        moved = false;
-        startX = e.pageX - container.offsetLeft;
-        scrollLeft = container.scrollLeft;
-        container.style.cursor = 'grabbing';
-    });
-
-    const onMouseMove = (e) => {
-        if (!isDown) return;
-        const x = e.pageX - container.offsetLeft;
-        const walk = (x - startX) * 1.4;
-        if (Math.abs(walk) > 6) {
-            moved = true;
-            container.scrollLeft = scrollLeft - walk;
-        }
-    };
-
-    const onMouseUp = () => {
-        if (!isDown) return;
-        isDown = false;
-        container.style.cursor = '';
-    };
-
-    window.addEventListener('mousemove', onMouseMove);
-    window.addEventListener('mouseup', onMouseUp);
-
-    container.addEventListener('click', (e) => {
-        if (moved) {
-            e.stopPropagation();
-            e.preventDefault();
-            moved = false;
-        }
-    }, true);
-}

@@ -3399,11 +3399,11 @@ export const modalSettings = {
         try {
             const saved = localStorage.getItem(this.STORAGE_KEY);
             if (saved === null) {
-                return false;
+                return true;
             }
             return saved === 'true';
         } catch {
-            return false;
+            return true;
         }
     },
 
@@ -3415,11 +3415,11 @@ export const modalSettings = {
         try {
             const saved = localStorage.getItem(this.INTERCEPT_BACK_KEY);
             if (saved === null) {
-                return false;
+                return true;
             }
             return saved === 'true';
         } catch {
-            return false;
+            return true;
         }
     },
 
@@ -3435,7 +3435,7 @@ export const modalSettings = {
         if (document.querySelector('.modal.active')) {
             return true;
         }
-        if (document.querySelector('.modal-overlay')) {
+        if (document.querySelector('body > .modal-overlay')) {
             return true;
         }
         const modalIds = [
@@ -3460,8 +3460,8 @@ export const modalSettings = {
     },
 
     closeAllModals() {
-        // Close all modal overlays
-        document.querySelectorAll('.modal-overlay').forEach((modal) => {
+        // Close dynamic modal overlays appended directly to body
+        document.querySelectorAll('body > .modal-overlay').forEach((modal) => {
             modal.remove();
         });
 

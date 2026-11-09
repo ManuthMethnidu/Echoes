@@ -6,7 +6,6 @@ import { podcastsAPI } from './podcasts-api.js';
 import { escapeHtml, trackDataStore } from './utils.js';
 import { navigate } from './router.js';
 import { Player } from './player.js';
-import { enableHorizontalScroll } from './explore-feed.js';
 
 export class HomeFeed {
     constructor() {
@@ -727,11 +726,6 @@ export class HomeFeed {
                 console.error('Failed to play track queue from home:', err);
             }
         };
-
-        // Enable horizontal drag & wheel scrolling on all home carousels
-        container.querySelectorAll('.ytm-carousel, .ytm-quick-picks-carousel').forEach((el) => {
-            enableHorizontalScroll(el);
-        });
 
         // Wire all Prev / Next chevron buttons
         container.querySelectorAll('.ytm-section').forEach((section) => {

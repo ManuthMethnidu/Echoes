@@ -5,30 +5,30 @@ import { escapeHtml, trackDataStore } from './utils.js';
 import { navigate } from './router.js';
 
 export const MOODS_AND_GENRES = [
-    { name: 'Commute', color: '#F4B400', id: 'commute' },
-    { name: 'R&B & soul', color: '#8E24AA', id: 'rnb' },
-    { name: 'Punjabi', color: '#FB8C00', id: 'punjabi' },
-    { name: 'Hindustani classical', color: '#E91E63', id: 'hindustani_classical' },
-    { name: 'Country & Americana', color: '#1E88E5', id: 'country' },
-    { name: '1980s', color: '#43A047', id: '1980s' },
-    { name: 'Hip-hop', color: '#FF5722', id: 'hip_hop' },
-    { name: 'Feel good', color: '#26A69A', id: 'feel_good' },
-    { name: 'Classical', color: '#B0BEC5', id: 'classical' },
-    { name: '1960s', color: '#81C784', id: '1960s' },
-    { name: 'Rock en Español', color: '#E53935', id: 'rock_en_espanol' },
-    { name: 'Latin', color: '#FDD835', id: 'latin' },
-    { name: 'Party', color: '#7B1FA2', id: 'party' },
-    { name: 'Romance', color: '#C2185B', id: 'romance' },
-    { name: 'Arabic', color: '#FBC02D', id: 'arabic' },
-    { name: 'Hindi', color: '#FFA000', id: 'hindi' },
-    { name: 'Pop', color: '#EC407A', id: 'pop' },
-    { name: 'Indie & alternative', color: '#ECEFF1', id: 'indierock' },
-    { name: '1990s', color: '#66BB6A', id: '1990s' },
-    { name: 'Bengali', color: '#FFD54F', id: 'bengali' },
-    { name: 'Malayalam', color: '#4CAF50', id: 'malayalam' },
-    { name: 'Rock', color: '#D32F2F', id: 'rock' },
-    { name: 'Energize', color: '#F57F17', id: 'energize' },
-    { name: 'Desi hip-hop', color: '#FFFFFF', id: 'desi_hip_hop' },
+    { name: 'Commute', id: 'commute' },
+    { name: 'R&B & soul', id: 'rnb' },
+    { name: 'Punjabi', id: 'punjabi' },
+    { name: 'Hindustani classical', id: 'hindustani_classical' },
+    { name: 'Country & Americana', id: 'country' },
+    { name: '1980s', id: '1980s' },
+    { name: 'Hip-hop', id: 'hip_hop' },
+    { name: 'Feel good', id: 'feel_good' },
+    { name: 'Classical', id: 'classical' },
+    { name: '1960s', id: '1960s' },
+    { name: 'Rock en Español', id: 'rock_en_espanol' },
+    { name: 'Latin', id: 'latin' },
+    { name: 'Party', id: 'party' },
+    { name: 'Romance', id: 'romance' },
+    { name: 'Arabic', id: 'arabic' },
+    { name: 'Hindi', id: 'hindi' },
+    { name: 'Pop', id: 'pop' },
+    { name: 'Indie & alternative', id: 'indierock' },
+    { name: '1990s', id: '1990s' },
+    { name: 'Bengali', id: 'bengali' },
+    { name: 'Malayalam', id: 'malayalam' },
+    { name: 'Rock', id: 'rock' },
+    { name: 'Energize', id: 'energize' },
+    { name: 'Desi hip-hop', id: 'desi_hip_hop' },
 ];
 
 export class ExploreFeed {
@@ -353,7 +353,7 @@ export class ExploreFeed {
                     ${MOODS_AND_GENRES.map(
                         (g) => `
                         <div class="ytm-genre-pill" data-genre-id="${escapeHtml(g.id)}" data-genre-name="${escapeHtml(g.name)}">
-                            <span class="ytm-genre-accent" style="background-color: ${g.color};"></span>
+                            <span class="ytm-genre-accent"></span>
                             <span class="ytm-genre-name">${escapeHtml(g.name)}</span>
                         </div>
                     `

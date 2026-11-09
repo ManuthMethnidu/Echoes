@@ -14474,7 +14474,7 @@ body.is-tv-device #sidebar-toggle-btn {
 
 .ytm-genre-pill:hover {
     background: var(--secondary);
-    border-color: var(--foreground);
+    border-color: var(--primary);
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
 }
@@ -14485,6 +14485,7 @@ body.is-tv-device #sidebar-toggle-btn {
     top: 0;
     bottom: 0;
     width: 6px;
+    background-color: var(--primary);
     border-radius: 4px 0 0 4px;
 }
 

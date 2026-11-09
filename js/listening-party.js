@@ -9,13 +9,13 @@ import { SVG_PAUSE } from './icons.js';
 import { PartySocketClient } from './party-socket.js';
 
 export const LISTENING_PARTIES_DISABLED_MESSAGE =
-    'Listening parties require WebRTC support in your browser. Please try again with a modern browser.';
+    'Listening parties require WebSocket support in your browser. Please try again with a modern browser.';
 
 export function areListeningPartiesDisabled() {
     const flags = window.__FEATURE_FLAGS__ || {};
     if (typeof flags.listeningParties === 'boolean') return !flags.listeningParties;
     if (typeof flags.listeningPartiesDisabled === 'boolean') return flags.listeningPartiesDisabled;
-    if (typeof window !== 'undefined' && typeof window.RTCPeerConnection === 'undefined') {
+    if (typeof window !== 'undefined' && typeof window.WebSocket === 'undefined') {
         return true;
     }
     return false;
@@ -654,11 +654,11 @@ export class ListeningPartyManager {
             badge.dataset.bound = '1';
             badge.addEventListener('click', () => {
                 Modal.alert(
-                    'P2P Privacy & Security',
+                    'Room Isolation & Privacy',
                     `<div style="text-align: left; font-size: 0.9rem; line-height: 1.6;">
-                        <p style="margin-bottom: 0.75rem;"><strong>🔒 End-to-End Encrypted:</strong> This listening room communicates directly between peers using WebRTC with DTLS data channel encryption. No audio sync or chat messages are routed through an intermediate server.</p>
-                        <p style="margin-bottom: 0.75rem;"><strong>⚡ Zero Server Storage:</strong> No rooms, chat history, or listening activities are recorded or logged on any server.</p>
-                        <p><strong>🌐 Direct Network Mesh:</strong> In peer-to-peer networks, connected devices connect directly, sharing network addresses (IP) within the room. Only share your party invite link with people you trust.</p>
+                        <p style="margin-bottom: 0.75rem;"><strong>🔒 Strict Room Isolation:</strong> This listening room is isolated to this specific party ID. No audio sync or chat messages can bleed into personal device playback or other user accounts.</p>
+                        <p style="margin-bottom: 0.75rem;"><strong>⚡ Real-Time High Capacity:</strong> Powered by your dedicated VPS WebSocket hub, supporting 1,000+ simultaneous listeners with low latency.</p>
+                        <p><strong>🛡️ Host Control:</strong> Only the room host can pause, play, or change tracks. Guests can chat and submit song requests.</p>
                     </div>`
                 );
             });

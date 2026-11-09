@@ -211,6 +211,7 @@ export class ConnectManager {
             'wss://stream.mteck.tech/ws';
         if (override) {
             const u = new URL(override);
+            u.searchParams.set('channel', 'connect');
             u.searchParams.set('userId', normalizedUserId);
             u.searchParams.set('room', userRoom);
             u.searchParams.set('sessionId', userRoom);

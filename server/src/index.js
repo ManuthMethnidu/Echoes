@@ -429,20 +429,275 @@ class PlaybackRoom {
   }
 }
 
-const rooms = new Map(); // roomId -> PlaybackRoom
-
-function getOrCreateRoom(roomId) {
-  if (!rooms.has(roomId)) {
-    rooms.set(roomId, new PlaybackRoom(roomId));
+// Listening Party Room (Shared Social Listening for up to 1,000+ members)
+class ListeningPartyRoom {
+  constructor(partyId, initialData = {}) {
+    this.partyId = partyId;
+    this.name = initialData.name || 'Listening Party';
+    this.hostMemberId = initialData.hostMemberId || null;
+    this.hostToken = initialData.hostToken || null;
+    this.members = new Map(); // ws -> { id, name, avatar_url, is_host, typing_until, joinedAt, lastSeen }
+    this.messages = [];
+    this.requests = [];
+    this.playback = {
+      current_track: initialData.playback?.current_track || null,
+      is_playing: initialData.playback?.is_playing || false,
+      playback_time: initialData.playback?.playback_time || 0,
+      playback_timestamp: initialData.playback?.playback_timestamp || Date.now(),
+      queue: initialData.playback?.queue || [],
+    };
+    this.createdAt = Date.now();
   }
-  return rooms.get(roomId);
+
+  getPartyState() {
+    return {
+      id: this.partyId,
+      name: this.name,
+      host_member_id: this.hostMemberId,
+      current_track: this.playback.current_track,
+      is_playing: this.playback.is_playing,
+      playback_time: this.playback.playback_time,
+      playback_timestamp: this.playback.playback_timestamp,
+      queue: this.playback.queue,
+    };
+  }
+
+  getMemberList() {
+    return Array.from(this.members.values()).map((m) => ({
+      id: m.id,
+      name: m.name,
+      avatar_url: m.avatar_url,
+      is_host: m.is_host,
+      typing_until: m.typing_until || 0,
+    }));
+  }
+
+  send(ws, payload) {
+    if (ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify(payload));
+    }
+  }
+
+  broadcast(payload, excludeWs = null) {
+    const raw = JSON.stringify(payload);
+    for (const [ws] of this.members) {
+      if (ws !== excludeWs && ws.readyState === WebSocket.OPEN) {
+        ws.send(raw);
+      }
+    }
+  }
+
+  addMember(ws, memberId, profile = {}, isHost = false, hostToken = null) {
+    let validatedHost = false;
+    if (isHost || (hostToken && this.hostToken && hostToken === this.hostToken)) {
+      if (!this.hostMemberId) {
+        this.hostMemberId = memberId;
+        if (hostToken) this.hostToken = hostToken;
+        validatedHost = true;
+      } else if (this.hostToken && hostToken === this.hostToken) {
+        this.hostMemberId = memberId;
+        validatedHost = true;
+      }
+    }
+
+    const member = {
+      ws,
+      id: memberId,
+      name: profile.name || (validatedHost ? 'Host' : 'Listener'),
+      avatar_url: profile.avatar_url || '',
+      is_host: validatedHost,
+      typing_until: 0,
+      joinedAt: Date.now(),
+      lastSeen: Date.now(),
+    };
+    this.members.set(ws, member);
+
+    this.send(ws, {
+      type: 'snapshot',
+      snapshot: {
+        party: this.getPartyState(),
+        members: this.getMemberList(),
+        messages: this.messages.slice(-50),
+        requests: this.requests,
+        memberId,
+        isHost: validatedHost,
+      },
+      memberId,
+      isHost: validatedHost,
+    });
+
+    this.broadcast(
+      {
+        type: 'members',
+        members: this.getMemberList(),
+      },
+      ws
+    );
+  }
+
+  handleMessage(ws, msg) {
+    const sender = this.members.get(ws);
+    if (!sender) return;
+    sender.lastSeen = Date.now();
+
+    switch (msg.type) {
+      case 'PING':
+        this.send(ws, { type: 'PONG', timestamp: Date.now() });
+        break;
+
+      case 'CREATE_PARTY':
+        if (msg.name) this.name = msg.name;
+        if (msg.hostToken) this.hostToken = msg.hostToken;
+        if (msg.memberId) this.hostMemberId = msg.memberId;
+        if (msg.playback) {
+          this.playback = {
+            current_track: msg.playback.current_track || null,
+            is_playing: Boolean(msg.playback.is_playing),
+            playback_time: typeof msg.playback.playback_time === 'number' ? msg.playback.playback_time : 0,
+            playback_timestamp: msg.playback.playback_timestamp || Date.now(),
+            queue: Array.isArray(msg.playback.queue) ? msg.playback.queue : [],
+          };
+        }
+        sender.is_host = true;
+        this.broadcast({
+          type: 'party',
+          party: this.getPartyState(),
+        });
+        this.broadcast({
+          type: 'members',
+          members: this.getMemberList(),
+        });
+        break;
+
+      case 'control':
+        if (!sender.is_host) return;
+        if (msg.action === 'pause') this.playback.is_playing = false;
+        if (msg.action === 'play') this.playback.is_playing = true;
+        if (typeof msg.time === 'number') this.playback.playback_time = msg.time;
+        this.playback.playback_timestamp = msg.timestamp || Date.now();
+
+        this.broadcast(
+          {
+            type: 'control',
+            action: msg.action,
+            time: msg.time,
+            timestamp: msg.timestamp || Date.now(),
+          },
+          ws
+        );
+        break;
+
+      case 'playback':
+        if (!sender.is_host) return;
+        this.playback = {
+          current_track: msg.current_track || this.playback.current_track,
+          is_playing: typeof msg.is_playing === 'boolean' ? msg.is_playing : this.playback.is_playing,
+          playback_time: typeof msg.playback_time === 'number' ? msg.playback_time : this.playback.playback_time,
+          playback_timestamp: msg.playback_timestamp || Date.now(),
+          queue: Array.isArray(msg.queue) ? msg.queue : this.playback.queue,
+        };
+
+        this.broadcast(
+          {
+            type: 'party',
+            party: this.getPartyState(),
+          },
+          ws
+        );
+        break;
+
+      case 'chat': {
+        const content = typeof msg.content === 'string' ? msg.content.trim() : '';
+        if (!content) return;
+        const chatMsg = {
+          id: 'msg_' + Math.random().toString(36).slice(2, 12),
+          sender_name: sender.name,
+          sender_id: sender.id,
+          content,
+          timestamp: Date.now(),
+        };
+        this.messages.push(chatMsg);
+        if (this.messages.length > 100) this.messages = this.messages.slice(-100);
+        this.broadcast({
+          type: 'message',
+          message: chatMsg,
+        });
+        break;
+      }
+
+      case 'request': {
+        if (!msg.track) return;
+        const reqItem = {
+          id: 'req_' + Math.random().toString(36).slice(2, 12),
+          track: msg.track,
+          requested_by: sender.name,
+          requested_by_id: sender.id,
+        };
+        this.requests.push(reqItem);
+        this.broadcast({
+          type: 'requests',
+          requests: this.requests,
+        });
+        break;
+      }
+
+      case 'request:remove': {
+        if (!sender.is_host) return;
+        if (msg.requestId) {
+          this.requests = this.requests.filter((r) => r.id !== msg.requestId);
+          this.broadcast({
+            type: 'requests',
+            requests: this.requests,
+          });
+        }
+        break;
+      }
+
+      case 'typing': {
+        sender.typing_until = typeof msg.typing_until === 'number' ? msg.typing_until : 0;
+        this.broadcast(
+          {
+            type: 'members',
+            members: this.getMemberList(),
+          },
+          ws
+        );
+        break;
+      }
+
+      case 'leave': {
+        if (sender.is_host && msg.end) {
+          this.broadcast({ type: 'ended' }, ws);
+          this.members.clear();
+        } else {
+          this.removeMember(ws);
+        }
+        break;
+      }
+    }
+  }
+
+  removeMember(ws) {
+    const sender = this.members.get(ws);
+    if (!sender) return;
+    this.members.delete(ws);
+
+    this.broadcast({
+      type: 'members',
+      members: this.getMemberList(),
+    });
+  }
 }
+
+// Separate isolated maps for Personal Device Sync vs Listening Parties
+const connectRooms = new Map(); // roomId (e.g. "connect_user_123") -> PlaybackRoom
+const partyRooms = new Map();   // partyId (e.g. "p_abc123") -> ListeningPartyRoom
 
 server.on('upgrade', (request, socket, head) => {
   const url = new URL(request.url, `http://${request.headers.host}`);
   const pathname = url.pathname;
 
-  if (pathname === '/ws' || pathname === '/') {
+  if (pathname === '/ws' || pathname === '/' || pathname === '/ws/connect' || pathname === '/ws/party') {
     wss.handleUpgrade(request, socket, head, (ws) => {
       wss.emit('connection', ws, request, url);
     });
@@ -452,11 +707,68 @@ server.on('upgrade', (request, socket, head) => {
 });
 
 wss.on('connection', (ws, request, url) => {
+  const channel = url.searchParams.get('channel') || (url.pathname.includes('party') ? 'party' : 'connect');
+
+  // ========================================================
+  // CHANNEL A: LISTENING PARTY (Up to 1,000+ members in a party)
+  // Strictly isolated by partyId - never touches user connect rooms
+  // ========================================================
+  if (channel === 'party') {
+    const rawPartyId = url.searchParams.get('partyId') || url.searchParams.get('party_id') || url.searchParams.get('room');
+    const partyId = typeof rawPartyId === 'string' ? rawPartyId.trim() : '';
+
+    if (!partyId || partyId === 'default-room' || partyId === 'undefined' || partyId === 'null') {
+      ws.close(4002, 'Bad Request: Valid partyId required for listening party');
+      return;
+    }
+
+    const memberId = url.searchParams.get('memberId') || `mbr_${Math.random().toString(36).slice(2, 10)}`;
+    const memberName = url.searchParams.get('name') || 'Listener';
+    const avatarUrl = url.searchParams.get('avatarUrl') || '';
+    const isHost = url.searchParams.get('isHost') === 'true';
+    const hostToken = url.searchParams.get('hostToken') || null;
+
+    let party = partyRooms.get(partyId);
+    if (!party) {
+      party = new ListeningPartyRoom(partyId, { hostToken });
+      partyRooms.set(partyId, party);
+    }
+
+    party.addMember(ws, memberId, { name: memberName, avatar_url: avatarUrl }, isHost, hostToken);
+
+    ws.on('message', (data) => {
+      try {
+        const msg = JSON.parse(data.toString());
+        party.handleMessage(ws, msg);
+      } catch (err) {
+        console.error('Invalid Party WS payload:', err.message);
+      }
+    });
+
+    ws.on('close', () => {
+      party.removeMember(ws);
+      if (party.members.size === 0) {
+        partyRooms.delete(partyId);
+      }
+    });
+
+    ws.on('error', () => {
+      party.removeMember(ws);
+      if (party.members.size === 0) {
+        partyRooms.delete(partyId);
+      }
+    });
+
+    return;
+  }
+
+  // ========================================================
+  // CHANNEL B: ECHOES CONNECT (Private Personal Device Sync)
+  // Strictly isolated by authenticated user ID - no guests, no bleed
+  // ========================================================
   const rawUserId =
     url.searchParams.get('userId') ||
-    url.searchParams.get('user_id') ||
-    url.searchParams.get('room') ||
-    url.searchParams.get('sessionId');
+    url.searchParams.get('user_id');
 
   const userId = typeof rawUserId === 'string' ? rawUserId.trim() : '';
 
@@ -475,12 +787,16 @@ wss.on('connection', (ws, request, url) => {
   }
 
   // Room is strictly isolated and keyed by the authenticated user ID
-  const roomId = userId.startsWith('user_') ? userId : `user_${userId}`;
+  const roomId = `connect_user_${userId}`;
   const deviceId = url.searchParams.get('deviceId') || `dev_${Math.random().toString(36).slice(2, 10)}`;
   const deviceName = url.searchParams.get('deviceName') || 'Unknown Device';
   const deviceType = url.searchParams.get('deviceType') || 'desktop';
 
-  const room = getOrCreateRoom(roomId);
+  let room = connectRooms.get(roomId);
+  if (!room) {
+    room = new PlaybackRoom(roomId);
+    connectRooms.set(roomId, room);
+  }
   room.addDevice(ws, deviceId, deviceName, deviceType);
 
   ws.on('message', (data) => {
@@ -495,7 +811,7 @@ wss.on('connection', (ws, request, url) => {
   ws.on('close', () => {
     room.removeDevice(ws);
     if (room.devices.size === 0) {
-      rooms.delete(roomId);
+      connectRooms.delete(roomId);
     }
   });
 
@@ -504,10 +820,12 @@ wss.on('connection', (ws, request, url) => {
   });
 });
 
-// Periodic heartbeat
+// Periodic heartbeat & idle cleanup
 setInterval(() => {
-  for (const [roomId, room] of rooms.entries()) {
-    const now = Date.now();
+  const now = Date.now();
+
+  // 1. Clean connect rooms
+  for (const [roomId, room] of connectRooms.entries()) {
     for (const [ws, dev] of room.devices.entries()) {
       if (now - dev.lastSeen > 60000) {
         try {
@@ -521,7 +839,26 @@ setInterval(() => {
       }
     }
     if (room.devices.size === 0) {
-      rooms.delete(roomId);
+      connectRooms.delete(roomId);
+    }
+  }
+
+  // 2. Clean party rooms
+  for (const [partyId, party] of partyRooms.entries()) {
+    for (const [ws, member] of party.members.entries()) {
+      if (now - member.lastSeen > 60000) {
+        try {
+          ws.terminate();
+        } catch (_e) {}
+        party.removeMember(ws);
+      } else {
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.ping();
+        }
+      }
+    }
+    if (party.members.size === 0) {
+      partyRooms.delete(partyId);
     }
   }
 }, 30000);

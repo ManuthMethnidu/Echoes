@@ -19,7 +19,7 @@
   <a href="#donations-and-sponsorship">Donations</a> |
   <a href="#bug-reports-and-feature-requests">Report Issue &amp; Feature Requests</a> |
   <a href="#security-and-responsible-disclosure">Security Policy</a> |
-  <a href="#features">Features</a> |
+  <a href="#key-features">Key Features</a> |
   <a href="#architecture">Architecture</a> |
   <a href="#getting-started">Getting Started</a> |
   <a href="#license">License</a>
@@ -95,7 +95,8 @@ We prioritize user privacy and defensive engineering. Key security measures impl
 - Database Protection: Neon Serverless PostgreSQL parameterized queries protecting against SQL injection (SQLi).
 - SSRF & Proxy Hardening: The audio stream proxy enforces a strict domain allowlist and explicitly blocks private IP ranges (RFC 1918) and cloud metadata services.
 - XSS Prevention: Centralized sanitization module (`api/_lib/sanitize.ts`) with safe DOMParser node generation and protocol filtering.
-- Reduced Attack Surface: Third-party file uploads have been completely removed in favor of validated HTTPS URLs.
+- Anti-Abuse & Moderation: Profile updates enforce identity cooldown periods (30-day username cooldown, 7-day display name cooldown, 25-character display limit), automated profanity filtering, and blocking of adult or suspicious domains.
+- Secure Asset Isolation: User banner and avatar uploads are strictly validated for MIME type, image dimensions, and byte size, and isolated securely per authenticated account.
 - Device Pairing Defense: High-entropy pairing codes via `crypto.getRandomValues()` combined with brute-force rate limiting.
 - HTTP Security Headers: Enforced via edge rules (`X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`).
 
@@ -164,8 +165,31 @@ Echoes combines high-bitrate audio streaming with a serverless edge architecture
 - Fluid WebGL2 Droplet Timeframe Selector: Integrated `<GooeyNav />` navigation powered by GLSL metaball shaders and spring wobble physics for effortless switching between All Time, 2026, 6 Months, and 30 Days.
 - Theme-Adaptive Shareable Story Cards: Real-time high-resolution canvas generation matching active theme tokens (Dark, Monochrome, Ocean, Mocha, White) with clean branding and instant PNG download / clipboard copy.
 
+### Podcasts & Spoken Audio Engine
+- Serverless RSS Feed Ingestion: Direct podcast discovery and episode playback backed by edge streaming proxies (`/api/podcast-proxy`).
+- High-Resolution Cached Artwork: Edge-cached episode and show artwork (`/api/artwork/podcast`) with automatic fallback to prevent failed image loads.
+- Dedicated Spoken Player Controls: Instant 15-second skip backward / forward controls, multi-speed playback (0.5x to 2.0x), and persistent episode resume state across sessions.
+- Browse Recent Podcasts: Instant access to recent podcast feeds and episodes directly from dedicated tab and sidebar entries.
+
+### Explore & Music Discovery Hub
+- Browse Center: Curated discovery surface featuring Top Cards, trending Charts, and new release highlights (`explore-feed.js`).
+- Theme-Synchronized Moods & Genres: Comprehensive collection of genre and activity categories dynamically rendered to match active theme accent colors (Monochrome, Ocean, Mocha, Dark, White).
+- Direct Streamlined Home Feed: Personalized dynamic rows ("Listen Again", "Quick Picks", "Forgotten Favorites", "From Your Library") with instant track playback and zero visual clutter.
+
+### Cloud Profiles & Social Identity
+- Custom Banners & Avatars: Upload and customize high-resolution profile banners and avatars with instant live previews and WebKit-accelerated visual masking.
+- Anti-Abuse Safeguards: Cooldown limits on identity edits (30-day username cooldown, 7-day display name cooldown, 25-character max limit), automated profanity filtering, and malicious domain blocking.
+- Library & Album Exploration: Search through user albums and personal library releases with real-time client-side and cloud filtering.
+- Community Playlists: Explore public user playlists with responsive, graceful loading and empty states.
+
+### Fluid Motion, Touch Navigation & Responsive UX
+- Responsive Dual-Mode Smooth Scroll: Integrated Lenis smooth-scrolling engine dynamically adapting between mobile window scrolling and desktop scroll containers.
+- Natural Touch Swipes & Shift-Wheel Carousels: Seamless touch gestures on mobile and keyboard Shift-Wheel horizontal scrolling across all album and track carousels.
+- Smart Back-Button Navigation: Browser back-navigation (`popstate`) intelligently dismisses active modals and dialogs before navigating away, preserving playback state.
+- Zero-Overlap Player Clearance: Layout grid guarantees main content strictly terminates above the player bar on all mobile and desktop viewport heights.
+
 ### Minimalist Aesthetic & Progressive Web App
-- Theme Support: Monochromatic, distraction-free aesthetic with automatic dark/light theme switching.
+- Theme Support: Monochromatic, distraction-free aesthetic with automatic dark/light theme switching and custom accent palette options.
 - Installable PWA: Full Progressive Web App support on desktop (Windows, macOS, Linux) and mobile (iOS, Android).
 
 ---
@@ -209,7 +233,7 @@ Echoes is engineered with an edge-first, decoupled architecture:
 ```
 ├── api/                           # Vercel Serverless API handlers
 │   ├── _lib/                      # Database client, auth tokens, input sanitizer, Invidious failover
-│   ├── _handlers/                 # Modular API request handlers (auth, sync, pair, yt, lyrics)
+│   ├── _handlers/                 # Modular API request handlers (auth, sync, pair, yt, lyrics, podcasts, users)
 │   └── index.ts                   # Unified API router (/api/auth, /api/sync, /api/yt/captions, etc.)
 ├── cloudflare-connect-worker/     # Cloudflare Worker and Durable Objects backend
 │   ├── src/index.ts               # PlaybackRoom DO class and WebSocket server
@@ -217,7 +241,13 @@ Echoes is engineered with an edge-first, decoupled architecture:
 ├── js/                            # Core client application logic
 │   ├── accounts/                  # Authentication manager and session handlers
 │   ├── connect-manager.js         # Echoes Connect edge WebSocket sync client
+│   ├── explore-feed.js            # Browse page, charts, and theme-accented moods & genres
+│   ├── home-feed.js               # Personalized carousels and direct home feeds
 │   ├── player.js                  # Audio playback engine and queue controller
+│   ├── podcasts-api.js            # Podcast RSS parser and episode playback state
+│   ├── profile.js                 # User profiles, avatar/banner uploads, and album search
+│   ├── recap.js                   # Personalized listening statistics and shareable recap stories
+│   ├── smooth-scroll.js           # Responsive dual-mode Lenis smooth scrolling engine
 │   ├── audio-context.js           # Web Audio API DSP and equalizer graphs
 │   └── ui.js                      # DOM views, modals, and interaction states
 ├── public/                        # Static assets, sitemap.xml, robots.txt, icons

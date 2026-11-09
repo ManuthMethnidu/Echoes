@@ -37,6 +37,27 @@ async function findFirstValid<T>(promises: Promise<T | null>[]): Promise<T | nul
     });
 }
 
+async function isStreamPlayable(url: string, timeoutMs: number = 2000): Promise<boolean> {
+    if (!url) return false;
+    try {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), timeoutMs);
+        const res = await fetch(url, {
+            method: 'GET',
+            headers: {
+                'Range': 'bytes=0-50',
+                'User-Agent':
+                    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+            },
+            signal: controller.signal,
+        });
+        clearTimeout(timer);
+        return res.status === 200 || res.status === 206;
+    } catch {
+        return false;
+    }
+}
+
 function getCompanionRedirect(comp: string, videoId: string, itag: number): Promise<string | null> {
     return new Promise((resolve) => {
         const req = https.request(
@@ -48,6 +69,8 @@ function getCompanionRedirect(comp: string, videoId: string, itag: number): Prom
                 headers: {
                     'User-Agent':
                         'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+                    'Referer': 'https://yt.chocolatemoo53.com/',
+                    'Origin': 'https://yt.chocolatemoo53.com',
                 },
                 timeout: 3000,
             },
@@ -87,18 +110,14 @@ async function fetchCompanionDirectStream(
     const checkCompanion = async (comp: string) => {
         const location = await getCompanionRedirect(comp, videoId, itag);
         if (location) {
-            try {
-                const u = new URL(location);
-                const origHost = u.hostname;
-                u.hostname = comp;
-                u.searchParams.set('host', origHost);
-                u.searchParams.delete('issuer');
+            const playable = await isStreamPlayable(location);
+            if (playable) {
                 return {
-                    streamUrl: u.toString(),
+                    streamUrl: location,
                     mimeType: preferM4a ? 'audio/mp4; codecs="mp4a.40.2"' : 'audio/webm; codecs="opus"',
                     companion: comp,
                 };
-            } catch (_) {}
+            }
         }
         return null;
     };
@@ -114,33 +133,11 @@ function resolveStreamUrl(rawUrl: string, videoId?: string): string {
     if (!rawUrl) return rawUrl;
     try {
         const parsed = new URL(rawUrl);
-        let origHost = parsed.hostname;
-        if (!origHost.includes('googlevideo.com')) {
-            const mvi = parsed.searchParams.get('mvi') || '1';
-            const mn = parsed.searchParams.get('mn')?.split(',')[0];
-            if (mn) {
-                origHost = `rr${mvi}---${mn}.googlevideo.com`;
-            }
+        // If it's already a direct GoogleVideo stream, return it
+        if (parsed.hostname.includes('googlevideo.com')) {
+            return rawUrl;
         }
-        parsed.searchParams.set('host', origHost);
-
-        let companion = '';
-        const existingIssuer = parsed.searchParams.get('issuer');
-        if (existingIssuer && HEALTHY_COMPANIONS.includes(existingIssuer)) {
-            companion = existingIssuer;
-        } else if (videoId) {
-            let hash = 0;
-            for (let i = 0; i < videoId.length; i++) {
-                hash = (hash << 5) - hash + videoId.charCodeAt(i);
-            }
-            const idx = Math.abs(hash) % HEALTHY_COMPANIONS.length;
-            companion = HEALTHY_COMPANIONS[idx];
-        } else {
-            companion = HEALTHY_COMPANIONS[Math.floor(Math.random() * HEALTHY_COMPANIONS.length)];
-        }
-
-        parsed.searchParams.delete('issuer');
-        return `https://${companion}${parsed.pathname}${parsed.search}`;
+        return rawUrl;
     } catch {}
     return rawUrl;
 }
@@ -205,11 +202,11 @@ function scoreCandidate(candidate: any, cleanTit: string, cleanArt: string, targ
     return score;
 }
 
-function findPlayableAudio(
+async function findPlayableAudio(
     videoData: any,
     preferM4a: boolean = false,
     videoId?: string
-): { format: any; streamUrl: string; issuer: string } | null {
+): Promise<{ format: any; streamUrl: string; issuer: string } | null> {
     if (!videoData) return null;
 
     const vId = videoId || videoData.videoId || videoData.id;
@@ -231,23 +228,36 @@ function findPlayableAudio(
         adaptiveFormats.sort((a: any, b: any) => (parseInt(b.bitrate) || 0) - (parseInt(a.bitrate) || 0));
     }
 
-    if (adaptiveFormats.length > 0) {
-        const best = adaptiveFormats[0];
-        return {
-            format: best,
-            streamUrl: resolveStreamUrl(best.url, vId),
-            issuer: 'yt-companion',
-        };
+    for (const best of adaptiveFormats.slice(0, 3)) {
+        if (await isStreamPlayable(best.url)) {
+            return {
+                format: best,
+                streamUrl: best.url,
+                issuer: 'direct',
+            };
+        }
     }
 
     // Check progressive format streams that are not expired
     const formatStreams = (videoData.formatStreams || []).filter((f: any) => f.url && !isFormatExpired(f.url));
-    if (formatStreams.length > 0) {
-        const best = formatStreams[0];
+    for (const best of formatStreams.slice(0, 2)) {
+        if (await isStreamPlayable(best.url)) {
+            return {
+                format: best,
+                streamUrl: best.url,
+                issuer: 'direct',
+            };
+        }
+    }
+
+    // If direct formats are not playable directly (e.g. IP-bound or geo-restricted), proxy through /api/yt/proxy-stream
+    if (adaptiveFormats.length > 0) {
+        const best = adaptiveFormats[0];
+        const proxyUrl = `/api/yt/proxy-stream?url=${encodeURIComponent(best.url)}`;
         return {
             format: best,
-            streamUrl: resolveStreamUrl(best.url, vId),
-            issuer: 'yt-companion',
+            streamUrl: proxyUrl,
+            issuer: 'proxy',
         };
     }
 
@@ -343,7 +353,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // 2. Direct Invidious Format Check: If direct companion lookup failed, check unexpired formats
     if (data) {
-        const playable = findPlayableAudio(data, preferM4a, videoId);
+        const playable = await findPlayableAudio(data, preferM4a, videoId);
         if (playable) {
             return res.status(200).json(formatResponse(playable.format, playable.streamUrl, data, videoId, instance));
         }
@@ -406,11 +416,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 candidates.slice(0, 6).map(async (candidate: any) => {
                     const cid = candidate.videoId || candidate.id;
                     try {
+                        // Check direct companion stream first
+                        const compStream = await fetchCompanionDirectStream(cid, preferM4a);
+                        if (compStream) {
+                            return {
+                                format: { type: compStream.mimeType, bitrate: preferM4a ? 128000 : 160000 },
+                                streamUrl: compStream.streamUrl,
+                                data: candidate,
+                                cid,
+                                instance: compStream.companion,
+                                score: scoreCandidate(candidate, cleanTit, cleanArt, targetDuration),
+                            };
+                        }
                         const cRes = await fetchWithFailover(
                             (base) => `${base}/api/v1/videos/${cid}`,
                             2500
                         );
-                        const playable = findPlayableAudio(cRes.data, preferM4a, cid);
+                        const playable = await findPlayableAudio(cRes.data, preferM4a, cid);
                         if (playable) {
                             return {
                                 format: playable.format,
@@ -449,26 +471,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
     }
 
-    // 3. Fallback: If no candidate had an active companion issuer, but direct video had unexpired audio formats, provide best format
+    // 3. Fallback: If no candidate was verified, check unexpired audio formats with proxy
     if (data) {
-        const audioFormats = (data.adaptiveFormats || []).filter(
-            (f: any) => f.type && f.type.startsWith('audio') && f.url && !isFormatExpired(f.url)
-        );
-        if (audioFormats.length > 0) {
-            if (preferM4a) {
-                audioFormats.sort((a: any, b: any) => {
-                    const aIsMp4 = a.type?.includes('mp4') || a.type?.includes('m4a');
-                    const bIsMp4 = b.type?.includes('mp4') || b.type?.includes('m4a');
-                    if (aIsMp4 && !bIsMp4) return -1;
-                    if (!aIsMp4 && bIsMp4) return 1;
-                    return (parseInt(b.bitrate) || 0) - (parseInt(a.bitrate) || 0);
-                });
-            } else {
-                audioFormats.sort((a: any, b: any) => (parseInt(b.bitrate) || 0) - (parseInt(a.bitrate) || 0));
-            }
-            const bestAudio = audioFormats[0];
-            const streamUrl = resolveStreamUrl(bestAudio.url, videoId);
-            return res.status(200).json(formatResponse(bestAudio, streamUrl, data, videoId, instance));
+        const playable = await findPlayableAudio(data, preferM4a, videoId);
+        if (playable) {
+            return res.status(200).json(formatResponse(playable.format, playable.streamUrl, data, videoId, instance));
         }
     }
 

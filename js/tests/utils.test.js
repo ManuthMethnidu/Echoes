@@ -56,7 +56,7 @@ describe('utils.js', () => {
             const body = reportUrl.searchParams.get('body');
 
             expect(reportUrl.hostname).toBe('github.com');
-            expect(reportUrl.pathname).toBe('/monochrome-music/monochrome/issues/new');
+            expect(reportUrl.pathname).toBe('/ManuthMethnidu/Echoes/issues/new');
             expect(body).toContain('Example Song');
             expect(body).toContain('Example Artist');
             expect(body).toContain('GBTEST123456');

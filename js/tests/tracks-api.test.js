@@ -258,5 +258,21 @@ describe('tracks-api module', () => {
             expect(stream.url).toBe('https://tracks.monochrome.st/track/157107766404747264');
             expect(externalTrack.tracksTrackId).toBe('157107766404747264');
         });
+
+        it('supports rate limit detection and circuit breaking', async () => {
+            expect(api.isRateLimited()).toBe(false);
+
+            api.markRateLimited(30000);
+            expect(api.isRateLimited()).toBe(true);
+
+            // While rate limited, resolveTrackStream returns null immediately without attempting upstream requests
+            const track = {
+                id: 'tracks:track:155142501534011392',
+                tracksTrackId: '155142501534011392',
+                title: 'Get Lucky',
+            };
+            const stream = await api.resolveTrackStream(track);
+            expect(stream).toBeNull();
+        });
     });
 });

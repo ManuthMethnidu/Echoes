@@ -16,6 +16,13 @@ vi.mock('../api.js', () => {
     };
 });
 
+vi.mock('../yt-music.js', () => ({
+    ytEngine: {
+        search: vi.fn().mockResolvedValue([]),
+        resolveStream: vi.fn().mockResolvedValue(null),
+    },
+}));
+
 // Provide localStorage polyfill for node test environment
 if (typeof globalThis.localStorage === 'undefined') {
     const store = new Map();

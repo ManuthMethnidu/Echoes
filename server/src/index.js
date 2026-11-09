@@ -111,6 +111,10 @@ app.all('/stream', async (req, res) => {
     if (clientRange) {
       upstreamHeaders['range'] = clientRange;
     }
+    if (parsedUrl.hostname.includes('chocolatemoo53.com')) {
+      upstreamHeaders['Referer'] = 'https://yt.chocolatemoo53.com/';
+      upstreamHeaders['Origin'] = 'https://yt.chocolatemoo53.com';
+    }
 
     const upstream = await fetch(parsedUrl.toString(), {
       headers: upstreamHeaders,

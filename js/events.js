@@ -34,6 +34,7 @@ import { Player } from './player.js';
 import { UIRenderer } from './ui.js';
 import { connectManager } from './connect-manager.js';
 import { offlineStorage } from './offline-storage.js';
+import { tracksStreamerAPI } from './tracks-api.js';
 
 let currentTrackIdForWaveform = null;
 let copiedTracks = [];
@@ -1102,6 +1103,9 @@ export async function initializePlayerEvents(player, audioPlayer, scrobbler, ui)
                 if (!player.isStreamRetry) {
                     player.isStreamRetry = true;
                     console.warn(`[Player] Audio playback encountered error (${errorMsg}). Invalidating cache and retrying fresh stream...`);
+                    if (element.src && element.src.includes('tracks.monochrome.st')) {
+                        tracksStreamerAPI.markRateLimited(60000);
+                    }
                     if (window.ytEngine?.invalidateStream) {
                         window.ytEngine.invalidateStream(player.currentTrack);
                     }

@@ -406,6 +406,24 @@ export class TracksStreamerAPI {
         this.artistCache = new Map();
         this.resolutionCache = new Map();
         this.pendingRequests = new Map();
+        this.rateLimitedUntil = 0;
+    }
+
+    /**
+     * Checks if the upstream tracks.monochrome.st service is currently rate limited.
+     * @returns {boolean}
+     */
+    isRateLimited() {
+        return Date.now() < this.rateLimitedUntil;
+    }
+
+    /**
+     * Flags the upstream service as rate limited for a specified cooldown period.
+     * @param {number} cooldownMs Cooldown period in ms (default 60 seconds)
+     */
+    markRateLimited(cooldownMs = 60000) {
+        this.rateLimitedUntil = Date.now() + cooldownMs;
+        console.warn(`[TracksStreamerAPI] Upstream rate limit active. Pausing direct requests for ${cooldownMs / 1000}s.`);
     }
 
     /**
@@ -430,6 +448,13 @@ export class TracksStreamerAPI {
                 if (signal) fetchOptions.signal = signal;
 
                 const response = await fetch(url, fetchOptions);
+
+                if (response.status === 429) {
+                    this.markRateLimited(60000);
+                    const rateLimitErr = new Error(`Upstream rate limit (429) on ${url}`);
+                    rateLimitErr.status = 429;
+                    throw rateLimitErr;
+                }
 
                 if (
                     (response.status === 502 || response.status === 503 || response.status === 504) &&
@@ -828,6 +853,10 @@ export class TracksStreamerAPI {
      * @returns {Promise<Object|null>} Stream info or null if unresolved
      */
     async resolveTrackStream(idOrTrack, quality = 'LOSSLESS', options = {}) {
+        if (this.isRateLimited()) {
+            return null;
+        }
+
         const inputTrack = options.track || (typeof idOrTrack === 'object' ? idOrTrack : null);
         const id = typeof idOrTrack === 'string' ? idOrTrack : String(inputTrack?.id || '');
 

@@ -23,13 +23,8 @@ export class HomeFeed {
 
         container.style.display = 'block';
 
-        // Initial shell with mood bar and section placeholders
+        // Initial shell with section placeholders
         container.innerHTML = `
-            <!-- Mood / Activity Pills -->
-            <div class="ytm-mood-bar" id="ytm-mood-bar">
-                ${this.renderMoodChipsHTML()}
-            </div>
-
             <!-- Dynamic Feed Sections Container -->
             <div id="ytm-sections-container">
                 <div class="ytm-section-skeleton">
@@ -40,8 +35,6 @@ export class HomeFeed {
                 </div>
             </div>
         `;
-
-        this.attachMoodChipListeners(ui);
 
         // Populate sections
         await this.loadSections(ui);

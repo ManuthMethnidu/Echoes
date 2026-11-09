@@ -1004,10 +1004,10 @@ ul {
     height: 100dvh;
     min-height: 0;
     grid-template-columns: 210px 1fr;
-    grid-template-rows: 1fr auto;
+    grid-template-rows: 1fr calc(var(--player-bar-height-desktop, 90px) + 25px);
     grid-template-areas:
         'sidebar main'
-        'player player';
+        'sidebar player';
     transition: grid-template-columns 0.3s cubic-bezier(0.2, 0, 0, 1);
     will-change: grid-template-columns;
 }
@@ -1074,7 +1074,7 @@ ul {
     position: relative;
 
     /* Context for background */
-    padding-bottom: 160px !important;
+    padding-bottom: var(--spacing-xl);
 }
 
 .server-disruption-sidebar {
@@ -1709,7 +1709,7 @@ input[type='search']::-webkit-search-cancel-button {
     display: none;
     position: relative;
     z-index: 1;
-    padding-bottom: calc(var(--player-bar-height-desktop, 90px) + 50px);
+    padding-bottom: var(--spacing-xl);
 }
 
 .page.active {
@@ -7129,6 +7129,10 @@ img[src=''] {
     margin: 0;
 }
 
+#page-library #my-folders-container {
+    margin-bottom: var(--spacing-xl);
+}
+
 #page-library #my-playlists-container {
     margin-bottom: var(--spacing-lg);
 }
@@ -7600,6 +7604,10 @@ img[src=''] {
 @media (max-width: 1024px) {
     .app-container {
         grid-template-columns: 160px 1fr;
+        grid-template-rows: 1fr calc(var(--player-bar-height-desktop, 90px) + 25px);
+        grid-template-areas:
+            'sidebar main'
+            'sidebar player';
     }
 
     .card-grid {
@@ -7621,7 +7629,7 @@ img[src=''] {
 
     .main-content {
         padding: var(--spacing-lg);
-        padding-bottom: calc(var(--player-bar-height-desktop, 90px) + 70px) !important;
+        padding-bottom: var(--spacing-lg);
     }
 
     .now-playing-bar {

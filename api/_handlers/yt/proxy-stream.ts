@@ -66,6 +66,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const parsedInitial = new URL(validatedUrl);
         if (parsedInitial.hostname.includes('chocolatemoo53.com')) {
             headers['Referer'] = 'https://yt.chocolatemoo53.com/';
+            headers['Origin'] = 'https://yt.chocolatemoo53.com';
         }
 
         let currentUrl = validatedUrl;

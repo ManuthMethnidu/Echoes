@@ -388,7 +388,18 @@ export const createQualityBadgeHTML = (track) => {
             playbackInfo.sample_rate_hz ||
             playbackInfo.sampleRate ||
             playbackInfo.sample_rate);
-    if (hasDetailedLosslessInfo) {
+    const playbackCodec = String(track.playbackQualityInfo?.codec || '').toLowerCase();
+    const playbackQuality = normalizeQualityToken(track.playbackQualityInfo?.quality);
+    const hasExplicitLossyPlaybackInfo =
+        Boolean(track.playbackQualityInfo) &&
+        (track.playbackQualityInfo.lossless === false ||
+            playbackCodec.includes('opus') ||
+            playbackCodec.includes('mp3') ||
+            playbackCodec.includes('aac') ||
+            playbackCodec.includes('mp4a') ||
+            playbackQuality === 'HIGH' ||
+            playbackQuality === 'LOW');
+    if (hasDetailedLosslessInfo || hasExplicitLossyPlaybackInfo) {
         const badgeText = formatQualityBadgeText(playbackInfo, null, deriveTrackQuality(track));
         if (badgeText) {
             return `<span class="quality-badge quality-hires" title="${escapeHtml(badgeText)}">${escapeHtml(badgeText)}</span>`;

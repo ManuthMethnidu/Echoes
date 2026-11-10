@@ -139,7 +139,7 @@ export class MusicAPI {
             image: cover,
             trackNumber: t.trackNumber || 1,
             volumeNumber: 1,
-            audioQuality: 'LOSSLESS',
+            audioQuality: 'HIGH',
             audioModes: ['STEREO'],
             allowStreaming: true,
             streamReady: true,

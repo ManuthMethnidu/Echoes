@@ -54,7 +54,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 album: { id: `yt_alb_${vid}`, title, cover: thumb, artist: { name: author }, provider: 'youtube' },
                 cover: thumb,
                 image: thumb,
-                audioQuality: 'LOSSLESS',
+                audioQuality: 'HIGH',
                 audioModes: ['STEREO'],
                 allowStreaming: true,
                 streamReady: true,

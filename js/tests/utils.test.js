@@ -355,6 +355,31 @@ describe('utils.js', () => {
             expect(badge).toContain('Dolby Atmos · AC-4 · 261 kbps · 48 kHz · 5.1');
             expect(badge).not.toContain('HD FLAC');
         });
+
+        test('prefers explicit lossy playbackQualityInfo over static LOSSLESS metadata to prevent badge flicker', () => {
+            const badge = utils.createQualityBadgeHTML({
+                audioQuality: 'LOSSLESS',
+                provider: 'youtube',
+                playbackQualityInfo: {
+                    codec: 'OPUS',
+                    quality: 'HIGH',
+                    lossless: false,
+                    bitrateKbps: 139,
+                },
+            });
+
+            expect(badge).toContain('Opus 139k');
+            expect(badge).not.toContain('FLAC');
+        });
+
+        test('renders YouTube HIGH quality tracks without a FLAC badge before playback starts', () => {
+            const badge = utils.createQualityBadgeHTML({
+                audioQuality: 'HIGH',
+                provider: 'youtube',
+            });
+
+            expect(badge).not.toContain('FLAC');
+        });
     });
 
     describe('WaveformGenerator.getSilenceBoundaries', () => {

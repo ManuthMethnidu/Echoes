@@ -37,8 +37,14 @@ async function findFirstValid<T>(promises: Promise<T | null>[]): Promise<T | nul
     });
 }
 
-async function isStreamPlayable(url: string, timeoutMs: number = 2000): Promise<boolean> {
-    if (!url) return false;
+const VPS_STREAM_PROXY = process.env.VPS_STREAM_PROXY || 'https://stream.mteck.tech/stream';
+
+async function probeStreamStatus(
+    url: string,
+    timeoutMs: number = 2000,
+    extraHeaders: Record<string, string> = {}
+): Promise<{ reachable: boolean; playable: boolean; status: number }> {
+    if (!url) return { reachable: false, playable: false, status: 0 };
     try {
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -48,14 +54,31 @@ async function isStreamPlayable(url: string, timeoutMs: number = 2000): Promise<
                 'Range': 'bytes=0-50',
                 'User-Agent':
                     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+                ...extraHeaders,
             },
             signal: controller.signal,
         });
         clearTimeout(timer);
-        return res.status === 200 || res.status === 206;
+        try {
+            await res.body?.cancel();
+        } catch {}
+        return {
+            reachable: true,
+            playable: res.status === 200 || res.status === 206,
+            status: res.status,
+        };
     } catch {
-        return false;
+        return { reachable: false, playable: false, status: 0 };
     }
+}
+
+async function isStreamPlayable(
+    url: string,
+    timeoutMs: number = 2000,
+    extraHeaders: Record<string, string> = {}
+): Promise<boolean> {
+    const result = await probeStreamStatus(url, timeoutMs, extraHeaders);
+    return result.playable;
 }
 
 function getCompanionRedirect(comp: string, videoId: string, itag: number): Promise<string | null> {
@@ -129,15 +152,37 @@ async function fetchCompanionDirectStream(
     return await findFirstValid(companionsToTry.slice(3).map(checkCompanion));
 }
 
-function resolveStreamUrl(rawUrl: string, videoId?: string): string {
+function resolveStreamUrl(rawUrl: string, videoId?: string, companionOverride?: string): string {
     if (!rawUrl) return rawUrl;
     try {
         const parsed = new URL(rawUrl);
-        // If it's already a direct GoogleVideo stream, return it
-        if (parsed.hostname.includes('googlevideo.com')) {
-            return rawUrl;
+        let origHost = parsed.hostname;
+        if (!origHost.includes('googlevideo.com')) {
+            const mvi = parsed.searchParams.get('mvi') || '1';
+            const mn = parsed.searchParams.get('mn')?.split(',')[0];
+            if (mn) {
+                origHost = `rr${mvi}---${mn}.googlevideo.com`;
+            }
         }
-        return rawUrl;
+        parsed.searchParams.set('host', origHost);
+
+        let companion = companionOverride || '';
+        const existingIssuer = parsed.searchParams.get('issuer');
+        if (!companion && existingIssuer && HEALTHY_COMPANIONS.includes(existingIssuer)) {
+            companion = existingIssuer;
+        } else if (!companion && videoId) {
+            let hash = 0;
+            for (let i = 0; i < videoId.length; i++) {
+                hash = (hash << 5) - hash + videoId.charCodeAt(i);
+            }
+            const idx = Math.abs(hash) % HEALTHY_COMPANIONS.length;
+            companion = HEALTHY_COMPANIONS[idx];
+        } else if (!companion) {
+            companion = HEALTHY_COMPANIONS[Math.floor(Math.random() * HEALTHY_COMPANIONS.length)];
+        }
+
+        parsed.searchParams.delete('issuer');
+        return `https://${companion}${parsed.pathname}${parsed.search}`;
     } catch {}
     return rawUrl;
 }
@@ -250,15 +295,33 @@ async function findPlayableAudio(
         }
     }
 
-    // If direct formats are not playable directly (e.g. IP-bound or geo-restricted), proxy through /api/yt/proxy-stream
-    if (adaptiveFormats.length > 0) {
-        const best = adaptiveFormats[0];
-        const proxyUrl = `/api/yt/proxy-stream?url=${encodeURIComponent(best.url)}`;
-        return {
-            format: best,
-            streamUrl: proxyUrl,
-            issuer: 'proxy',
-        };
+    // Rewrite IP-bound googlevideo.com URLs to companion nodes and verify playability via VPS proxy first,
+    // falling back to Vercel /api/yt/proxy-stream only when the VPS proxy itself is unreachable.
+    for (const best of adaptiveFormats.slice(0, 2)) {
+        const companionUrl = resolveStreamUrl(best.url, vId);
+        const vpsProxyUrl = `${VPS_STREAM_PROXY}?url=${encodeURIComponent(companionUrl)}`;
+        const vpsProbe = await probeStreamStatus(vpsProxyUrl, 2500);
+        if (vpsProbe.playable) {
+            return {
+                format: best,
+                streamUrl: vpsProxyUrl,
+                issuer: 'vps-proxy',
+            };
+        }
+
+        // Only fall back to internal /api/yt/proxy-stream if VPS proxy is down/unreachable
+        if (!vpsProbe.reachable || vpsProbe.status >= 500) {
+            const companionHeaders: Record<string, string> = companionUrl.includes('chocolatemoo53.com')
+                ? { Referer: 'https://yt.chocolatemoo53.com/', Origin: 'https://yt.chocolatemoo53.com' }
+                : {};
+            if (await isStreamPlayable(companionUrl, 2500, companionHeaders)) {
+                return {
+                    format: best,
+                    streamUrl: `/api/yt/proxy-stream?url=${encodeURIComponent(companionUrl)}`,
+                    issuer: 'proxy',
+                };
+            }
+        }
     }
 
     return null;
@@ -468,14 +531,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             }
         } catch (searchErr) {
             console.warn(`[YouTube Stream] Failover search error for "${cleanTerms}":`, searchErr);
-        }
-    }
-
-    // 3. Fallback: If no candidate was verified, check unexpired audio formats with proxy
-    if (data) {
-        const playable = await findPlayableAudio(data, preferM4a, videoId);
-        if (playable) {
-            return res.status(200).json(formatResponse(playable.format, playable.streamUrl, data, videoId, instance));
         }
     }
 

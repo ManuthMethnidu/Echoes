@@ -86,7 +86,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 },
                 cover: thumb,
                 image: thumb,
-                audioQuality: 'LOSSLESS',
+                audioQuality: 'HIGH',
                 audioModes: ['STEREO'],
                 allowStreaming: true,
                 streamReady: true,

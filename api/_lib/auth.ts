@@ -2,13 +2,17 @@ import { SignJWT, jwtVerify, createRemoteJWKSet } from 'jose';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getDb } from './db.js';
 
+function getEnv(name: string): string | undefined {
+    return typeof process !== 'undefined' ? process.env?.[name] : undefined;
+}
+
 let ephemeralSecret: Uint8Array | null = null;
 export function getJwtSecret(): Uint8Array {
-    const configured = process.env.AUTH_SECRET || process.env.JWT_SECRET;
+    const configured = getEnv('AUTH_SECRET') || getEnv('JWT_SECRET');
     if (configured) {
         return new TextEncoder().encode(configured);
     }
-    if (process.env.NODE_ENV === 'production') {
+    if (getEnv('NODE_ENV') === 'production') {
         throw new Error('FATAL: AUTH_SECRET or JWT_SECRET must be configured in production');
     }
     if (!ephemeralSecret) {
@@ -22,7 +26,7 @@ export function getJwtSecret(): Uint8Array {
 const JWT_EXPIRES_IN = '30d';
 
 const NEON_JWKS_URL =
-    process.env.NEON_AUTH_JWKS_URL ||
+    getEnv('NEON_AUTH_JWKS_URL') ||
     'https://ep-small-mouse-a11jp1gr.neonauth.ap-southeast-1.aws.neon.tech/neondb/auth/.well-known/jwks.json';
 
 let remoteJWKS: ReturnType<typeof createRemoteJWKSet> | null = null;
@@ -248,14 +252,166 @@ export async function getAuthenticatedUser(req: VercelRequest): Promise<AuthUser
     return verifyToken(token);
 }
 
+export const ALLOWED_ORIGINS = [
+    'https://echoes.mteck.tech',
+    'https://echos.vercel.app',
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+    'http://localhost:5173',
+    'http://127.0.0.1:5173',
+];
+
+export function getSafeOrigin(req: VercelRequest): string {
+    const defaultOrigin = 'https://echoes.mteck.tech';
+    const rawOrigin = typeof req.headers?.origin === 'string' ? req.headers.origin : '';
+    if (rawOrigin && ALLOWED_ORIGINS.includes(rawOrigin)) {
+        return rawOrigin;
+    }
+    const forwardedHost = (req.headers?.['x-forwarded-host'] || req.headers?.host || '') as string;
+    const host = forwardedHost.split(',')[0].trim();
+    if (host) {
+        const rawProto = req.headers?.['x-forwarded-proto'];
+        const proto =
+            typeof rawProto === 'string' && rawProto.split(',')[0].trim().toLowerCase() === 'http'
+                ? 'http'
+                : host.startsWith('localhost') || host.startsWith('127.0.0.1')
+                  ? 'http'
+                  : 'https';
+        const candidate = `${proto}://${host}`;
+        if (ALLOWED_ORIGINS.includes(candidate)) {
+            return candidate;
+        }
+    }
+    return defaultOrigin;
+}
+
+export function sanitizeCallbackUrl(rawUrl: string, defaultOrigin: string): string {
+    if (!rawUrl || typeof rawUrl !== 'string') return `${defaultOrigin}/index.html`;
+    try {
+        if (rawUrl.startsWith('/') && !rawUrl.startsWith('//') && !rawUrl.startsWith('/\\')) {
+            return `${defaultOrigin}${rawUrl}`;
+        }
+        const parsed = new URL(rawUrl);
+        if (ALLOWED_ORIGINS.includes(parsed.origin)) {
+            return rawUrl;
+        }
+    } catch {}
+    return `${defaultOrigin}/index.html`;
+}
+
+export const OAUTH_STATE_COOKIE_NAME = 'echos_oauth_state';
+
+export interface OAuthStatePayload {
+    flowId: string;
+    nonce: string;
+    provider: string;
+    callbackURL?: string;
+    redirectUri?: string;
+    purpose: 'oauth_state';
+}
+
+export function constantTimeEqualStrings(a: string, b: string): boolean {
+    return constantTimeEqual(a, b);
+}
+
+export function generateOAuthStateNonce(): string {
+    const bytes = crypto.getRandomValues(new Uint8Array(32));
+    return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+export async function createSignedOAuthState(
+    payload: Omit<OAuthStatePayload, 'purpose'>
+): Promise<string> {
+    return new SignJWT({
+        ...payload,
+        purpose: 'oauth_state',
+    })
+        .setProtectedHeader({ alg: 'HS256' })
+        .setIssuedAt()
+        .setExpirationTime('15m')
+        .sign(getJwtSecret());
+}
+
+export async function verifySignedOAuthState(token: string): Promise<OAuthStatePayload | null> {
+    if (!token || typeof token !== 'string') return null;
+    try {
+        const { payload } = await jwtVerify(token, getJwtSecret());
+        if (payload.purpose !== 'oauth_state') return null;
+        if (typeof payload.flowId !== 'string' || typeof payload.nonce !== 'string') return null;
+        return {
+            flowId: payload.flowId,
+            nonce: payload.nonce,
+            provider: typeof payload.provider === 'string' ? payload.provider : 'google',
+            callbackURL: typeof payload.callbackURL === 'string' ? payload.callbackURL : undefined,
+            redirectUri: typeof payload.redirectUri === 'string' ? payload.redirectUri : undefined,
+            purpose: 'oauth_state',
+        };
+    } catch {
+        return null;
+    }
+}
+
+export function appendSetCookie(res: VercelResponse, cookieValue: string) {
+    const existing = typeof res.getHeader === 'function' ? res.getHeader('Set-Cookie') : undefined;
+    if (!existing) {
+        res.setHeader('Set-Cookie', cookieValue);
+    } else if (Array.isArray(existing)) {
+        res.setHeader('Set-Cookie', [...existing.map(String), cookieValue]);
+    } else {
+        res.setHeader('Set-Cookie', [String(existing), cookieValue]);
+    }
+}
+
+function isSecureRequest(req?: VercelRequest): boolean {
+    const proto = req?.headers?.['x-forwarded-proto'];
+    if (typeof proto === 'string') {
+        const firstProto = proto.split(',')[0].trim().toLowerCase();
+        if (firstProto === 'https') return true;
+        if (firstProto === 'http') return false;
+    }
+    const origin = req?.headers?.origin;
+    if (typeof origin === 'string') {
+        if (origin.startsWith('https://')) return true;
+        if (origin.startsWith('http://')) return false;
+    }
+    const host = (req?.headers?.['x-forwarded-host'] || req?.headers?.host || '') as string;
+    if (host.startsWith('localhost') || host.startsWith('127.0.0.1')) {
+        return false;
+    }
+    return getEnv('NODE_ENV') === 'production';
+}
+
+export function setOAuthStateCookie(res: VercelResponse, signedToken: string, req?: VercelRequest) {
+    const secureFlag = isSecureRequest(req) ? '; Secure' : '';
+    const cookieStr = `${OAUTH_STATE_COOKIE_NAME}=${encodeURIComponent(signedToken)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=900${secureFlag}`;
+    appendSetCookie(res, cookieStr);
+}
+
+export function clearOAuthStateCookie(res: VercelResponse, req?: VercelRequest) {
+    const secureFlag = isSecureRequest(req) ? '; Secure' : '';
+    const cookieStr = `${OAUTH_STATE_COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${secureFlag}`;
+    appendSetCookie(res, cookieStr);
+}
+
+export function extractOAuthStateCookie(req: VercelRequest): string | null {
+    const cookieHeader = req.headers?.cookie;
+    if (cookieHeader && typeof cookieHeader === 'string') {
+        const match = cookieHeader.match(/(?:^|;\s*)echos_oauth_state=([^;]+)/);
+        if (match) return decodeURIComponent(match[1]);
+    }
+    const parsedCookies = (req as VercelRequest & { cookies?: Record<string, string | undefined> }).cookies;
+    const cookieVal = parsedCookies?.[OAUTH_STATE_COOKIE_NAME];
+    return typeof cookieVal === 'string' ? cookieVal : null;
+}
+
 export function setSessionCookie(res: VercelResponse, token: string) {
-    const isProd = process.env.NODE_ENV === 'production';
+    const isProd = getEnv('NODE_ENV') === 'production';
     const cookieStr = `mono_session=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${30 * 24 * 60 * 60}${isProd ? '; Secure' : ''}`;
-    res.setHeader('Set-Cookie', cookieStr);
+    appendSetCookie(res, cookieStr);
 }
 
 export function clearSessionCookie(res: VercelResponse) {
-    const isProd = process.env.NODE_ENV === 'production';
+    const isProd = getEnv('NODE_ENV') === 'production';
     const secureFlag = isProd ? '; Secure' : '';
     res.setHeader('Set-Cookie', [
         `mono_session=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${secureFlag}`,

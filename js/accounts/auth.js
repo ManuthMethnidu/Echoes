@@ -492,22 +492,40 @@ export class AuthManager {
         }
 
         try {
-            // Fetch direct OAuth initiation URL via POST API call (never intercepted by Service Worker navigation route)
-            const res = await fetch(`${AUTH_BASE_URL}/api/auth/sign-in/social`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ provider: 'google' }),
-            });
-            const data = await res.json().catch(() => null);
+            let isSameOrigin = true;
+            try {
+                isSameOrigin = !AUTH_BASE_URL || new URL(AUTH_BASE_URL, window.location.origin).origin === window.location.origin;
+            } catch {
+                isSameOrigin = false;
+            }
 
-            if (data?.url) {
+            if (!isSameOrigin) {
+                // Cross-origin auth server: navigate popup directly so first-party OAuth state cookies are stored
+                const directAuthUrl = `${AUTH_BASE_URL}/api/auth/sign-in/social?provider=google`;
                 if (authWindow && !authWindow.closed) {
-                    authWindow.location.href = data.url;
+                    authWindow.location.href = directAuthUrl;
                 } else {
-                    window.open(data.url, '_blank');
+                    window.open(directAuthUrl, '_blank');
                 }
             } else {
-                throw new Error(data?.error?.message || 'Failed to initiate Google sign-in');
+                // Same-origin: fetch direct OAuth initiation URL via POST (sets HttpOnly state cookie; avoids SW cache)
+                const res = await fetch(`${AUTH_BASE_URL}/api/auth/sign-in/social`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ provider: 'google' }),
+                });
+                const data = await res.json().catch(() => null);
+
+                if (data?.url) {
+                    if (authWindow && !authWindow.closed) {
+                        authWindow.location.href = data.url;
+                    } else {
+                        window.open(data.url, '_blank');
+                    }
+                } else {
+                    throw new Error(data?.error?.message || 'Failed to initiate Google sign-in');
+                }
             }
         } catch (error) {
             console.error('Login initiation failed:', error);

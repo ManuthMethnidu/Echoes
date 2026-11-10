@@ -1,6 +1,13 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getDb, ensureSchema } from '../../_lib/db.js';
-import { createToken, setSessionCookie } from '../../_lib/auth.js';
+import {
+    createToken,
+    setSessionCookie,
+    extractOAuthStateCookie,
+    clearOAuthStateCookie,
+    verifySignedOAuthState,
+    constantTimeEqualStrings,
+} from '../../_lib/auth.js';
 
 function escapeHtml(str: string): string {
     return str
@@ -11,16 +18,21 @@ function escapeHtml(str: string): string {
         .replace(/'/g, '&#039;');
 }
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-    const error = req.query.error || req.query.error_description;
-    if (error) {
-        res.setHeader('Content-Type', 'text/html; charset=utf-8');
-        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
-        return res.status(200).send(`<!DOCTYPE html>
+function safeJsonForScript(value: unknown): string {
+    return JSON.stringify(value)
+        .replace(/</g, '\\u003c')
+        .replace(/>/g, '\\u003e')
+        .replace(/&/g, '\\u0026');
+}
+
+function sendErrorHtml(res: VercelResponse, statusCode: number, title: string, message: string) {
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+    return res.status(statusCode).send(`<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>Authentication Error</title>
+    <title>${escapeHtml(title)}</title>
     <style>
         body { background: #0c0d0e; color: #fff; font-family: -apple-system, sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; padding: 1rem; }
         .card { background: #18191b; border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; padding: 2rem; max-width: 400px; text-align: center; }
@@ -31,32 +43,68 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 <body>
     <div class="card">
         <div class="icon">✕</div>
-        <h2>Sign In Failed</h2>
-        <p style="color:#9ca3af;font-size:0.9rem;">${escapeHtml(String(error))}</p>
+        <h2>${escapeHtml(title)}</h2>
+        <p style="color:#9ca3af;font-size:0.9rem;">${escapeHtml(message)}</p>
         <a href="/index.html" class="btn">Return to Echoes</a>
     </div>
 </body>
 </html>`);
+}
+
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+    clearOAuthStateCookie(res, req);
+
+    const error = req.query.error || req.query.error_description;
+    if (error) {
+        return sendErrorHtml(res, 200, 'Sign In Failed', String(error));
     }
 
     try {
+        // Strict OAuth CSRF / State Protection (RFC 6749 §10.12)
+        const flowId = typeof req.query.flow === 'string' ? req.query.flow.trim() : '';
+        const queryState = typeof req.query.state === 'string' ? req.query.state.trim() : '';
+        const stateCookieToken = extractOAuthStateCookie(req);
+
+        if (!flowId || !queryState || !stateCookieToken) {
+            console.warn('[Neon Callback] Rejected request with missing OAuth state/flow parameters');
+            return sendErrorHtml(res, 403, 'Invalid OAuth State', 'Missing authentication state. Please try signing in again.');
+        }
+
+        const cookieState = await verifySignedOAuthState(stateCookieToken);
+        if (
+            !cookieState ||
+            !constantTimeEqualStrings(cookieState.flowId, flowId) ||
+            !constantTimeEqualStrings(cookieState.nonce, queryState)
+        ) {
+            console.warn('[Neon Callback] Rejected request due to OAuth state cookie mismatch');
+            return sendErrorHtml(res, 403, 'Invalid OAuth State', 'Invalid or expired authentication state. Please try signing in again.');
+        }
+
         const sql = getDb();
         await ensureSchema(sql);
 
-        const flowId = req.query.flow ? String(req.query.flow) : null;
-        if (flowId) {
-            const flowRows = await sql`
-                SELECT flow_id FROM oauth_flows
-                WHERE flow_id = ${flowId} AND expires_at > NOW()
-                LIMIT 1
-            `.catch(() => []);
-            if (!flowRows || flowRows.length === 0) {
-                res.setHeader('Content-Type', 'text/html; charset=utf-8');
-                res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
-                return res.status(400).send(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Invalid Flow</title></head><body style="background:#0c0d0e;color:#fff;font-family:sans-serif;text-align:center;padding:2rem;"><h2>Invalid or expired authentication flow.</h2><p><a href="/index.html" style="color:#fff;">Return to Echoes</a></p></body></html>`);
-            }
+        // Atomically consume the one-time OAuth flow record and verify its nonce
+        interface ConsumedFlowRow {
+            flow_id?: string;
+            state_nonce?: string | null;
+            created_at?: string | Date;
+        }
+        const consumedFlows = (await sql`
+            DELETE FROM oauth_flows
+            WHERE flow_id = ${flowId} AND expires_at > NOW()
+            RETURNING flow_id, state_nonce, created_at
+        `.catch(() => [])) as ConsumedFlowRow[];
+
+        const consumedFlow = consumedFlows?.[0];
+        if (
+            !consumedFlow?.state_nonce ||
+            !constantTimeEqualStrings(String(consumedFlow.state_nonce), queryState)
+        ) {
+            console.warn('[Neon Callback] Rejected request: OAuth flow not found, expired, or nonce mismatch');
+            return sendErrorHtml(res, 403, 'Invalid Flow', 'Invalid or expired authentication flow. Please try signing in again.');
         }
 
+        const flowCreatedAt = consumedFlow.created_at;
         const cookieHeader = req.headers.cookie || '';
         const cookieMatch = cookieHeader.match(/(?:^|;\s*)better-auth\.session_token=([^;]+)/);
         const queryToken = typeof req.query.token === 'string' ? req.query.token : typeof req.query.session_token === 'string' ? req.query.session_token : null;
@@ -72,12 +120,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 LIMIT 1;
             `;
         }
-        if (sessions.length === 0) {
+        if (!queryToken && sessions.length === 0 && flowCreatedAt) {
             sessions = await sql`
                 SELECT s."userId", s.token, u.email, u.name, u.image, s."createdAt"
                 FROM neon_auth.session s
                 JOIN neon_auth."user" u ON s."userId" = u.id
-                WHERE s."createdAt" >= NOW() - INTERVAL '15 minutes'
+                WHERE s."createdAt" >= (${flowCreatedAt}::timestamptz - INTERVAL '5 seconds')
+                  AND s."expiresAt" > NOW()
                 ORDER BY s."createdAt" DESC
                 LIMIT 1;
             `;
@@ -86,7 +135,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (!sessions || sessions.length === 0) {
             console.warn('[Neon Callback] No recent session found in neon_auth.session');
             res.setHeader('Content-Type', 'text/html; charset=utf-8');
-        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+            res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
             return res.status(200).send(`<!DOCTYPE html>
 <html>
 <head>
@@ -140,14 +189,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
             await sql`
                 INSERT INTO user_sync_data (user_id, library, history, user_playlists, user_folders)
-                VALUES (${finalUserId}, '{"tracks":{},"albums":{},"artists":{},"playlists":{},"mixes":{}}'::jsonb, '[]'::jsonb, '{}'::jsonb, '{}'::jsonb)
+                VALUES (${finalUserId}, '{"tracks":{},"albums":{},"artists":{},"playlists":{},"mixes":{},"podcasts":{}}'::jsonb, '[]'::jsonb, '{}'::jsonb, '{}'::jsonb)
                 ON CONFLICT (user_id) DO NOTHING
             `;
-        }
-
-        // Clean up consumed flow
-        if (flowId) {
-            await sql`DELETE FROM oauth_flows WHERE flow_id = ${flowId}`.catch(() => {});
         }
 
         // Generate application JWT
@@ -155,12 +199,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const appToken = await createToken(userObj);
         setSessionCookie(res, appToken);
 
-        const safeUserJson = JSON.stringify({
+        const safeUser = {
             id: finalUserId,
             email,
             name,
             avatar: avatarUrl,
-        });
+        };
 
         res.setHeader('Content-Type', 'text/html; charset=utf-8');
         res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
@@ -229,9 +273,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         <a href="/index.html" class="btn" id="return-btn">Return to Echoes</a>
     </div>
     <script>
-        const token = ${JSON.stringify(appToken)};
-        const neonSessionToken = ${JSON.stringify(neonToken)};
-        const user = ${safeUserJson};
+        const token = ${safeJsonForScript(appToken)};
+        const neonSessionToken = ${safeJsonForScript(neonToken)};
+        const user = ${safeJsonForScript(safeUser)};
 
         try {
             localStorage.setItem('echos-auth-token', token);

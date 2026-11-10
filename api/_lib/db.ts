@@ -120,9 +120,19 @@ export async function ensureSchema(sql: ReturnType<typeof neon>) {
             CREATE TABLE IF NOT EXISTS oauth_flows (
                 flow_id TEXT PRIMARY KEY,
                 provider TEXT NOT NULL,
+                state_nonce TEXT,
                 created_at TIMESTAMPTZ DEFAULT NOW(),
                 expires_at TIMESTAMPTZ DEFAULT (NOW() + INTERVAL '15 minutes')
             );
+        `;
+
+        await sql`
+            ALTER TABLE oauth_flows
+            ADD COLUMN IF NOT EXISTS state_nonce TEXT;
+        `.catch(() => {});
+
+        await sql`
+            CREATE INDEX IF NOT EXISTS idx_oauth_flows_expires ON oauth_flows(expires_at);
         `;
 
         await sql`

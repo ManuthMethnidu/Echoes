@@ -24,6 +24,10 @@ export default function vercelApiPlugin(): Plugin {
                     return next();
                 }
 
+                if (process.env.VITEST && /\.(ts|tsx|js|jsx|mjs|mts)(\?.*)?$/.test(url)) {
+                    return next();
+                }
+
                 try {
                     const queryObj: Record<string, any> = {};
                     if (search) {

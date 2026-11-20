@@ -173,12 +173,15 @@ export class Player {
                 };
                 import('./downloads.js')
                     .then(({ showNotification }) => {
-                        showNotification(`❌ Stream issue: ${errorDetails}.`, {
-                            type: 'error',
-                            duration: 8000,
-                            actionText: 'Diagnostics',
-                            onAction: () => this.openStreamInfoModal(),
-                        });
+                        showNotification(
+                            `Stream failed to load (${errorDetails}). Try another audio source or retry.`,
+                            {
+                                type: 'error',
+                                duration: 8000,
+                                actionText: 'Try Other Streams',
+                                onAction: () => this.openStreamInfoModal(),
+                            }
+                        );
                     })
                     .catch(() => {});
             });
@@ -1667,11 +1670,11 @@ export class Player {
                     import('./downloads.js')
                         .then(({ showNotification }) => {
                             showNotification(
-                                `⚡ Stream Failover: ${fromLabel} unavailable (${resolvedStreamInfo.fallbackReason || 'stream issue'}). Playing via ${toLabel}.`,
+                                `Stream Failover: ${fromLabel} unavailable (${resolvedStreamInfo.fallbackReason || 'stream issue'}). Playing via ${toLabel}.`,
                                 {
                                     type: 'warning',
                                     duration: 7000,
-                                    actionText: 'Diagnostics',
+                                    actionText: 'Stream Details',
                                     onAction: () => this.openStreamInfoModal(),
                                 }
                             );
@@ -1897,14 +1900,15 @@ export class Player {
             };
             import('./downloads.js')
                 .then(({ showNotification }) => {
-                    const msg =
-                        error?.code === 'UNSUPPORTED_PLAYBACK_CODEC' || error?.code === 'STRICT_QUALITY_UNAVAILABLE'
-                            ? error.message
-                            : `❌ Stream issue: ${error?.message || 'Playback failed'}.`;
+                    const isStreamError =
+                        error?.code !== 'UNSUPPORTED_PLAYBACK_CODEC' && error?.code !== 'STRICT_QUALITY_UNAVAILABLE';
+                    const msg = isStreamError
+                        ? `Stream failed to load (${error?.message || 'Playback failed'}). Try another audio source or retry.`
+                        : error.message;
                     showNotification(msg, {
                         type: 'error',
                         duration: 8000,
-                        actionText: 'Diagnostics',
+                        actionText: isStreamError ? 'Try Other Streams' : 'Stream Details',
                         onAction: () => this.openStreamInfoModal(),
                     });
                 })
@@ -3601,7 +3605,7 @@ export class Player {
                     this.lastStreamFallback.fallbackFrom === 'monochrome' ? 'Monochrome Lossless' : 'YouTube Audio';
                 const toLabel =
                     this.lastStreamFallback.provider === 'monochrome' ? 'Monochrome Lossless' : 'YouTube Audio';
-                alertEl.innerHTML = `<strong>⚡ Automatic Stream Failover:</strong> ${fromLabel} was unavailable (${escapeHtml(this.lastStreamFallback.fallbackReason || 'stream issue')}). Audio is playing seamlessly via ${toLabel}.`;
+                alertEl.innerHTML = `<strong>Automatic Stream Failover:</strong> ${fromLabel} was unavailable (${escapeHtml(this.lastStreamFallback.fallbackReason || 'stream issue')}). Audio is playing seamlessly via ${toLabel}.`;
             } else if (this.forcedStreamProvider) {
                 alertEl.style.display = 'block';
                 alertEl.style.background = 'rgba(59, 130, 246, 0.15)';

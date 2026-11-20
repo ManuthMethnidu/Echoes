@@ -111,7 +111,7 @@ class DiscordRPCManager {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        content: '🔔 **Echoes Discord RPC Test** - Webhook connected successfully!',
+                        content: '**Echoes Discord RPC Test** - Webhook connected successfully!',
                     }),
                 });
                 return {
@@ -378,7 +378,7 @@ class DiscordRPCManager {
                     avatar_url: 'https://echoes.mteck.tech/images/echoes_logo.png',
                     embeds: [
                         {
-                            title: `${isPlaying ? '▶️ Now Playing' : '⏸️ Paused'}: ${title}`,
+                            title: `${isPlaying ? 'Now Playing' : 'Paused'}: ${title}`,
                             description: `**Artist:** ${artist}\n**Album:** ${album}`,
                             url: track.id ? `https://echoes.mteck.tech/track/${encodeURIComponent(track.id)}` : undefined,
                             color: isPlaying ? 0x38bdf8 : 0x71717a,

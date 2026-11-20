@@ -846,7 +846,7 @@ const syncManager = {
                     window.dispatchEvent(new CustomEvent('history-changed'));
                     window.dispatchEvent(new HashChangeEvent('hashchange'));
 
-                    console.log('[PocketBase] ✓ Sync completed');
+                    console.log('[PocketBase] Sync completed');
                 }
             } catch (error) {
                 console.error('[PocketBase] Sync error:', error);

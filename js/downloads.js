@@ -173,13 +173,19 @@ export function showNotification(message, options = {}) {
 
     const innerDiv = document.createElement('div');
     innerDiv.className = 'notification-message';
-    innerDiv.textContent = message;
+    innerDiv.style.cssText = 'display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%;';
+
+    const textSpan = document.createElement('span');
+    textSpan.className = 'notification-text';
+    textSpan.style.cssText = 'flex: 1; word-break: break-word; line-height: 1.4;';
+    textSpan.textContent = message;
+    innerDiv.appendChild(textSpan);
 
     if (options.actionText && typeof options.onAction === 'function') {
         const actionBtn = document.createElement('button');
         actionBtn.className = 'notification-action-btn';
         actionBtn.style.cssText =
-            'margin-left: 8px; padding: 2px 8px; border-radius: 4px; background: var(--primary, #1ed760); color: #000; font-weight: 700; font-size: 0.75rem; border: none; cursor: pointer; display: inline-block; vertical-align: middle;';
+            'margin-left: 4px; padding: 3px 8px; border-radius: 4px; background: var(--primary, #1ed760); color: #000; font-weight: 700; font-size: 0.75rem; border: none; cursor: pointer; display: inline-flex; align-items: center; flex-shrink: 0;';
         actionBtn.textContent = options.actionText;
         actionBtn.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -191,6 +197,39 @@ export function showNotification(message, options = {}) {
         });
         innerDiv.appendChild(actionBtn);
     }
+
+    let isDismissed = false;
+    let autoDismissTimer = null;
+    const dismissToast = () => {
+        if (isDismissed) return;
+        isDismissed = true;
+        if (autoDismissTimer) clearTimeout(autoDismissTimer);
+        notifEl.style.animation = 'slide-out 0.3s ease forwards';
+        setTimeout(() => notifEl.remove(), 300);
+    };
+
+    const closeBtn = document.createElement('button');
+    closeBtn.className = 'notification-close-btn';
+    closeBtn.type = 'button';
+    closeBtn.title = 'Dismiss';
+    closeBtn.setAttribute('aria-label', 'Close notification');
+    closeBtn.style.cssText =
+        'background: none; border: none; color: var(--muted-foreground, #a1a1aa); cursor: pointer; padding: 2px 4px; margin-left: auto; line-height: 1; display: inline-flex; align-items: center; justify-content: center; opacity: 0.75; transition: opacity 0.2s, color 0.2s; flex-shrink: 0;';
+    closeBtn.innerHTML =
+        '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>';
+    closeBtn.addEventListener('mouseenter', () => {
+        closeBtn.style.opacity = '1';
+        closeBtn.style.color = 'var(--foreground, #ffffff)';
+    });
+    closeBtn.addEventListener('mouseleave', () => {
+        closeBtn.style.opacity = '0.75';
+        closeBtn.style.color = 'var(--muted-foreground, #a1a1aa)';
+    });
+    closeBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        dismissToast();
+    });
+    innerDiv.appendChild(closeBtn);
 
     notifEl.appendChild(innerDiv);
 
@@ -210,13 +249,8 @@ export function showNotification(message, options = {}) {
     container.appendChild(notifEl);
 
     // Auto remove
-    setTimeout(
-        () => {
-            notifEl.style.animation = 'slide-out 0.3s ease forwards';
-            setTimeout(() => notifEl.remove(), 300);
-        },
-        isError ? 10000 : 1500
-    );
+    const duration = options.duration || (isError ? 10000 : 2500);
+    autoDismissTimer = setTimeout(dismissToast, duration);
 }
 
 export function addDownloadTask(trackId, track, _filename, api, abortController, options = {}) {
@@ -325,14 +359,14 @@ export function completeDownloadTask(trackId, success = true, message = null) {
     if (success) {
         progressFill.style.width = '100%';
         progressFill.style.background = '#10b981';
-        statusEl.textContent = message || (isCache ? '✓ Cached offline' : '✓ Downloaded');
+        statusEl.textContent = message || (isCache ? 'Cached offline' : 'Downloaded');
         statusEl.style.color = '#10b981';
         if (cancelBtn) cancelBtn.remove();
 
         setTimeout(() => removeDownloadTask(trackId), 3000);
     } else {
         progressFill.style.background = '#ef4444';
-        statusEl.textContent = message || (isCache ? '✗ Caching failed' : '✗ Download failed');
+        statusEl.textContent = message || (isCache ? 'Caching failed' : 'Download failed');
         statusEl.style.color = '#ef4444';
         if (cancelBtn) {
             cancelBtn.innerHTML = `
@@ -1149,7 +1183,7 @@ function completeBulkDownload(notifEl, success = true, message = null, { failedT
     } else if (success) {
         progressFill.style.width = '100%';
         progressFill.style.background = '#10b981';
-        statusEl.textContent = '✓ Download complete';
+        statusEl.textContent = 'Download complete';
         statusEl.style.color = '#10b981';
 
         setTimeout(() => {
@@ -1158,7 +1192,7 @@ function completeBulkDownload(notifEl, success = true, message = null, { failedT
         }, 3000);
     } else {
         progressFill.style.background = '#ef4444';
-        statusEl.textContent = message || '✗ Download failed';
+        statusEl.textContent = message || 'Download failed';
         statusEl.style.color = '#ef4444';
 
         setTimeout(() => {

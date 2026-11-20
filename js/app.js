@@ -2867,7 +2867,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     </button>
                     <hr style="border:none;border-top:1px solid var(--border);margin:0.35rem 0">
                     <button class="btn-secondary" id="header-email-auth">Connect with Email</button>
-                    <button class="btn-secondary" id="header-tv-pair" style="margin-top:6px;display:flex;align-items:center;justify-content:center;gap:6px;">📺 Pair TV / Secondary Device</button>
+                    <button class="btn-secondary" id="header-tv-pair" style="margin-top:6px;display:flex;align-items:center;justify-content:center;gap:6px;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="15" rx="2" ry="2"></rect><polyline points="17 2 12 7 7 2"></polyline></svg><span>Pair TV / Secondary Device</span></button>
                 `;
 
                 const googleBtn = document.getElementById('header-google-auth');
@@ -2894,7 +2894,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (hasProfile) {
                     headerAccountDropdown.innerHTML = `
                         <button class="btn-secondary" id="header-view-profile">My Profile</button>
-                        <button class="btn-secondary" id="header-pair-device">📺 Pair a TV / Screen</button>
+                        <button class="btn-secondary" id="header-pair-device" style="display:flex;align-items:center;justify-content:center;gap:6px;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="15" rx="2" ry="2"></rect><polyline points="17 2 12 7 7 2"></polyline></svg><span>Pair a TV / Screen</span></button>
                         <button class="btn-secondary danger" id="header-sign-out">Sign Out</button>
                     `;
                     document.getElementById('header-view-profile').onclick = () => {
@@ -2909,7 +2909,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 } else {
                     headerAccountDropdown.innerHTML = `
                         <button class="btn-primary" id="header-create-profile">Create Profile</button>
-                        <button class="btn-secondary" id="header-pair-device">📺 Pair a TV / Screen</button>
+                        <button class="btn-secondary" id="header-pair-device" style="display:flex;align-items:center;justify-content:center;gap:6px;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="15" rx="2" ry="2"></rect><polyline points="17 2 12 7 7 2"></polyline></svg><span>Pair a TV / Screen</span></button>
                         <button class="btn-secondary danger" id="header-sign-out">Sign Out</button>
                     `;
                     document.getElementById('header-create-profile').onclick = async () => {

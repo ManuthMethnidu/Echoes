@@ -336,7 +336,7 @@ export class ListeningPartyManager {
         const securityNoteHtml = `
             <div style="margin-top: 1.25rem; padding: 0.85rem; background: var(--background-secondary); border: 1px solid var(--border); border-radius: 8px; font-size: 0.82rem; text-align: left; color: var(--muted-foreground); line-height: 1.5;">
                 <div style="color: var(--foreground); font-weight: 600; display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.3rem;">
-                    <span>🛡️</span> P2P WebRTC Direct Connection
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg> P2P WebRTC Direct Connection
                 </div>
                 Connections are end-to-end encrypted directly between listeners with zero server logs. Connected peers in this room share a direct network connection (IP address).
             </div>
@@ -656,9 +656,9 @@ export class ListeningPartyManager {
                 Modal.alert(
                     'Room Isolation & Privacy',
                     `<div style="text-align: left; font-size: 0.9rem; line-height: 1.6;">
-                        <p style="margin-bottom: 0.75rem;"><strong>🔒 Strict Room Isolation:</strong> This listening room is isolated to this specific party ID. No audio sync or chat messages can bleed into personal device playback or other user accounts.</p>
-                        <p style="margin-bottom: 0.75rem;"><strong>⚡ Real-Time High Capacity:</strong> Powered by your dedicated VPS WebSocket hub, supporting 1,000+ simultaneous listeners with low latency.</p>
-                        <p><strong>🛡️ Host Control:</strong> Only the room host can pause, play, or change tracks. Guests can chat and submit song requests.</p>
+                        <p style="margin-bottom: 0.75rem;"><strong>Strict Room Isolation:</strong> This listening room is isolated to this specific party ID. No audio sync or chat messages can bleed into personal device playback or other user accounts.</p>
+                        <p style="margin-bottom: 0.75rem;"><strong>Real-Time High Capacity:</strong> Powered by your dedicated VPS WebSocket hub, supporting 1,000+ simultaneous listeners with low latency.</p>
+                        <p><strong>Host Control:</strong> Only the room host can pause, play, or change tracks. Guests can chat and submit song requests.</p>
                     </div>`
                 );
             });

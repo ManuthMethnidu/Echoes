@@ -5891,11 +5891,16 @@ input.skeleton {
 }
 
 .about-features li::before {
-    content: '✓';
+    content: '';
     position: absolute;
     left: 0;
+    top: 0.65rem;
+    width: 14px;
+    height: 14px;
+    background: currentColor;
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='20 6 9 17 4 12'%3E%3C/polyline%3E%3C/svg%3E") no-repeat center center;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='20 6 9 17 4 12'%3E%3C/polyline%3E%3C/svg%3E") no-repeat center center;
     color: var(--highlight);
-    font-weight: bold;
     transition: transform var(--transition-spring);
 }
 
@@ -6655,16 +6660,15 @@ input.skeleton {
 }
 
 .now-playing-bar .cover::after {
-    content: '🎵';
+    content: '';
     position: absolute;
     inset: 0;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: rgb(0, 0, 0, 0.7);
+    background: rgba(0, 0, 0, 0.7) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9 18V5l12-2v13'%3E%3C/path%3E%3Ccircle cx='6' cy='18' r='3'%3E%3C/circle%3E%3Ccircle cx='18' cy='16' r='3'%3E%3C/circle%3E%3C/svg%3E") no-repeat center center;
     opacity: 0;
     transition: opacity var(--transition);
-    font-size: 1.5rem;
 }
 
 .now-playing-bar .cover:hover::after {
@@ -6713,6 +6717,23 @@ input.skeleton {
     display: flex;
     align-items: center;
     justify-content: center;
+}
+
+.stream-info-btn {
+    background: transparent;
+    border: none;
+    color: var(--muted-foreground);
+    cursor: pointer;
+    padding: 0.25rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: color var(--transition), transform var(--transition);
+}
+
+.stream-info-btn:hover {
+    color: var(--foreground);
+    transform: scale(1.08);
 }
 
 /* Show a grey box for images with no source, hiding the broken icon */

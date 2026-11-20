@@ -20,7 +20,7 @@ export const devicePairing = {
                 <div class="modal-content tv-pair-modal-content" style="max-width: 480px; text-align: center; padding: 28px 24px;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                         <h3 style="margin: 0; font-size: 1.25rem; font-weight: 600;">Pair TV or Device</h3>
-                        <button type="button" id="tv-pair-close-btn" class="modal-close" style="background: none; border: none; color: #888; cursor: pointer; font-size: 20px; line-height: 1;">✕</button>
+                        <button type="button" id="tv-pair-close-btn" class="modal-close" style="background: none; border: none; color: #888; cursor: pointer; display: flex; align-items: center; justify-content: center; line-height: 1;" aria-label="Close dialog"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
                     </div>
 
                     <p style="color: #aaa; font-size: 0.9rem; margin-bottom: 20px; line-height: 1.4;">
@@ -140,7 +140,7 @@ export const devicePairing = {
 
                     const statusEl = this.modalEl?.querySelector('#tv-pair-status');
                     if (statusEl) {
-                        statusEl.innerHTML = `<span style="color:#52c41a;">✓ Approved! Signing in and syncing...</span>`;
+                        statusEl.innerHTML = `<span style="color:#52c41a; font-weight: 600;">Approved! Signing in and syncing...</span>`;
                     }
 
                     // Save token
@@ -187,7 +187,9 @@ export const devicePairing = {
             overlay.innerHTML = `
                 <div class="modal-overlay"></div>
                 <div class="modal-content" style="max-width: 440px; text-align: center; padding: 28px 24px;">
-                    <div style="font-size: 3rem; margin-bottom: 12px;">📺</div>
+                    <div style="margin-bottom: 12px; color: var(--primary, #1ed760); display: flex; justify-content: center;">
+                        <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="15" rx="2" ry="2"></rect><polyline points="17 2 12 7 7 2"></polyline></svg>
+                    </div>
                     <h3 style="margin: 0 0 10px; font-size: 1.3rem;">Authorize TV / Device</h3>
                     <p style="color: #aaa; font-size: 0.9rem; margin-bottom: 20px; line-height: 1.4;">
                         A device is requesting access to your echos library, playlists, and liked albums.
@@ -271,7 +273,7 @@ export const devicePairing = {
                 if (!res.ok) throw new Error(data.error || 'Failed to approve device');
 
                 if (msgEl) {
-                    msgEl.innerHTML = `<span style="color:#52c41a; font-weight: 600;">✓ TV Successfully Authorized!</span>`;
+                    msgEl.innerHTML = `<span style="color:#52c41a; font-weight: 600;">TV Successfully Authorized!</span>`;
                 }
 
                 setTimeout(() => {

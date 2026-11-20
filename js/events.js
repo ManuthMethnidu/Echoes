@@ -1700,7 +1700,7 @@ function initializeSmoothSliders(player) {
     // Stream Diagnostics & Audio Sources Modal
     document.addEventListener('click', (e) => {
         const qualityTarget = e.target.closest(
-            '.quality-badge, .shaka-quality-badge, .stream-fallback-indicator, [data-action="open-stream-diagnostics"]'
+            '.quality-badge, .shaka-quality-badge, .stream-fallback-indicator, [data-action="open-stream-diagnostics"], .stream-info-btn, #stream-info-btn-desktop, #stream-info-btn-mobile'
         );
         if (qualityTarget) {
             e.stopPropagation();
@@ -1955,7 +1955,7 @@ export async function handleTrackAction(
                         console.warn('[Offline] Failed to cache track:', t.id, e);
                     }
                 }
-                showNotification(`✓ Cached ${saved}/${tracks.length} tracks offline from "${name}"!`);
+                showNotification(`Cached ${saved}/${tracks.length} tracks offline from "${name}"!`);
             } catch (err) {
                 console.error('[Offline] Failed to cache collection:', err);
                 showNotification('Failed to save to offline cache');
@@ -1983,13 +1983,13 @@ export async function handleTrackAction(
                             updateDownloadProgress(trackId, progress);
                         },
                     });
-                    completeDownloadTask(trackId, true, '✓ Cached offline');
+                    completeDownloadTask(trackId, true, 'Cached offline');
                     showNotification(`Saved "${title}" for offline playback!`);
                 } catch (cacheErr) {
                     if (controller.signal.aborted) {
                         showNotification(`Cancelled caching "${title}"`);
                     } else {
-                        completeDownloadTask(trackId, false, cacheErr.message || '✗ Caching failed');
+                        completeDownloadTask(trackId, false, cacheErr.message || 'Caching failed');
                         throw cacheErr;
                     }
                 }

@@ -450,10 +450,10 @@ export class LyricsManager {
 
             this.kuroshiroLoaded = true;
             this.kuroshiroLoading = false;
-            console.log('✓ Kuroshiro loaded and initialized successfully');
+            console.log('[Lyrics] Kuroshiro loaded and initialized successfully');
             return true;
         } catch (error) {
-            console.error('✗ Failed to load Kuroshiro:', error);
+            console.error('[Lyrics] Failed to load Kuroshiro:', error);
             this.kuroshiroLoaded = false;
             this.kuroshiroLoading = false;
             return false;
@@ -1207,12 +1207,14 @@ export class LyricsManager {
                             }
 
                             if (!el.querySelector('.genius-indicator')) {
-                                const smiley = document.createElement('span');
-                                smiley.className = 'genius-indicator';
-                                smiley.textContent = ' ☺';
-                                smiley.style.color = '#ffff64';
-                                smiley.style.marginLeft = '0.5em';
-                                el.appendChild(smiley);
+                                const indicator = document.createElement('span');
+                                indicator.className = 'genius-indicator';
+                                indicator.innerHTML =
+                                    '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; display: inline-block;"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>';
+                                indicator.style.color = '#ffff64';
+                                indicator.style.marginLeft = '0.5em';
+                                indicator.title = 'Genius Annotation';
+                                el.appendChild(indicator);
                             }
                         });
                         break;

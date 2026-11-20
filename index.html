@@ -620,7 +620,7 @@
             <div class="modal-overlay"></div>
             <div class="modal-content medium" style="max-width: 480px; width: 92%; box-sizing: border-box; overflow-x: hidden; padding: 1.5rem; border-radius: var(--radius-md, 12px);">
                 <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 1rem;">
-                    <div style="width: 42px; height: 42px; border-radius: 10px; background: var(--secondary); color: var(--foreground); display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; border: 1px solid var(--border);">⚡</div>
+                    <div style="width: 42px; height: 42px; border-radius: 10px; background: var(--secondary); color: var(--foreground); display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; border: 1px solid var(--border);"><use svg="!lucide/zap.svg" size="20" /></div>
                     <div>
                         <h3 style="margin: 0; font-size: 1.2rem; font-weight: 700;">Cache Playlist Offline</h3>
                         <p style="margin: 0; font-size: 0.82rem; color: var(--text-secondary);" id="cache-playlist-modal-meta">Save all songs directly onto your device</p>
@@ -1068,9 +1068,10 @@
                         type="button"
                         id="close-devices-modal-btn"
                         class="modal-close"
-                        style="background: none; border: none; color: #888; cursor: pointer; font-size: 20px"
+                        style="background: none; border: none; color: var(--muted-foreground); cursor: pointer; display: flex; align-items: center; justify-content: center;"
+                        aria-label="Close dialog"
                     >
-                        ✕
+                        <use svg="!lucide/x.svg" size="20" />
                     </button>
                 </div>
 
@@ -1137,7 +1138,9 @@
                         </div>
                         <h3 style="margin: 0; font-size: 1.2rem; font-weight: 700;">Stream Diagnostics & Sources</h3>
                     </div>
-                    <button type="button" id="close-stream-info-btn" class="modal-close" style="background: none; border: none; color: #888; cursor: pointer; font-size: 20px;">✕</button>
+                    <button type="button" id="close-stream-info-btn" class="modal-close" style="background: none; border: none; color: var(--muted-foreground); cursor: pointer; padding: 4px; display: flex; align-items: center; justify-content: center;" aria-label="Close dialog">
+                        <use svg="!lucide/x.svg" size="20" />
+                    </button>
                 </div>
 
                 <div id="stream-info-track-header" style="margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--border);">
@@ -1179,21 +1182,28 @@
                 <div style="font-size: 0.75rem; font-weight: 700; color: var(--muted-foreground); margin-bottom: 10px; letter-spacing: 0.5px;">AUDIO STREAM SOURCES</div>
                 <div style="display: flex; flex-direction: column; gap: 8px;">
                     <button type="button" id="switch-to-monochrome-btn" class="btn-secondary" style="display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; text-align: left; width: 100%;">
-                        <div>
-                            <div style="font-weight: 600; font-size: 0.88rem;">🎧 Listen via Monochrome (Lossless FLAC)</div>
-                            <div style="font-size: 0.75rem; color: var(--muted-foreground);">1411 kbps CD-quality 16-bit / 44.1 kHz</div>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <use svg="!lucide/headphones.svg" size="18" />
+                            <div>
+                                <div style="font-weight: 600; font-size: 0.88rem;">Listen via Monochrome (Lossless FLAC)</div>
+                                <div style="font-size: 0.75rem; color: var(--muted-foreground);">1411 kbps CD-quality 16-bit / 44.1 kHz</div>
+                            </div>
                         </div>
                         <span id="monochrome-status-badge" style="font-size: 0.75rem; padding: 2px 8px; border-radius: 4px;"></span>
                     </button>
                     <button type="button" id="switch-to-youtube-btn" class="btn-secondary" style="display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; text-align: left; width: 100%;">
-                        <div>
-                            <div style="font-weight: 600; font-size: 0.88rem;">▶️ Listen via YouTube Audio</div>
-                            <div style="font-size: 0.75rem; color: var(--muted-foreground);">160 kbps Opus / 130 kbps AAC (VPS Gateway)</div>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <use svg="!lucide/play.svg" size="18" />
+                            <div>
+                                <div style="font-weight: 600; font-size: 0.88rem;">Listen via YouTube Audio</div>
+                                <div style="font-size: 0.75rem; color: var(--muted-foreground);">160 kbps Opus / 130 kbps AAC (VPS Gateway)</div>
+                            </div>
                         </div>
                         <span id="youtube-status-badge" style="font-size: 0.75rem; padding: 2px 8px; border-radius: 4px;"></span>
                     </button>
-                    <button type="button" id="retry-stream-btn" class="btn-secondary" style="padding: 8px 14px; font-size: 0.82rem; text-align: center;">
-                        🔄 Refresh & Re-resolve Stream
+                    <button type="button" id="retry-stream-btn" class="btn-secondary" style="display: flex; align-items: center; justify-content: center; gap: 8px; padding: 8px 14px; font-size: 0.82rem; text-align: center; width: 100%;">
+                        <use svg="!lucide/refresh-cw.svg" size="15" />
+                        <span>Refresh & Re-resolve Stream</span>
                     </button>
                 </div>
             </div>
@@ -1772,7 +1782,7 @@
                             "
                         >
                             <div style="display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.6rem">
-                                <span style="font-size: 1.15rem">🛡️</span>
+                                <use svg="!lucide/shield.svg" size="18" />
                                 <strong style="font-size: 0.95rem; color: var(--foreground)"
                                     >Decentralized &amp; Private (P2P)</strong
                                 >
@@ -6520,7 +6530,10 @@
                         >
                             <button id="auth-connect-btn" class="btn-secondary">Connect with Google</button>
                             <button id="toggle-email-auth-btn" class="btn-secondary">Connect with Email</button>
-                            <button id="toggle-tv-pair-btn" class="btn-secondary">📺 Pair TV / Device (QR)</button>
+                            <button id="toggle-tv-pair-btn" class="btn-secondary" style="display: inline-flex; align-items: center; gap: 8px;">
+                                <use svg="!lucide/tv.svg" size="16" />
+                                <span>Pair TV / Device (QR)</span>
+                            </button>
                             <button id="view-my-profile-btn" class="btn-secondary" style="display: none">
                                 View My Profile
                             </button>
@@ -6831,6 +6844,14 @@
                             <use svg="!lucide/clock.svg" size="20" />
                         </button>
                         <button
+                            id="stream-info-btn-mobile"
+                            class="stream-info-btn mobile-only"
+                            title="Stream Sources & Diagnostics"
+                            aria-label="Stream Sources & Diagnostics"
+                        >
+                            <use svg="!lucide/activity.svg" size="20" />
+                        </button>
+                        <button
                             id="connected-devices-btn"
                             class="connected-devices-btn"
                             title="Connected Devices (Spotify Connect)"
@@ -6843,6 +6864,14 @@
                         </button>
                     </div>
                     <div class="volume-slider-row desktop-only">
+                        <button
+                            id="stream-info-btn-desktop"
+                            class="btn-icon stream-info-btn"
+                            title="Stream Sources & Diagnostics"
+                            aria-label="Stream Sources & Diagnostics"
+                        >
+                            <use svg="!lucide/activity.svg" size="20" />
+                        </button>
                         <button id="volume-btn" title="Mute"></button>
                         <div id="volume-bar" class="volume-bar">
                             <div id="volume-fill" class="volume-fill"></div>

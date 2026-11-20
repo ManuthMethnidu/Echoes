@@ -401,7 +401,7 @@ export async function parseDynamicCSV(csvText, api, onProgress, options = {}) {
                             foundTrack = searchResult.items.find((t) => isIsrcMatch(t.isrc, isrc)) || null;
                         }
                     } catch {
-                        // fallback ahhh blud ☠️👌
+                        // fallback to track search
                     }
                 }
 

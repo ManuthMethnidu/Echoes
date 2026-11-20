@@ -92,10 +92,13 @@ async function resolveYtAudioUrl(videoId, preferFormat = '140') {
   }
 
   const formatSelector = preferFormat === '251' ? '251/140/bestaudio' : '140/251/bestaudio';
+  // When extracting via the Apple VISIONOS YouTube client, YouTube does not trigger bot challenges or 403 blocks on VPS IP ranges.
   const args = [
     '--no-warnings',
     '--no-playlist',
     '--no-update',
+    '--extractor-args',
+    'youtube:player_client=visionos,ios',
     '-g',
     '-f',
     formatSelector,

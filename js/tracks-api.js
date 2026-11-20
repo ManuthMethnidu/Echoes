@@ -5,7 +5,32 @@
  * Public Host: https://tracks.monochrome.st
  */
 
-export const TRACKS_API_BASE_URL = 'https://tracks.monochrome.st';
+export const DEFAULT_TRACKS_API_BASE_URL = 'https://tracks.monochrome.st';
+
+export function getTracksApiBaseUrl() {
+    try {
+        const custom = localStorage.getItem('echos-tracks-api-url');
+        if (custom && custom.trim().startsWith('http')) {
+            return custom.trim().replace(/\/+$/, '');
+        }
+    } catch {}
+    return DEFAULT_TRACKS_API_BASE_URL;
+}
+
+export function setTracksApiBaseUrl(url) {
+    try {
+        if (!url || url.trim() === '' || url.trim() === DEFAULT_TRACKS_API_BASE_URL) {
+            localStorage.removeItem('echos-tracks-api-url');
+        } else {
+            localStorage.setItem('echos-tracks-api-url', url.trim().replace(/\/+$/, ''));
+        }
+    } catch {}
+    if (typeof tracksStreamerAPI !== 'undefined' && tracksStreamerAPI) {
+        tracksStreamerAPI.setBaseUrl(getTracksApiBaseUrl());
+    }
+}
+
+export let TRACKS_API_BASE_URL = getTracksApiBaseUrl();
 
 /**
  * Cleans and normalizes string for fuzzy title/artist matching.
@@ -122,7 +147,7 @@ export function normalizeTracksTrack(item) {
         isUnavailable: item.playable === false,
         audioModes: ['LOSSLESS', 'STEREO'],
         audioQuality: 'LOSSLESS',
-        url: `${TRACKS_API_BASE_URL}/track/${trackId}`,
+        url: `${getTracksApiBaseUrl()}/track/${trackId}`,
         _href: `/track/${trackId}`,
     };
 }
@@ -494,7 +519,7 @@ export function scoreTrackCandidate(candidate, target) {
  * TracksStreamerAPI - Client for the Rust Music API Proxy & Track Streamer.
  */
 export class TracksStreamerAPI {
-    constructor(baseUrl = TRACKS_API_BASE_URL) {
+    constructor(baseUrl = getTracksApiBaseUrl()) {
         this.baseUrl = baseUrl.replace(/\/+$/, '');
         this.searchCache = new Map();
         this.trackCache = new Map();
@@ -503,6 +528,19 @@ export class TracksStreamerAPI {
         this.resolutionCache = new Map();
         this.pendingRequests = new Map();
         this.rateLimitedUntil = 0;
+    }
+
+    /**
+     * Updates the active base URL dynamically (e.g. from user settings).
+     * @param {string} url
+     */
+    setBaseUrl(url) {
+        if (url) {
+            this.baseUrl = url.trim().replace(/\/+$/, '');
+            TRACKS_API_BASE_URL = this.baseUrl;
+            this.searchCache.clear();
+            this.resolutionCache.clear();
+        }
     }
 
     /**

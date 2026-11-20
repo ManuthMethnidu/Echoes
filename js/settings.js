@@ -73,6 +73,7 @@ import { parseRawData, TARGETS, SPEAKER_TARGETS } from './autoeq-data.js';
 import { fetchAutoEqIndex, fetchHeadphoneData, searchHeadphones, POPULAR_HEADPHONES } from './autoeq-importer.js';
 import { db } from './db.js';
 import { authManager } from './accounts/auth.js';
+import { setTracksApiBaseUrl } from './tracks-api.js';
 import { syncManager } from './accounts/pocketbase.js';
 import { containerFormats, customFormats } from './ffmpegFormats.ts';
 import { BulkDownloadMethod, modernSettings } from './ModernSettings.js';
@@ -129,6 +130,75 @@ export async function initializeSettings(scrobbler, player, api, ui) {
     if (devModeUrlInput) {
         devModeUrlInput.addEventListener('change', (e) => {
             devModeSettings.setUrl(e.target.value.trim());
+        });
+    }
+
+    // ========================================
+    // Lossless Streaming Server (Private VPS / Monochrome)
+    // ========================================
+    const tracksApiInput = document.getElementById('custom-tracks-api-input');
+    const testTracksApiBtn = document.getElementById('test-tracks-api-btn');
+    const resetTracksApiBtn = document.getElementById('reset-tracks-api-btn');
+    const tracksApiStatusMsg = document.getElementById('tracks-api-status-msg');
+
+    if (tracksApiInput) {
+        const savedUrl = localStorage.getItem('echos-tracks-api-url') || '';
+        tracksApiInput.value = savedUrl;
+
+        const saveTracksApiUrl = () => {
+            const val = tracksApiInput.value.trim();
+            if (!val || val === 'https://tracks.monochrome.st') {
+                localStorage.removeItem('echos-tracks-api-url');
+                setTracksApiBaseUrl('');
+            } else {
+                localStorage.setItem('echos-tracks-api-url', val);
+                setTracksApiBaseUrl(val);
+            }
+        };
+
+        tracksApiInput.addEventListener('change', saveTracksApiUrl);
+        tracksApiInput.addEventListener('blur', saveTracksApiUrl);
+    }
+
+    if (testTracksApiBtn && tracksApiInput && tracksApiStatusMsg) {
+        testTracksApiBtn.addEventListener('click', async () => {
+            const url = (tracksApiInput.value.trim() || 'https://tracks.monochrome.st').replace(/\/+$/, '');
+            tracksApiStatusMsg.style.display = 'block';
+            tracksApiStatusMsg.style.color = 'var(--muted-foreground)';
+            tracksApiStatusMsg.textContent = 'Testing connection to server...';
+
+            try {
+                const startTime = performance.now();
+                // Test /health or fallback to search ping
+                let res = await fetch(`${url}/health`, { signal: AbortSignal.timeout(6000) }).catch(() => null);
+                if (!res || !res.ok) {
+                    res = await fetch(`${url}/search/tracks?q=test&limit=1`, { signal: AbortSignal.timeout(6000) }).catch(() => null);
+                }
+                const latency = Math.round(performance.now() - startTime);
+
+                if (res && (res.ok || res.status === 200 || res.status === 204)) {
+                    tracksApiStatusMsg.style.color = '#10b981';
+                    tracksApiStatusMsg.textContent = `Online (${latency}ms). Connected successfully to ${url}`;
+                    setTracksApiBaseUrl(url);
+                } else {
+                    tracksApiStatusMsg.style.color = '#ef4444';
+                    tracksApiStatusMsg.textContent = `Failed (HTTP ${res ? res.status : 'timeout'}). Server unreachable at ${url}`;
+                }
+            } catch (err) {
+                tracksApiStatusMsg.style.color = '#ef4444';
+                tracksApiStatusMsg.textContent = `Connection error: ${err.message}`;
+            }
+        });
+    }
+
+    if (resetTracksApiBtn && tracksApiInput && tracksApiStatusMsg) {
+        resetTracksApiBtn.addEventListener('click', () => {
+            localStorage.removeItem('echos-tracks-api-url');
+            setTracksApiBaseUrl('');
+            tracksApiInput.value = '';
+            tracksApiStatusMsg.style.display = 'block';
+            tracksApiStatusMsg.style.color = 'var(--muted-foreground)';
+            tracksApiStatusMsg.textContent = 'Reset to default (https://tracks.monochrome.st)';
         });
     }
 

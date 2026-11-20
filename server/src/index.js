@@ -2,17 +2,41 @@ import http from 'http';
 import express from 'express';
 import cors from 'cors';
 import { WebSocketServer, WebSocket } from 'ws';
-import { URL } from 'url';
+import { URL, fileURLToPath } from 'url';
 import { Readable } from 'stream';
 import dns from 'dns';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
+import fs from 'fs';
+import path from 'path';
 
 const execFileAsync = promisify(execFile);
 
 try {
   dns.setDefaultResultOrder('ipv4first');
 } catch {}
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const CACHE_ROOT = process.env.CACHE_DIR || path.join(__dirname, '..', 'cache');
+const TRACKS_CACHE_DIR = path.join(CACHE_ROOT, 'tracks');
+const ARTWORK_CACHE_DIR = path.join(CACHE_ROOT, 'artwork');
+const METADATA_CACHE_DIR = path.join(CACHE_ROOT, 'meta');
+
+for (const dir of [CACHE_ROOT, TRACKS_CACHE_DIR, ARTWORK_CACHE_DIR, METADATA_CACHE_DIR]) {
+  try {
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+  } catch (err) {
+    console.warn(`[Cache Init] Could not create ${dir}:`, err.message);
+  }
+}
+
+const UPSTREAM_MONOCHROME_URL = (
+  process.env.UPSTREAM_MONOCHROME_URL || 'https://tracks.monochrome.st'
+).replace(/\/+$/, '');
 
 const PORT = process.env.PORT || 4000;
 const ALLOWED_ORIGINS = [
@@ -67,9 +91,30 @@ app.use(
 );
 
 app.get('/health', (req, res) => {
+  let tracksCached = 0;
+  let artworkCached = 0;
+  try {
+    tracksCached = fs.readdirSync(TRACKS_CACHE_DIR).filter((f) => f.endsWith('.flac')).length;
+    artworkCached = fs.readdirSync(ARTWORK_CACHE_DIR).length;
+  } catch {}
+
   res.json({
     status: 'ok',
     service: 'echoes-vps-backend',
+    version: '1.1.0',
+    features: [
+      'lossless-hifi-proxy',
+      'flac-disk-cache',
+      'artwork-cache',
+      'youtube-stream',
+      'device-sync',
+      'listening-parties',
+    ],
+    cache: {
+      tracksCount: tracksCached,
+      artworkCount: artworkCached,
+    },
+    upstream: UPSTREAM_MONOCHROME_URL,
     uptime: process.uptime(),
     timestamp: Date.now(),
   });
@@ -402,6 +447,330 @@ app.all('/stream', async (req, res) => {
     if (!res.headersSent) {
       res.status(502).json({ error: 'Failed to stream audio payload' });
     }
+  }
+});
+
+// ============================================================================
+// Lossless Hi-Fi Streaming & Monochrome Catalog Proxy
+// ============================================================================
+
+const metaMemoryCache = new Map();
+const META_CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
+
+async function handleProxyMetaRequest(req, res) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Accept');
+
+  if (req.method === 'OPTIONS') return res.status(204).end();
+
+  const cacheKey = req.originalUrl;
+  const cached = metaMemoryCache.get(cacheKey);
+  if (cached && cached.expiresAt > Date.now()) {
+    res.setHeader('X-Cache', 'HIT');
+    return res.json(cached.data);
+  }
+
+  try {
+    const upstreamUrl = `${UPSTREAM_MONOCHROME_URL}${req.originalUrl}`;
+    const upstreamRes = await fetch(upstreamUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; EchoesHiFiProxy/1.0)',
+        'Accept': 'application/json',
+      },
+    });
+
+    if (!upstreamRes.ok) {
+      return res.status(upstreamRes.status).json({
+        error: `Upstream error ${upstreamRes.status} ${upstreamRes.statusText}`,
+      });
+    }
+
+    const data = await upstreamRes.json();
+    metaMemoryCache.set(cacheKey, {
+      data,
+      expiresAt: Date.now() + META_CACHE_TTL_MS,
+    });
+
+    if (metaMemoryCache.size > 2000) {
+      const oldestKey = metaMemoryCache.keys().next().value;
+      metaMemoryCache.delete(oldestKey);
+    }
+
+    res.setHeader('X-Cache', 'MISS');
+    res.setHeader('Cache-Control', 'public, max-age=3600');
+    return res.json(data);
+  } catch (err) {
+    console.error(`[Lossless Proxy Meta Error] ${req.originalUrl}:`, err.message);
+    return res.status(502).json({ error: 'Failed to fetch metadata from upstream' });
+  }
+}
+
+// Search endpoints
+app.get(['/search', '/search/tracks', '/search/releases', '/search/artists'], handleProxyMetaRequest);
+
+// Release / Album details endpoint
+app.get('/releases/:id', handleProxyMetaRequest);
+
+// Artist details endpoint
+app.get('/artists/:id', handleProxyMetaRequest);
+
+// Direct Lossless FLAC audio stream endpoint with Range and Disk Caching
+app.all(['/track/:id', '/stream/track/:id', '/tracks/:id'], async (req, res) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Range, Content-Type, Accept');
+  res.setHeader('Access-Control-Expose-Headers', 'Content-Range, Content-Length, Accept-Ranges, X-Cache');
+
+  if (req.method === 'OPTIONS') {
+    return res.status(204).end();
+  }
+  if (req.method !== 'GET' && req.method !== 'HEAD') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  const rawId = req.params.id || req.query.id;
+  const trackId = String(rawId || '')
+    .replace(/^tracks:(?:track:)?/, '')
+    .replace(/\.flac$/i, '')
+    .trim();
+
+  if (!/^[a-zA-Z0-9_-]{1,40}$/.test(trackId)) {
+    return res.status(400).json({ error: 'Invalid track ID format' });
+  }
+
+  const localFile = path.join(TRACKS_CACHE_DIR, `${trackId}.flac`);
+  const clientRange = req.headers.range;
+
+  // 1. Check local disk cache
+  if (fs.existsSync(localFile)) {
+    try {
+      const stat = fs.statSync(localFile);
+      const totalSize = stat.size;
+
+      if (totalSize > 0) {
+        if (clientRange) {
+          const parts = clientRange.replace(/bytes=/, '').split('-');
+          const start = parseInt(parts[0], 10);
+          const end = parts[1] ? parseInt(parts[1], 10) : totalSize - 1;
+
+          if (isNaN(start) || start >= totalSize) {
+            res.setHeader('Content-Range', `bytes */${totalSize}`);
+            return res.status(416).end();
+          }
+
+          const boundedEnd = Math.min(end, totalSize - 1);
+          const chunkSize = boundedEnd - start + 1;
+
+          res.writeHead(206, {
+            'Content-Range': `bytes ${start}-${boundedEnd}/${totalSize}`,
+            'Accept-Ranges': 'bytes',
+            'Content-Length': chunkSize,
+            'Content-Type': 'audio/flac',
+            'X-Cache': 'HIT',
+            'Cache-Control': 'public, max-age=31536000, immutable',
+          });
+
+          if (req.method === 'HEAD') return res.end();
+          return fs.createReadStream(localFile, { start, end: boundedEnd }).pipe(res);
+        } else {
+          res.writeHead(200, {
+            'Content-Length': totalSize,
+            'Accept-Ranges': 'bytes',
+            'Content-Type': 'audio/flac',
+            'X-Cache': 'HIT',
+            'Cache-Control': 'public, max-age=31536000, immutable',
+          });
+
+          if (req.method === 'HEAD') return res.end();
+          return fs.createReadStream(localFile).pipe(res);
+        }
+      }
+    } catch (err) {
+      console.warn(`[FLAC Cache Read Warning] ${trackId}:`, err.message);
+    }
+  }
+
+  // 2. Cache Miss: Stream from upstream & concurrently write full stream to cache
+  const upstreamUrl = `${UPSTREAM_MONOCHROME_URL}/track/${trackId}`;
+  const controller = new AbortController();
+
+  try {
+    const upstreamHeaders = {
+      'User-Agent': 'Mozilla/5.0 (compatible; EchoesHiFiProxy/1.0)',
+      'Accept': '*/*',
+    };
+    if (clientRange) {
+      upstreamHeaders['Range'] = clientRange;
+    }
+
+    const upstream = await fetch(upstreamUrl, {
+      headers: upstreamHeaders,
+      signal: controller.signal,
+    });
+
+    if (!upstream.ok && upstream.status !== 206) {
+      return res.status(upstream.status).json({
+        error: `Upstream audio error ${upstream.status} ${upstream.statusText}`,
+      });
+    }
+
+    const forwardHeaders = [
+      'content-type',
+      'content-length',
+      'content-range',
+      'accept-ranges',
+      'etag',
+      'last-modified',
+    ];
+
+    for (const h of forwardHeaders) {
+      const val = upstream.headers.get(h);
+      if (val) res.setHeader(h, val);
+    }
+
+    if (!res.getHeader('content-type')) {
+      res.setHeader('content-type', 'audio/flac');
+    }
+    if (!res.getHeader('accept-ranges')) {
+      res.setHeader('accept-ranges', 'bytes');
+    }
+
+    res.setHeader('X-Cache', 'MISS');
+    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    res.status(upstream.status);
+
+    if (req.method === 'HEAD') {
+      return res.end();
+    }
+
+    if (!upstream.body) {
+      return res.end();
+    }
+
+    const nodeStream = Readable.fromWeb(upstream.body);
+
+    // Cache to disk if the stream is starting from the beginning
+    const isFullBeginningStream =
+      (!clientRange || clientRange.startsWith('bytes=0-')) &&
+      (upstream.status === 200 || upstream.status === 206);
+
+    if (isFullBeginningStream) {
+      const tempPath = `${localFile}.tmp.${Date.now()}`;
+      const writeStream = fs.createWriteStream(tempPath);
+      let cacheCommitted = false;
+
+      nodeStream.on('data', (chunk) => {
+        if (!writeStream.destroyed) {
+          writeStream.write(chunk);
+        }
+      });
+
+      const commitCache = () => {
+        if (cacheCommitted) return;
+        cacheCommitted = true;
+        writeStream.end(() => {
+          try {
+            if (fs.existsSync(tempPath) && fs.statSync(tempPath).size > 1000) {
+              fs.renameSync(tempPath, localFile);
+              const mb = (fs.statSync(localFile).size / (1024 * 1024)).toFixed(2);
+              console.log(`[FLAC Cache Saved] ${trackId} (${mb} MB)`);
+            } else {
+              try { fs.unlinkSync(tempPath); } catch {}
+            }
+          } catch (rErr) {
+            try { fs.unlinkSync(tempPath); } catch {}
+          }
+        });
+      };
+
+      nodeStream.on('end', commitCache);
+      res.on('finish', commitCache);
+
+      req.on('close', () => {
+        if (!res.writableEnded && !cacheCommitted) {
+          controller.abort();
+          writeStream.destroy();
+          try { fs.unlinkSync(tempPath); } catch {}
+        }
+      });
+    } else {
+      req.on('close', () => {
+        if (!res.writableEnded) {
+          controller.abort();
+        }
+      });
+    }
+
+    nodeStream.on('error', (err) => {
+      if (err.name !== 'AbortError' && !controller.signal.aborted) {
+        console.error(`[FLAC Stream Error] ${trackId}:`, err.message);
+      }
+    });
+
+    nodeStream.pipe(res);
+  } catch (err) {
+    if (err.name === 'AbortError' || controller.signal.aborted) return;
+    console.error(`[FLAC Stream Proxy Error] ${trackId}:`, err.message);
+    if (!res.headersSent) {
+      res.status(502).json({ error: 'Failed to stream audio payload from upstream' });
+    }
+  }
+});
+
+// Artwork and media proxy with caching
+app.get(['/proxy/mi/*', '/proxy/c/*'], async (req, res) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
+
+  if (req.method === 'OPTIONS') return res.status(204).end();
+
+  const safeFilename = encodeURIComponent(req.path).replace(/%/g, '_');
+  const localFile = path.join(ARTWORK_CACHE_DIR, safeFilename);
+
+  if (fs.existsSync(localFile)) {
+    res.setHeader('Content-Type', 'image/jpeg');
+    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    res.setHeader('X-Cache', 'HIT');
+    if (req.method === 'HEAD') return res.end();
+    return fs.createReadStream(localFile).pipe(res);
+  }
+
+  try {
+    const upstreamUrl = `${UPSTREAM_MONOCHROME_URL}${req.originalUrl}`;
+    const upstreamRes = await fetch(upstreamUrl, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; EchoesHiFiProxy/1.0)' },
+    });
+
+    if (!upstreamRes.ok) {
+      return res.status(upstreamRes.status).end();
+    }
+
+    const contentType = upstreamRes.headers.get('content-type') || 'image/jpeg';
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    res.setHeader('X-Cache', 'MISS');
+
+    if (req.method === 'HEAD') return res.end();
+
+    const nodeStream = Readable.fromWeb(upstreamRes.body);
+    const tempFile = `${localFile}.tmp.${Date.now()}`;
+    const writeStream = fs.createWriteStream(tempFile);
+
+    nodeStream.on('data', (c) => writeStream.write(c));
+    nodeStream.on('end', () => {
+      writeStream.end(() => {
+        try { fs.renameSync(tempFile, localFile); } catch {}
+      });
+    });
+    nodeStream.on('error', () => {
+      writeStream.destroy();
+      try { fs.unlinkSync(tempFile); } catch {}
+    });
+
+    nodeStream.pipe(res);
+  } catch (err) {
+    if (!res.headersSent) res.status(502).end();
   }
 });
 

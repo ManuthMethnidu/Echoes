@@ -5937,6 +5937,36 @@
                             <div class="settings-group">
                                 <div class="setting-item">
                                     <div class="info">
+                                        <span class="label">Lossless Streaming Server (Private VPS / Monochrome)</span>
+                                        <span class="description"
+                                            >Route lossless FLAC streaming and catalog lookups through your private VPS backend or public instance. Default: https://tracks.monochrome.st</span
+                                        >
+                                    </div>
+                                    <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                                        <input
+                                            type="text"
+                                            id="custom-tracks-api-input"
+                                            placeholder="https://tracks.monochrome.st"
+                                            style="
+                                                width: 240px;
+                                                padding: 0.35rem 0.5rem;
+                                                border: 1px solid var(--border);
+                                                border-radius: var(--radius-md);
+                                                background: var(--card);
+                                                color: var(--foreground);
+                                                font-size: 0.8rem;
+                                            "
+                                        />
+                                        <button id="test-tracks-api-btn" class="btn-secondary" style="font-size: 0.75rem; padding: 0.35rem 0.6rem;">Test</button>
+                                        <button id="reset-tracks-api-btn" class="btn-secondary" style="font-size: 0.75rem; padding: 0.35rem 0.6rem;">Reset</button>
+                                    </div>
+                                </div>
+                                <div id="tracks-api-status-msg" style="font-size: 0.75rem; color: var(--muted-foreground); margin-top: 4px; display: none;"></div>
+                            </div>
+
+                            <div class="settings-group">
+                                <div class="setting-item">
+                                    <div class="info">
                                         <span class="label">ADVANCED: Custom Database/Auth</span>
                                         <span class="description">Configure custom PocketBase and Auth instances</span>
                                     </div>

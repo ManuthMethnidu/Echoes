@@ -9,7 +9,13 @@ import {
     normalizeAppleArtist,
     normalizeAppleSearchResults,
 } from './apple-music-api.js';
-import { TRACKS_API_BASE_URL, TracksStreamerAPI, tracksStreamerAPI, normalizeTracksSearchResults } from './tracks-api.js';
+import {
+    getTracksApiBaseUrl,
+    TRACKS_API_BASE_URL,
+    TracksStreamerAPI,
+    tracksStreamerAPI,
+    normalizeTracksSearchResults,
+} from './tracks-api.js';
 import { getCommunityPlaylist } from './community-playlists.js';
 import { ytEngine } from './yt-music.js';
 import { sanitizeForFilename, getExtensionFromBlob } from './utils.js';
@@ -544,7 +550,7 @@ export class MusicAPI {
                 title: `Track ${tracksId}`,
                 duration: 0,
                 playable: true,
-                url: `${TRACKS_API_BASE_URL}/track/${tracksId}`,
+                url: `${getTracksApiBaseUrl()}/track/${tracksId}`,
                 _href: `/track/tracks/${tracksId}`,
             };
             this.cacheTracks([placeholder]);

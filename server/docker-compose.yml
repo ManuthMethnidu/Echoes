@@ -5,9 +5,13 @@ services:
     restart: always
     ports:
       - "127.0.0.1:4040:4000"
+    volumes:
+      - ./cache:/app/cache
     environment:
       - NODE_ENV=production
       - PORT=4000
+      - CACHE_DIR=/app/cache
+      - UPSTREAM_MONOCHROME_URL=https://tracks.monochrome.st
       - NODE_OPTIONS=--dns-result-order=ipv4first --no-network-family-autoselection
     ulimits:
       nofile:

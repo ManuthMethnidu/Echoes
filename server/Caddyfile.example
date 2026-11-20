@@ -1,0 +1,21 @@
+# Caddy reverse proxy for Echoes VPS Backend (automatic HTTPS Let's Encrypt)
+# Replace stream.yourdomain.com with your actual subdomain or domain pointing to your VPS.
+
+stream.yourdomain.com {
+    # Reverse proxy to the Echoes Docker container on port 4040
+    reverse_proxy 127.0.0.1:4040 {
+        flush_interval -1
+    }
+
+    # Enable compression for JSON metadata & text responses
+    encode gzip zstd
+
+    # Global streaming headers
+    header {
+        Access-Control-Allow-Origin *
+        Access-Control-Allow-Methods "GET, POST, OPTIONS, HEAD"
+        Access-Control-Allow-Headers "Range, Content-Type, Accept, Authorization"
+        Access-Control-Expose-Headers "Content-Range, Content-Length, Accept-Ranges, X-Cache"
+        X-Content-Type-Options nosniff
+    }
+}

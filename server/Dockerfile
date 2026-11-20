@@ -14,8 +14,13 @@ RUN npm ci --omit=dev
 
 COPY src/ ./src/
 
+# Create cache directories with ownership for node user
+RUN mkdir -p /app/cache/tracks /app/cache/artwork /app/cache/meta && \
+    chown -R node:node /app/cache
+
 ENV NODE_ENV=production
 ENV PORT=4000
+ENV CACHE_DIR=/app/cache
 
 EXPOSE 4000
 

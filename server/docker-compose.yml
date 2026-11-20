@@ -3,6 +3,7 @@ services:
     build: .
     container_name: echoes-backend
     restart: always
+    user: "root"
     ports:
       - "127.0.0.1:4040:4000"
     volumes:

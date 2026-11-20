@@ -5,7 +5,8 @@
  * Public Host: https://tracks.monochrome.st
  */
 
-export const DEFAULT_TRACKS_API_BASE_URL = 'https://tracks.monochrome.st';
+export const DEFAULT_TRACKS_API_BASE_URL = 'https://stream.mteck.tech';
+export const FALLBACK_TRACKS_API_BASE_URL = 'https://tracks.monochrome.st';
 
 export function getTracksApiBaseUrl() {
     try {

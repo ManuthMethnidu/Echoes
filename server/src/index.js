@@ -660,6 +660,11 @@ app.all(['/track/:id', '/stream/track/:id', '/tracks/:id'], async (req, res) => 
       const writeStream = fs.createWriteStream(tempPath);
       let cacheCommitted = false;
 
+      writeStream.on('error', (err) => {
+        console.warn(`[Disk Cache Write Error] ${trackId}:`, err.message);
+        try { fs.unlinkSync(tempPath); } catch {}
+      });
+
       nodeStream.on('data', (chunk) => {
         if (!writeStream.destroyed) {
           writeStream.write(chunk);
@@ -756,6 +761,10 @@ app.get(['/proxy/mi/*', '/proxy/c/*'], async (req, res) => {
     const nodeStream = Readable.fromWeb(upstreamRes.body);
     const tempFile = `${localFile}.tmp.${Date.now()}`;
     const writeStream = fs.createWriteStream(tempFile);
+    writeStream.on('error', (err) => {
+      console.warn(`[Artwork Cache Write Error] ${safeFilename}:`, err.message);
+      try { fs.unlinkSync(tempFile); } catch {}
+    });
 
     nodeStream.on('data', (c) => writeStream.write(c));
     nodeStream.on('end', () => {

@@ -55,7 +55,7 @@ describe('tracks-api module', () => {
             expect(track.artist.id).toBe('153542153123926016');
             expect(track.artists.length).toBe(2);
             expect(track.album.id).toBe('155142458219433984');
-            expect(track.url).toBe('https://tracks.monochrome.st/track/155142501534011392');
+            expect(track.url).toBe(`${TRACKS_API_BASE_URL}/track/155142501534011392`);
             expect(track._href).toBe('/track/155142501534011392');
             expect(track.audioQuality).toBe('LOSSLESS');
         });
@@ -276,7 +276,7 @@ describe('tracks-api module', () => {
 
         it('generates direct stream URL for any track ID', () => {
             const streamInfo = api.getStreamUrl('155142501534011392');
-            expect(streamInfo.url).toBe('https://tracks.monochrome.st/track/155142501534011392');
+            expect(streamInfo.url).toBe(`${TRACKS_API_BASE_URL}/track/155142501534011392`);
             expect(streamInfo.provider).toBe('monochrome');
             expect(streamInfo.quality).toBe('LOSSLESS');
             expect(streamInfo.qualityDisplay).toBe('FLAC');
@@ -293,7 +293,7 @@ describe('tracks-api module', () => {
 
             const stream = await api.resolveTrackStream(track);
             expect(stream).toBeDefined();
-            expect(stream.url).toBe('https://tracks.monochrome.st/track/155142501534011392');
+            expect(stream.url).toBe(`${TRACKS_API_BASE_URL}/track/155142501534011392`);
         });
 
         it('resolves external track via search lookup when matching candidate found', async () => {
@@ -321,7 +321,7 @@ describe('tracks-api module', () => {
 
             const stream = await api.resolveTrackStream(externalTrack);
             expect(stream).toBeDefined();
-            expect(stream.url).toBe('https://tracks.monochrome.st/track/157107766404747264');
+            expect(stream.url).toBe(`${TRACKS_API_BASE_URL}/track/157107766404747264`);
             expect(externalTrack.tracksTrackId).toBe('157107766404747264');
         });
 

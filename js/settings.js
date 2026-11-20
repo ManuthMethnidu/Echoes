@@ -198,7 +198,7 @@ export async function initializeSettings(scrobbler, player, api, ui) {
             tracksApiInput.value = '';
             tracksApiStatusMsg.style.display = 'block';
             tracksApiStatusMsg.style.color = 'var(--muted-foreground)';
-            tracksApiStatusMsg.textContent = 'Reset to default (https://tracks.monochrome.st)';
+            tracksApiStatusMsg.textContent = 'Reset to default (https://stream.mteck.tech)';
         });
     }
 

@@ -51,9 +51,11 @@ export class Player {
     constructor(audioElement, api, quality = 'LOSSLESS') {
         this.audio = audioElement;
         this.audio.crossOrigin = 'anonymous';
+        this.audio.setAttribute('x-webkit-airplay', 'allow');
         const crossfadeAudio = document.createElement('audio');
         crossfadeAudio.id = 'audio-player-crossfade';
         crossfadeAudio.crossOrigin = 'anonymous';
+        crossfadeAudio.setAttribute('x-webkit-airplay', 'allow');
         crossfadeAudio.preload = 'auto';
         crossfadeAudio.style.display = 'none';
         try {

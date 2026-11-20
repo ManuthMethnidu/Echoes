@@ -973,6 +973,21 @@ export class ConnectManager {
                         <div style="color: #777; font-size: 0.85rem; padding: 12px; text-align: center;">Scanning for nearby devices...</div>
                     </div>
 
+                    <!-- Local Wi-Fi Cast / AirPlay -->
+                    <div class="cast-airplay-row" style="margin-top: 14px; padding: 12px; background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 12px; display: flex; align-items: center; justify-content: space-between; gap: 10px;">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #1ed760; flex-shrink: 0;">
+                                <path d="M2 16.1A5 5 0 0 1 5.9 20M2 12.05A9 9 0 0 1 9.95 20M2 8V6a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-6"></path>
+                                <line x1="2" x2="2.01" y1="20" y2="20"></line>
+                            </svg>
+                            <div>
+                                <div style="font-size: 0.85rem; font-weight: 600;">Cast / AirPlay to TV</div>
+                                <div style="font-size: 0.75rem; color: #888;">Stream directly over local Wi-Fi</div>
+                            </div>
+                        </div>
+                        <button type="button" id="cast-airplay-btn" class="btn-primary" style="font-size: 0.8rem; padding: 6px 14px;">Cast</button>
+                    </div>
+
                     <div style="margin-top: 20px; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 14px; display: flex; justify-content: space-between; align-items: center;">
                         <span style="font-size: 0.8rem; color: #777;">Don't see your TV?</span>
                         <button type="button" id="modal-pair-tv-btn" class="btn-secondary" style="font-size: 0.8rem; padding: 6px 12px;">Pair with QR Code</button>
@@ -999,6 +1014,23 @@ export class ConnectManager {
                 this.closeModal();
                 const { devicePairing } = await import('./accounts/devicePairing.js');
                 devicePairing.open();
+            });
+
+            el.querySelector('#cast-airplay-btn')?.addEventListener('click', async () => {
+                const audio = document.getElementById('audio-player');
+                if (!audio) return;
+                try {
+                    if (audio.remote && typeof audio.remote.prompt === 'function') {
+                        await audio.remote.prompt();
+                    } else if ('webkitShowPlaybackTargetPicker' in audio) {
+                        audio.webkitShowPlaybackTargetPicker();
+                    } else {
+                        const { showToast } = await import('./ui.js').catch(() => ({ showToast: alert }));
+                        showToast('Open echoes.mteck.tech on your TV browser and pair via QR code!');
+                    }
+                } catch (err) {
+                    console.log('[Cast/AirPlay]:', err);
+                }
             });
         }
 

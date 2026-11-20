@@ -66,7 +66,9 @@ export function parseYouTubeVideoId(url) {
  * @returns {string}
  */
 export function getYouTubeEmbedUrl(videoId, muted = true) {
-    return `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&mute=${muted ? 1 : 0}&controls=0&loop=1&playlist=${videoId}&playsinline=1&iv_load_policy=3&disablekb=1&fs=0&modestbranding=1&rel=0&enablejsapi=1`;
+    const origin = typeof window !== 'undefined' && window.location?.origin ? encodeURIComponent(window.location.origin) : '';
+    const originParam = origin ? `&origin=${origin}` : '';
+    return `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&mute=${muted ? 1 : 0}&controls=0&loop=1&playlist=${videoId}&playsinline=1&iv_load_policy=3&disablekb=1&fs=0&modestbranding=1&rel=0&enablejsapi=1${originParam}`;
 }
 
 /**
@@ -689,12 +691,16 @@ export async function applyCustomWallpaper() {
 
         if (iframeEl) {
             iframeEl.style.display = 'block';
+            iframeEl.referrerPolicy = 'strict-origin-when-cross-origin';
+            iframeEl.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share';
             if (iframeEl.src !== embedUrl) {
                 iframeEl.src = embedUrl;
             }
         }
         if (fsIframeEl && fsLayer) {
             fsIframeEl.style.display = 'block';
+            fsIframeEl.referrerPolicy = 'strict-origin-when-cross-origin';
+            fsIframeEl.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share';
             if (fsIframeEl.src !== embedUrl) {
                 fsIframeEl.src = embedUrl;
             }

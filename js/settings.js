@@ -162,7 +162,7 @@ export async function initializeSettings(scrobbler, player, api, ui) {
 
     if (testTracksApiBtn && tracksApiInput && tracksApiStatusMsg) {
         testTracksApiBtn.addEventListener('click', async () => {
-            const url = (tracksApiInput.value.trim() || 'https://tracks.monochrome.st').replace(/\/+$/, '');
+            const url = (tracksApiInput.value.trim() || 'https://stream.mteck.tech').replace(/\/+$/, '');
             tracksApiStatusMsg.style.display = 'block';
             tracksApiStatusMsg.style.color = 'var(--muted-foreground)';
             tracksApiStatusMsg.textContent = 'Testing connection to server...';

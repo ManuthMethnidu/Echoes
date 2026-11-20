@@ -6852,6 +6852,97 @@ body.has-custom-wallpaper-fullscreen #fullscreen-cover-overlay::after {
     opacity: 0.2 !important;
 }
 
+/* Interactive Wallpaper Mode & Controls HUD */
+.wallpaper-interactive-hud {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 100001;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    pointer-events: auto;
+    animation: fadeInDown 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.wallpaper-interactive-hud .hud-pill {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 14px;
+    background: rgba(15, 18, 24, 0.88);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 9999px;
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    box-shadow: 0 16px 36px rgba(0, 0, 0, 0.5);
+}
+
+.wallpaper-interactive-hud .hud-title {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--primary, #1ed760);
+    padding-right: 8px;
+    border-right: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+.wallpaper-interactive-hud .hud-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 11px;
+    font-size: 0.78rem;
+    font-weight: 500;
+    color: var(--foreground);
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.15s ease, transform 0.1s ease;
+}
+
+.wallpaper-interactive-hud .hud-btn:hover {
+    background: rgba(255, 255, 255, 0.18);
+    transform: translateY(-1px);
+}
+
+.wallpaper-interactive-hud .hud-btn.exit {
+    background: rgba(239, 68, 68, 0.18);
+    border-color: rgba(239, 68, 68, 0.4);
+    color: #fca5a5;
+}
+
+.wallpaper-interactive-hud .hud-btn.exit:hover {
+    background: rgba(239, 68, 68, 0.32);
+}
+
+body.wallpaper-interactive-mode .custom-wallpaper-layer {
+    pointer-events: auto !important;
+    z-index: 100000 !important;
+    opacity: 1 !important;
+    filter: none !important;
+}
+
+body.wallpaper-interactive-mode .custom-wallpaper-layer .wallpaper-iframe,
+body.wallpaper-interactive-mode .custom-wallpaper-layer .wallpaper-video,
+body.wallpaper-interactive-mode .custom-wallpaper-layer .wallpaper-canvas {
+    pointer-events: auto !important;
+}
+
+body.wallpaper-interactive-mode .custom-wallpaper-layer .wallpaper-overlay {
+    pointer-events: none !important;
+    background: transparent !important;
+}
+
+body.has-wallpaper-persistent-interaction .custom-wallpaper-layer .wallpaper-iframe,
+body.has-wallpaper-persistent-interaction .custom-wallpaper-layer .wallpaper-video {
+    pointer-events: auto !important;
+}
+
 /* Show a grey box for images with no source, hiding the broken icon */
 img:not([src]),
 img[src=''] {

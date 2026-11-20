@@ -3193,6 +3193,40 @@
                                             Clear Wallpaper
                                         </button>
                                     </div>
+
+                                    <!-- Live Wallpaper Interaction & Controls -->
+                                    <div id="wallpaper-active-controls-panel" style="display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; background: rgba(0, 0, 0, 0.22); border: 1px solid var(--border); border-radius: 8px; margin-top: 4px;">
+                                        <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+                                            <span style="font-size: 0.82rem; font-weight: 600; color: var(--foreground); display: inline-flex; align-items: center; gap: 6px;">
+                                                <use svg="!lucide/sliders.svg" size="14" />
+                                                <span>Live Background Controls</span>
+                                            </span>
+                                            <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                                                <button type="button" id="wallpaper-interact-toggle-btn" class="btn-primary" style="padding: 6px 12px; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 6px;" title="Take control to click, scroll, accept cookies, or change 3D scenes">
+                                                    <use svg="!lucide/mouse-pointer-click.svg" size="14" />
+                                                    <span>Interact</span>
+                                                </button>
+                                                <button type="button" id="wallpaper-mute-toggle-btn" class="btn-secondary" style="padding: 6px 12px; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 6px;" title="Toggle Mute / Audio">
+                                                    <use svg="!lucide/volume-x.svg" size="14" />
+                                                    <span id="wallpaper-mute-btn-text">Muted</span>
+                                                </button>
+                                                <button type="button" id="wallpaper-play-toggle-btn" class="btn-secondary" style="padding: 6px 12px; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 6px;" title="Pause or Resume Playback">
+                                                    <use svg="!lucide/pause.svg" size="14" />
+                                                    <span id="wallpaper-play-btn-text">Pause</span>
+                                                </button>
+                                                <button type="button" id="wallpaper-reload-btn" class="btn-secondary" style="padding: 6px 12px; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 6px;" title="Reload Wallpaper">
+                                                    <use svg="!lucide/rotate-cw.svg" size="14" />
+                                                    <span>Reload</span>
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <div style="display: flex; align-items: center; gap: 8px; font-size: 0.8rem; color: var(--muted-foreground); margin-top: 2px;">
+                                            <label style="display: inline-flex; align-items: center; gap: 6px; cursor: pointer; user-select: none;">
+                                                <input type="checkbox" id="wallpaper-persistent-interactive-cb" />
+                                                <span>Allow mouse interaction with background while browsing</span>
+                                            </label>
+                                        </div>
+                                    </div>
                                 </div>
 
                                 <div class="setting-item">
@@ -7021,6 +7055,32 @@
                     </div>
                 </div>
             </footer>
+        </div>
+
+        <!-- Floating Interactive Wallpaper HUD -->
+        <div id="wallpaper-interactive-hud" class="wallpaper-interactive-hud" style="display: none;">
+            <div class="hud-pill">
+                <span class="hud-title">
+                    <use svg="!lucide/mouse-pointer-click.svg" size="14" />
+                    <span>Interactive Background</span>
+                </span>
+                <button type="button" id="hud-wallpaper-mute-btn" class="hud-btn" title="Toggle Wallpaper Audio">
+                    <use svg="!lucide/volume-x.svg" size="14" />
+                    <span class="hud-btn-label">Muted</span>
+                </button>
+                <button type="button" id="hud-wallpaper-play-btn" class="hud-btn" title="Toggle Wallpaper Playback">
+                    <use svg="!lucide/pause.svg" size="14" />
+                    <span class="hud-btn-label">Pause</span>
+                </button>
+                <button type="button" id="hud-wallpaper-reload-btn" class="hud-btn" title="Reload Wallpaper">
+                    <use svg="!lucide/rotate-cw.svg" size="14" />
+                    <span>Reload</span>
+                </button>
+                <button type="button" id="hud-wallpaper-exit-btn" class="hud-btn exit" title="Lock Background and Return to App (Esc)">
+                    <use svg="!lucide/lock.svg" size="14" />
+                    <span>Lock &amp; Exit (Esc)</span>
+                </button>
+            </div>
         </div>
     </body>
 </html>

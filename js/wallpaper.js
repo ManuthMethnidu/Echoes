@@ -18,11 +18,32 @@ const DEFAULT_CONFIG = {
     opacity: 0.5,
     blur: 0,
     scope: 'both', // 'both' | 'app' | 'fullscreen'
+    muted: true, // boolean: mute wallpaper video/iframe audio
+    interactive: false, // boolean: allow continuous mouse events to pass to wallpaper
 };
 
 let activeBlobUrl = null;
 let animationFrameId = null;
 let currentPresetRenderer = null;
+let isWallpaperPlaying = true;
+let isInteractiveModeActive = false;
+
+/**
+ * Extracts a URL from raw input, parsing <iframe src="..."> HTML tags or bare URLs.
+ * @param {string} input
+ * @returns {string}
+ */
+export function extractUrlFromInput(input) {
+    if (!input || typeof input !== 'string') return '';
+    const trimmed = input.trim();
+    // 1. Check if user pasted an entire <iframe ... src="..." ...> tag
+    const iframeSrcMatch = trimmed.match(/<iframe[^>]+src=["']([^"']+)["']/i);
+    if (iframeSrcMatch) {
+        return iframeSrcMatch[1].trim();
+    }
+    // 2. Remove surrounding quotes if pasted like "https://..."
+    return trimmed.replace(/^["']|["']$/g, '').trim();
+}
 
 /**
  * Extracts a YouTube Video ID from any standard YouTube URL (watch, embed, youtu.be, shorts, live).
@@ -30,9 +51,9 @@ let currentPresetRenderer = null;
  * @returns {string|null}
  */
 export function parseYouTubeVideoId(url) {
-    if (!url || typeof url !== 'string') return null;
-    const trimmed = url.trim();
-    const match = trimmed.match(
+    const raw = extractUrlFromInput(url);
+    if (!raw) return null;
+    const match = raw.match(
         /(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|shorts\/|live\/|watch\?.+&v=))([\w-]{11})/i
     );
     return match ? match[1] : null;
@@ -41,10 +62,37 @@ export function parseYouTubeVideoId(url) {
 /**
  * Builds a clean, muted, looping, ad/control-free YouTube embed URL for live wallpaper backgrounds.
  * @param {string} videoId
+ * @param {boolean} [muted=true]
  * @returns {string}
  */
-export function getYouTubeEmbedUrl(videoId) {
-    return `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&mute=1&controls=0&loop=1&playlist=${videoId}&playsinline=1&iv_load_policy=3&disablekb=1&fs=0&modestbranding=1&rel=0&enablejsapi=1`;
+export function getYouTubeEmbedUrl(videoId, muted = true) {
+    return `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&mute=${muted ? 1 : 0}&controls=0&loop=1&playlist=${videoId}&playsinline=1&iv_load_policy=3&disablekb=1&fs=0&modestbranding=1&rel=0&enablejsapi=1`;
+}
+
+/**
+ * Normalizes any video or embed URL (YouTube, Vimeo, etc.) into an embeddable format.
+ * @param {string} url
+ * @param {boolean} [muted=true]
+ * @returns {string}
+ */
+export function normalizeIframeUrl(url, muted = true) {
+    const rawUrl = extractUrlFromInput(url);
+    if (!rawUrl) return '';
+
+    // YouTube check
+    const ytId = parseYouTubeVideoId(rawUrl);
+    if (ytId) {
+        return getYouTubeEmbedUrl(ytId, muted);
+    }
+
+    // Vimeo check
+    const vimeoMatch = rawUrl.match(/(?:vimeo\.com\/(?:video\/)?|player\.vimeo\.com\/video\/)(\d+)/i);
+    if (vimeoMatch) {
+        return `https://player.vimeo.com/video/${vimeoMatch[1]}?autoplay=1&loop=1&muted=${muted ? 1 : 0}&autopause=0&background=1`;
+    }
+
+    // Generic iframe / website embed
+    return rawUrl;
 }
 
 /**
@@ -53,13 +101,225 @@ export function getYouTubeEmbedUrl(videoId) {
  * @returns {'iframe'|'video'|'image'}
  */
 export function detectMediaType(url) {
-    if (!url || typeof url !== 'string') return 'image';
-    const trimmed = url.trim();
-    if (parseYouTubeVideoId(trimmed)) return 'iframe';
-    if (/\.(mp4|webm|ogv|mov)(\?.*)?$/i.test(trimmed)) return 'video';
-    if (/\.(jpg|jpeg|png|webp|gif|svg|avif)(\?.*)?$/i.test(trimmed)) return 'image';
-    if (trimmed.includes('/embed/') || trimmed.includes('/embed') || trimmed.includes('player.')) return 'iframe';
+    const clean = extractUrlFromInput(url);
+    if (!clean) return 'image';
+    if (parseYouTubeVideoId(clean)) return 'iframe';
+    if (/(?:vimeo\.com|player\.vimeo\.com|dailymotion\.com|twitch\.tv|shadertoy\.com|codepen\.io)/i.test(clean)) {
+        return 'iframe';
+    }
+    if (/\.(mp4|webm|ogv|mov)(\?.*)?$/i.test(clean)) return 'video';
+    if (/\.(jpg|jpeg|png|webp|gif|svg|avif)(\?.*)?$/i.test(clean)) return 'image';
+    if (clean.includes('unsplash.com') || clean.includes('imgur.com')) return 'image';
+    if (
+        clean.includes('/embed') ||
+        clean.includes('/live') ||
+        clean.includes('player.') ||
+        url.includes('<iframe')
+    ) {
+        return 'iframe';
+    }
     return 'image';
+}
+
+/**
+ * Sends command to all active wallpaper iframes (YouTube, Vimeo, etc.).
+ * @param {string} func
+ * @param {Array} [args=[]]
+ */
+export function sendIframeCommand(func, args = []) {
+    const iframes = document.querySelectorAll('.custom-wallpaper-layer .wallpaper-iframe');
+    iframes.forEach((iframe) => {
+        try {
+            iframe.contentWindow?.postMessage(
+                JSON.stringify({
+                    event: 'command',
+                    func,
+                    args,
+                }),
+                '*'
+            );
+        } catch {}
+    });
+}
+
+/**
+ * Updates the Settings and HUD control UI elements to reflect current muted and playing states.
+ * @param {boolean} [mutedState]
+ */
+export function updateWallpaperControlUI(mutedState) {
+    const config = getWallpaperConfig();
+    const isMuted = typeof mutedState === 'boolean' ? mutedState : config.muted !== false;
+
+    // 1. Settings buttons
+    const muteBtnText = document.getElementById('wallpaper-mute-btn-text');
+    if (muteBtnText) {
+        muteBtnText.textContent = isMuted ? 'Muted' : 'Unmuted';
+    }
+    const playBtnText = document.getElementById('wallpaper-play-btn-text');
+    if (playBtnText) {
+        playBtnText.textContent = isWallpaperPlaying ? 'Pause' : 'Play';
+    }
+    const interactToggleBtn = document.getElementById('wallpaper-interact-toggle-btn');
+    if (interactToggleBtn) {
+        interactToggleBtn.classList.toggle('active', isInteractiveModeActive);
+    }
+    const persistentCb = document.getElementById('wallpaper-persistent-interactive-cb');
+    if (persistentCb) {
+        persistentCb.checked = !!config.interactive;
+    }
+
+    // 2. HUD buttons
+    const hudMuteLabel = document.querySelector('#hud-wallpaper-mute-btn .hud-btn-label');
+    if (hudMuteLabel) {
+        hudMuteLabel.textContent = isMuted ? 'Muted' : 'Unmuted';
+    }
+    const hudPlayLabel = document.querySelector('#hud-wallpaper-play-btn .hud-btn-label');
+    if (hudPlayLabel) {
+        hudPlayLabel.textContent = isWallpaperPlaying ? 'Pause' : 'Play';
+    }
+}
+
+/**
+ * Toggles or sets audio mute on wallpaper iframes and video elements.
+ * @param {boolean} [forceMute]
+ * @returns {boolean} New muted state
+ */
+export function setWallpaperMuted(forceMute) {
+    const config = getWallpaperConfig();
+    const newMuted = typeof forceMute === 'boolean' ? forceMute : !config.muted;
+    setWallpaperConfig({ muted: newMuted });
+
+    // 1. YouTube command
+    sendIframeCommand(newMuted ? 'mute' : 'unMute');
+
+    // 2. Vimeo command
+    const iframes = document.querySelectorAll('.custom-wallpaper-layer .wallpaper-iframe');
+    iframes.forEach((iframe) => {
+        try {
+            iframe.contentWindow?.postMessage(
+                JSON.stringify({
+                    method: 'setVolume',
+                    value: newMuted ? 0 : 1,
+                }),
+                '*'
+            );
+        } catch {}
+    });
+
+    // 3. HTML5 videos
+    const videos = document.querySelectorAll('.custom-wallpaper-layer .wallpaper-video');
+    videos.forEach((v) => {
+        v.muted = newMuted;
+    });
+
+    // 4. Update UI buttons
+    updateWallpaperControlUI(newMuted);
+
+    return newMuted;
+}
+
+/**
+ * Toggles playback (play / pause) for the wallpaper.
+ */
+export function toggleWallpaperPlayback() {
+    isWallpaperPlaying = !isWallpaperPlaying;
+
+    // YouTube command
+    sendIframeCommand(isWallpaperPlaying ? 'playVideo' : 'pauseVideo');
+
+    // Vimeo command
+    const iframes = document.querySelectorAll('.custom-wallpaper-layer .wallpaper-iframe');
+    iframes.forEach((iframe) => {
+        try {
+            iframe.contentWindow?.postMessage(
+                JSON.stringify({
+                    method: isWallpaperPlaying ? 'play' : 'pause',
+                }),
+                '*'
+            );
+        } catch {}
+    });
+
+    // HTML5 videos
+    const videos = document.querySelectorAll('.custom-wallpaper-layer .wallpaper-video');
+    videos.forEach((v) => {
+        if (isWallpaperPlaying) {
+            v.play().catch(() => {});
+        } else {
+            v.pause();
+        }
+    });
+
+    // Update UI buttons
+    updateWallpaperControlUI();
+    return isWallpaperPlaying;
+}
+
+/**
+ * Reloads the wallpaper iframe/video in place.
+ */
+export function reloadWallpaper() {
+    const iframes = document.querySelectorAll('.custom-wallpaper-layer .wallpaper-iframe');
+    iframes.forEach((iframe) => {
+        if (iframe.src) {
+            const currentSrc = iframe.src;
+            iframe.src = '';
+            setTimeout(() => {
+                iframe.src = currentSrc;
+            }, 50);
+        }
+    });
+
+    const videos = document.querySelectorAll('.custom-wallpaper-layer .wallpaper-video');
+    videos.forEach((v) => {
+        v.currentTime = 0;
+        v.play().catch(() => {});
+    });
+}
+
+function onInteractiveKeyDown(e) {
+    if (e.key === 'Escape') {
+        exitWallpaperInteractiveMode();
+    }
+}
+
+/**
+ * Enters fullscreen interactive mode, allowing the user to click, scroll, and type into the iframe.
+ */
+export function enterWallpaperInteractiveMode() {
+    isInteractiveModeActive = true;
+    document.body.classList.add('wallpaper-interactive-mode');
+
+    const hud = document.getElementById('wallpaper-interactive-hud');
+    if (hud) hud.style.display = 'flex';
+
+    window.addEventListener('keydown', onInteractiveKeyDown);
+    updateWallpaperControlUI();
+}
+
+/**
+ * Exits interactive mode and restores normal wallpaper background state.
+ */
+export function exitWallpaperInteractiveMode() {
+    isInteractiveModeActive = false;
+    document.body.classList.remove('wallpaper-interactive-mode');
+
+    const hud = document.getElementById('wallpaper-interactive-hud');
+    if (hud) hud.style.display = 'none';
+
+    window.removeEventListener('keydown', onInteractiveKeyDown);
+    updateWallpaperControlUI();
+}
+
+/**
+ * Toggles interactive mode.
+ */
+export function toggleWallpaperInteractiveMode() {
+    if (isInteractiveModeActive) {
+        exitWallpaperInteractiveMode();
+    } else {
+        enterWallpaperInteractiveMode();
+    }
 }
 
 // IndexedDB Helper for zero-resource local file persistence
@@ -352,9 +612,17 @@ export async function applyCustomWallpaper() {
 
     document.body.classList.toggle('has-custom-wallpaper', showInApp);
     document.body.classList.toggle('has-custom-wallpaper-fullscreen', showInFs);
+    document.body.classList.toggle('has-wallpaper-persistent-interaction', !!config.interactive);
 
     layer.style.display = showInApp ? 'block' : 'none';
     if (fsLayer) fsLayer.style.display = showInFs ? 'block' : 'none';
+
+    // Update controls UI panel visibility and state
+    const controlsPanel = document.getElementById('wallpaper-active-controls-panel');
+    if (controlsPanel) {
+        controlsPanel.style.display = config.type !== 'none' ? 'flex' : 'none';
+    }
+    updateWallpaperControlUI();
 
     if (config.type === 'none') {
         if (vidEl) { vidEl.src = ''; vidEl.style.display = 'none'; }
@@ -407,7 +675,7 @@ export async function applyCustomWallpaper() {
         return;
     }
 
-    // Live Web / YouTube Embed Iframe Wallpaper
+    // Live Web / YouTube / Generic Iframe Wallpaper
     if (config.mediaType === 'iframe' && mediaUrl) {
         if (canvasEl) canvasEl.style.display = 'none';
         if (imgEl) { imgEl.style.display = 'none'; imgEl.style.backgroundImage = 'none'; }
@@ -417,8 +685,7 @@ export async function applyCustomWallpaper() {
         if (fsImgEl) { fsImgEl.style.display = 'none'; fsImgEl.style.backgroundImage = 'none'; }
         if (fsVidEl) { fsVidEl.style.display = 'none'; fsVidEl.src = ''; }
 
-        const ytId = parseYouTubeVideoId(mediaUrl);
-        const embedUrl = ytId ? getYouTubeEmbedUrl(ytId) : mediaUrl;
+        const embedUrl = normalizeIframeUrl(mediaUrl, config.muted !== false);
 
         if (iframeEl) {
             iframeEl.style.display = 'block';
@@ -447,6 +714,7 @@ export async function applyCustomWallpaper() {
 
         if (vidEl) {
             vidEl.style.display = 'block';
+            vidEl.muted = config.muted !== false;
             if (vidEl.src !== mediaUrl) {
                 vidEl.src = mediaUrl;
                 vidEl.load();
@@ -455,6 +723,7 @@ export async function applyCustomWallpaper() {
         }
         if (fsVidEl && fsLayer) {
             fsVidEl.style.display = 'block';
+            fsVidEl.muted = config.muted !== false;
             if (fsVidEl.src !== mediaUrl) {
                 fsVidEl.src = mediaUrl;
                 fsVidEl.load();
@@ -486,6 +755,7 @@ export async function applyCustomWallpaper() {
 }
 
 export async function setWallpaperFromUrl(url, mediaType = 'auto') {
+    const cleanUrl = extractUrlFromInput(url);
     let resolvedMediaType = mediaType;
     if (mediaType === 'auto') {
         resolvedMediaType = detectMediaType(url);
@@ -493,7 +763,7 @@ export async function setWallpaperFromUrl(url, mediaType = 'auto') {
     setWallpaperConfig({
         type: 'url',
         mediaType: resolvedMediaType,
-        url,
+        url: cleanUrl,
         preset: 'none',
     });
     await applyCustomWallpaper();

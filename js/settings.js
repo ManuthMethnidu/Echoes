@@ -60,6 +60,11 @@ import {
     setWallpaperPreset,
     clearCustomWallpaper,
     applyCustomWallpaper,
+    setWallpaperMuted,
+    toggleWallpaperPlayback,
+    reloadWallpaper,
+    toggleWallpaperInteractiveMode,
+    exitWallpaperInteractiveMode,
 } from './wallpaper.js';
 import { audioContextManager, getPresetsForBandCount } from './audio-context.js';
 import { calculateBiquadResponse, interpolate, getNormalizationOffset, runAutoEqAlgorithm } from './autoeq-engine.js';
@@ -6125,6 +6130,38 @@ export async function initializeSettings(scrobbler, player, api, ui) {
         document.getElementById('wallpaper-preset-starfield')?.addEventListener('click', () => setWallpaperPreset('starfield'));
         document.getElementById('wallpaper-preset-rain')?.addEventListener('click', () => setWallpaperPreset('rain'));
         document.getElementById('wallpaper-preset-neon')?.addEventListener('click', () => setWallpaperPreset('neon-waves'));
+
+        // Interactive mode & playback controls
+        document.getElementById('wallpaper-interact-toggle-btn')?.addEventListener('click', () => {
+            toggleWallpaperInteractiveMode();
+        });
+        document.getElementById('wallpaper-mute-toggle-btn')?.addEventListener('click', () => {
+            setWallpaperMuted();
+        });
+        document.getElementById('wallpaper-play-toggle-btn')?.addEventListener('click', () => {
+            toggleWallpaperPlayback();
+        });
+        document.getElementById('wallpaper-reload-btn')?.addEventListener('click', () => {
+            reloadWallpaper();
+        });
+        document.getElementById('wallpaper-persistent-interactive-cb')?.addEventListener('change', (e) => {
+            setWallpaperConfig({ interactive: e.target.checked });
+            applyCustomWallpaper();
+        });
+
+        // HUD buttons
+        document.getElementById('hud-wallpaper-mute-btn')?.addEventListener('click', () => {
+            setWallpaperMuted();
+        });
+        document.getElementById('hud-wallpaper-play-btn')?.addEventListener('click', () => {
+            toggleWallpaperPlayback();
+        });
+        document.getElementById('hud-wallpaper-reload-btn')?.addEventListener('click', () => {
+            reloadWallpaper();
+        });
+        document.getElementById('hud-wallpaper-exit-btn')?.addEventListener('click', () => {
+            exitWallpaperInteractiveMode();
+        });
     }
 
     // Fullscreen Cover No Round Toggle

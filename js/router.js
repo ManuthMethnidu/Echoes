@@ -48,6 +48,9 @@ export function createRouter(ui) {
             if (p.startsWith('monochrome/')) {
                 return { provider: 'tracks', id: p.slice(11) };
             }
+            if (/^\d{17,20}$/.test(p)) {
+                return { provider: 'tracks', id: p };
+            }
             return { provider: null, id: p };
         };
 

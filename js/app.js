@@ -2432,10 +2432,16 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
         if (suggestion.kind === 'song' && suggestion.track?.tracksTrackId) {
-            navigate(`/track/${suggestion.track.tracksTrackId}`);
+            if (UIRenderer.instance?.api) {
+                UIRenderer.instance.api.cacheTracks([suggestion.track]);
+            }
+            navigate(`/track/tracks/${suggestion.track.tracksTrackId}`);
             return;
         }
         if (suggestion.kind === 'song' && suggestion.track?.appleMusicId) {
+            if (UIRenderer.instance?.api) {
+                UIRenderer.instance.api.cacheAppleTracks([suggestion.track]);
+            }
             navigate(`/track/apple/${suggestion.track.appleMusicId}`);
             return;
         }

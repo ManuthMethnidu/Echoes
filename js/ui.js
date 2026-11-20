@@ -8323,7 +8323,7 @@ export class UIRenderer {
 
         try {
             let track;
-            track = await this.api.getTrackMetadata(trackId);
+            track = await this.api.getTrackMetadata(trackId, provider);
             this.currentTrackPageId = track.id;
 
             if (_isBlockedCopyright(track.copyright)) {

@@ -9,7 +9,7 @@ import {
     normalizeAppleArtist,
     normalizeAppleSearchResults,
 } from './apple-music-api.js';
-import { TracksStreamerAPI, tracksStreamerAPI, normalizeTracksSearchResults } from './tracks-api.js';
+import { TRACKS_API_BASE_URL, TracksStreamerAPI, tracksStreamerAPI, normalizeTracksSearchResults } from './tracks-api.js';
 import { getCommunityPlaylist } from './community-playlists.js';
 import { ytEngine } from './yt-music.js';
 import { sanitizeForFilename, getExtensionFromBlob } from './utils.js';
@@ -503,8 +503,8 @@ export class MusicAPI {
         return api.getTrack(cleanId, quality);
     }
 
-    async getTrackMetadata(id) {
-        if (this.isYouTubeId(id)) {
+    async getTrackMetadata(id, provider = null) {
+        if (this.isYouTubeId(id) || provider === 'youtube') {
             const cached = this.getCachedTracksTrack(id);
             if (cached) return cached;
             try {
@@ -525,10 +525,16 @@ export class MusicAPI {
                 console.warn('[getTrackMetadata] YouTube stream fetch error:', err);
             }
         }
-        if (this.isTracksId(id, 'track') || this.isTracksId(id)) {
+        if (this.isTracksId(id, 'track', provider) || this.isTracksId(id, null, provider)) {
             const cached = this.getCachedTracksTrack(id);
-            if (cached) return cached;
+            if (cached && cached.title && !cached.title.startsWith('Track ')) return cached;
             const tracksId = this.getTracksId(id, 'track');
+            const streamCache = this.tracksStreamerAPI.trackCache.get(String(tracksId));
+            if (streamCache) {
+                this.cacheTracks([streamCache]);
+                return streamCache;
+            }
+            if (cached) return cached;
             const placeholder = {
                 id: tracksId,
                 trackId: tracksId,
@@ -539,7 +545,7 @@ export class MusicAPI {
                 duration: 0,
                 playable: true,
                 url: `${TRACKS_API_BASE_URL}/track/${tracksId}`,
-                _href: `/track/${tracksId}`,
+                _href: `/track/tracks/${tracksId}`,
             };
             this.cacheTracks([placeholder]);
             return placeholder;
@@ -1295,12 +1301,7 @@ export class MusicAPI {
         if (id.startsWith(type ? `tracks:${type}:` : 'tracks:')) return true;
         if (id.startsWith('mono:')) return true;
         if (/^\d{17,20}$/.test(id)) {
-            if (type === 'album' && this.tracksAlbumIds.has(id)) return true;
-            if (type === 'artist' && this.tracksArtistIds.has(id)) return true;
-            if (type === 'track' && this.tracksTrackCache.has(id)) return true;
-            if (!type) {
-                return this.tracksTrackCache.has(id) || this.tracksAlbumIds.has(id) || this.tracksArtistIds.has(id);
-            }
+            return true;
         }
         return false;
     }

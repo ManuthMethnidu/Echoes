@@ -65,6 +65,7 @@ import {
     reloadWallpaper,
     toggleWallpaperInteractiveMode,
     exitWallpaperInteractiveMode,
+    extractUrlFromInput,
 } from './wallpaper.js';
 import { audioContextManager, getPresetsForBandCount } from './audio-context.js';
 import { calculateBiquadResponse, interpolate, getNormalizationOffset, runAutoEqAlgorithm } from './autoeq-engine.js';
@@ -6096,11 +6097,26 @@ export async function initializeSettings(scrobbler, player, api, ui) {
             applyCustomWallpaper();
         });
 
+        wallpaperUrlInput?.addEventListener('input', () => {
+            const raw = wallpaperUrlInput.value.trim();
+            if (raw.includes('<iframe')) {
+                const extracted = extractUrlFromInput(raw);
+                if (extracted && extracted !== raw) {
+                    wallpaperUrlInput.value = extracted;
+                    if (wallpaperMediaTypeSelect) {
+                        wallpaperMediaTypeSelect.value = 'iframe';
+                    }
+                }
+            }
+        });
+
         applyWallpaperUrlBtn?.addEventListener('click', async () => {
-            const url = wallpaperUrlInput?.value?.trim();
+            const raw = wallpaperUrlInput?.value?.trim();
             const mediaType = wallpaperMediaTypeSelect?.value || 'auto';
-            if (url) {
-                await setWallpaperFromUrl(url, mediaType);
+            if (raw) {
+                const cleanUrl = extractUrlFromInput(raw);
+                if (wallpaperUrlInput) wallpaperUrlInput.value = cleanUrl;
+                await setWallpaperFromUrl(cleanUrl, mediaType);
                 import('./downloads.js').then(({ showNotification }) => {
                     showNotification('Custom wallpaper applied!');
                 }).catch(() => {});

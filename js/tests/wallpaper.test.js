@@ -14,6 +14,18 @@ describe('wallpaper module', () => {
             expect(extractUrlFromInput(html)).toBe('https://www.shadertoy.com/embed/mtyGWy?gui=false');
         });
 
+        it('extracts src from standard YouTube embed iframe code with tracking params', () => {
+            const ytEmbedHtml =
+                '<iframe width="560" height="315" src="https://www.youtube.com/embed/_QK2y9BkKEo?si=49mmoxwfl0jR_sB5" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>';
+            expect(extractUrlFromInput(ytEmbedHtml)).toBe('https://www.youtube.com/embed/_QK2y9BkKEo?si=49mmoxwfl0jR_sB5');
+            expect(parseYouTubeVideoId(ytEmbedHtml)).toBe('_QK2y9BkKEo');
+            expect(detectMediaType(ytEmbedHtml)).toBe('iframe');
+            const normalized = normalizeIframeUrl(ytEmbedHtml, true);
+            expect(normalized).toContain('https://www.youtube-nocookie.com/embed/_QK2y9BkKEo');
+            expect(normalized).toContain('mute=1');
+            expect(normalized).toContain('autoplay=1');
+        });
+
         it('extracts URL from plain string or quoted URL', () => {
             expect(extractUrlFromInput('https://threejs.org/examples/webgl_shaders_ocean.html')).toBe(
                 'https://threejs.org/examples/webgl_shaders_ocean.html'

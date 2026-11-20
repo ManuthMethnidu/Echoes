@@ -352,6 +352,9 @@ export function cleanTrackSearchMeta(rawTitle, rawArtist) {
     // Strip YouTube channel topic suffix e.g. "Artist - Topic"
     artist = artist.replace(/\s*-\s*topic$/i, '').trim();
 
+    // Strip hashtags (e.g. #eda ra#song#fim)
+    title = title.replace(/#[^\s#]+/g, '').trim();
+
     // Strip noise tags: [Official Video], (Official Live Video), (Audio), [4K], etc.
     title = title
         .replace(/\[\s*(?:official\s+)?(?:music\s+)?(?:video|audio|lyric\s+video|visualizer|live(?:\s+video)?|4k|hd|remastered|hq).*?\]/gi, '')
@@ -367,18 +370,55 @@ export function cleanTrackSearchMeta(rawTitle, rawArtist) {
             title = title.replace(artistRegex, '').trim();
         }
     } else {
-        // If no artist was provided, check if title is formatted as "Artist - Title"
+        // If no artist was provided, check if title is formatted as "Artist - Title" or inverted "Title - [Artist]"
         const splitMatch = title.match(/^(.+?)\s*[-–—]\s*(.+)$/);
         if (splitMatch) {
-            artist = splitMatch[1].trim();
-            title = splitMatch[2].trim();
+            let part1 = splitMatch[1].trim();
+            let part2 = splitMatch[2].trim();
+
+            const p2Bracket = part2.match(/^\[(.*?)\]$/);
+            const p1Bracket = part1.match(/^\[(.*?)\]$/);
+            if (p2Bracket) {
+                title = part1;
+                artist = p2Bracket[1].trim();
+            } else if (p1Bracket) {
+                artist = p1Bracket[1].trim();
+                title = part2;
+            } else {
+                artist = part1;
+                title = part2;
+            }
         }
     }
 
-    const cleanQuery = artist ? `${artist} ${title}`.trim() : title;
+    if (artist) {
+        artist = artist.replace(/\s*මහතා\s*/g, ' ').replace(/\b(?:mr\.?|shri|pandit|dr\.?)\b/gi, '').trim();
+    }
+
+    // Extract Latin primary title if mixed with parenthesized non-Latin scripts (e.g. "Eda Raa (එදා රෑ)")
+    let primaryTitle = title;
+    const parenthesizedNonLatinMatch = title.match(/^([a-zA-Z0-9\s'’.,-]+?)\s*\([^)]*[^\x00-\x7F][^)]*\)$/);
+    if (parenthesizedNonLatinMatch && parenthesizedNonLatinMatch[1].trim()) {
+        primaryTitle = parenthesizedNonLatinMatch[1].trim();
+    } else {
+        const reverseParenthesizedMatch = title.match(/^\([^)]*[^\x00-\x7F][^)]*\)\s*([a-zA-Z0-9\s'’.,-]+)$/);
+        if (reverseParenthesizedMatch && reverseParenthesizedMatch[1].trim()) {
+            primaryTitle = reverseParenthesizedMatch[1].trim();
+        }
+    }
+
+    let primaryArtist = artist;
+    const parenthesizedArtistMatch = artist.match(/^([a-zA-Z0-9\s'’.,-]+?)\s*\([^)]*[^\x00-\x7F][^)]*\)$/);
+    if (parenthesizedArtistMatch && parenthesizedArtistMatch[1].trim()) {
+        primaryArtist = parenthesizedArtistMatch[1].trim();
+    }
+
+    const cleanQuery = primaryArtist ? `${primaryArtist} ${primaryTitle}`.trim() : primaryTitle;
     return {
-        cleanTitle: title,
-        cleanArtist: artist,
+        cleanTitle: primaryTitle,
+        cleanArtist: primaryArtist,
+        rawCleanTitle: title,
+        rawCleanArtist: artist,
         searchQuery: cleanQuery,
     };
 }

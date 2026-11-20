@@ -178,6 +178,17 @@ describe('tracks-api module', () => {
             expect(res.cleanTitle).toBe('Yellow');
             expect(res.searchQuery).toBe('Coldplay Yellow');
         });
+
+        it('cleans hashtags, inverted bracketed artists, and extracts Latin terms from bilingual titles', () => {
+            const res = cleanTrackSearchMeta(
+                'Eda Raa (එදා රෑ) - [ මිල්ටන් මල්ලවආරච්චි මහතා] | Official Audio / Lyric Video#eda ra#song#fim',
+                ''
+            );
+            expect(res.cleanTitle).toBe('Eda Raa');
+            expect(res.cleanArtist).toBe('මිල්ටන් මල්ලවආරච්චි');
+            expect(res.rawCleanTitle).toBe('Eda Raa (එදා රෑ)');
+            expect(res.searchQuery).toBe('මිල්ටන් මල්ලවආරච්චි Eda Raa');
+        });
     });
 
     describe('scoreTrackCandidate', () => {
@@ -211,6 +222,22 @@ describe('tracks-api module', () => {
             };
             const score = scoreTrackCandidate(candidate, target);
             expect(score).toBeGreaterThanOrEqual(150);
+        });
+
+        it('correctly matches bilingual YouTube title to English Monochrome studio CD release', () => {
+            const target = {
+                title: 'Eda Raa (එදා රෑ) - [ මිල්ටන් මල්ලවආරච්චි මහතා] | Official Audio / Lyric Video#eda ra#song#fim',
+                artist: '',
+                duration: 184,
+            };
+            const candidate = {
+                title: 'Eda Raa',
+                artist: { name: 'Milton Mallawarachchi' },
+                artistNames: ['Milton Mallawarachchi'],
+                duration: 184,
+            };
+            const score = scoreTrackCandidate(candidate, target);
+            expect(score).toBeGreaterThanOrEqual(85);
         });
 
         it('gives low score on completely mismatched tracks', () => {

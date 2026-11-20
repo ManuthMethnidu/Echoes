@@ -130,6 +130,11 @@ export class YouTubeMusicEngine {
         }
 
         const data = await res.json();
+        if (data?.streamUrl && typeof window !== 'undefined' && data.streamUrl.startsWith('/')) {
+            data.streamUrl = new URL(data.streamUrl, window.location.origin).toString();
+            data.url = data.streamUrl;
+            data.directUrl = data.streamUrl;
+        }
         this.cache.set(cleanId, { data, timestamp: Date.now() });
         return data;
     }

@@ -277,8 +277,8 @@ async function findPlayableAudio(
         if (await isStreamPlayable(best.url)) {
             return {
                 format: best,
-                streamUrl: best.url,
-                issuer: 'direct',
+                streamUrl: `/api/yt/proxy-stream?url=${encodeURIComponent(best.url)}`,
+                issuer: 'proxy',
             };
         }
     }
@@ -289,8 +289,8 @@ async function findPlayableAudio(
         if (await isStreamPlayable(best.url)) {
             return {
                 format: best,
-                streamUrl: best.url,
-                issuer: 'direct',
+                streamUrl: `/api/yt/proxy-stream?url=${encodeURIComponent(best.url)}`,
+                issuer: 'proxy',
             };
         }
     }
@@ -395,15 +395,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         instance = vidResult.value.instance;
     }
 
-    // 1. Direct companion stream fast-path (unexpired, IP-bound to companion, CORS enabled)
+    // 1. Direct companion stream fast-path (unexpired, proxied through proxy-stream for full CORS)
     if (directCompanion) {
         const rawDuration = data?.lengthSeconds || 0;
         const duration = typeof rawDuration === 'number' ? rawDuration : parseInt(rawDuration) || 0;
+        const proxiedUrl = `/api/yt/proxy-stream?url=${encodeURIComponent(directCompanion.streamUrl)}`;
         return res.status(200).json({
             id: videoId,
-            streamUrl: directCompanion.streamUrl,
-            url: directCompanion.streamUrl,
-            directUrl: directCompanion.streamUrl,
+            streamUrl: proxiedUrl,
+            url: proxiedUrl,
+            directUrl: proxiedUrl,
             mimeType: directCompanion.mimeType,
             codec: preferM4a ? 'AAC' : 'OPUS',
             bitrate: preferM4a ? 128000 : 160000,
@@ -512,7 +513,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                         if (compStream) {
                             return {
                                 format: { type: compStream.mimeType, bitrate: preferM4a ? 128000 : 160000 },
-                                streamUrl: compStream.streamUrl,
+                                streamUrl: `/api/yt/proxy-stream?url=${encodeURIComponent(compStream.streamUrl)}`,
                                 data: candidate,
                                 cid,
                                 instance: compStream.companion,

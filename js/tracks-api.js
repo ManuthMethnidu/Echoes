@@ -340,6 +340,50 @@ export function extractTracksSuggestions(results, query) {
 }
 
 /**
+ * Cleans YouTube/video-specific noise and extracts clean title & artist for catalog search.
+ * @param {string} rawTitle
+ * @param {string} rawArtist
+ * @returns {{ cleanTitle: string, cleanArtist: string, searchQuery: string }}
+ */
+export function cleanTrackSearchMeta(rawTitle, rawArtist) {
+    let title = String(rawTitle || '').trim();
+    let artist = String(rawArtist || '').trim();
+
+    // Strip YouTube channel topic suffix e.g. "Artist - Topic"
+    artist = artist.replace(/\s*-\s*topic$/i, '').trim();
+
+    // Strip noise tags: [Official Video], (Official Live Video), (Audio), [4K], etc.
+    title = title
+        .replace(/\[\s*(?:official\s+)?(?:music\s+)?(?:video|audio|lyric\s+video|visualizer|live(?:\s+video)?|4k|hd|remastered|hq).*?\]/gi, '')
+        .replace(/\(\s*(?:official\s+)?(?:music\s+)?(?:video|audio|lyric\s+video|visualizer|live(?:\s+video)?|4k|hd|remastered|hq).*?\)/gi, '')
+        .replace(/\s*\|\s*.*$/g, '')
+        .trim();
+
+    // If title starts with artist name like "Goo Goo Dolls - Iris" or "The Goo Goo Dolls - Iris"
+    if (artist) {
+        const escapedArtist = artist.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const artistRegex = new RegExp(`^(?:the\\s+)?${escapedArtist}\\s*[-–—:]\\s*`, 'i');
+        if (artistRegex.test(title)) {
+            title = title.replace(artistRegex, '').trim();
+        }
+    } else {
+        // If no artist was provided, check if title is formatted as "Artist - Title"
+        const splitMatch = title.match(/^(.+?)\s*[-–—]\s*(.+)$/);
+        if (splitMatch) {
+            artist = splitMatch[1].trim();
+            title = splitMatch[2].trim();
+        }
+    }
+
+    const cleanQuery = artist ? `${artist} ${title}`.trim() : title;
+    return {
+        cleanTitle: title,
+        cleanArtist: artist,
+        searchQuery: cleanQuery,
+    };
+}
+
+/**
  * Scores a candidate track against a target track for playback streaming resolution.
  * @param {Object} candidate
  * @param {Object} target
@@ -356,19 +400,31 @@ export function scoreTrackCandidate(candidate, target) {
     }
 
     let score = 0;
-    const targetTitleClean = cleanString(target.title);
+    const targetMeta = cleanTrackSearchMeta(
+        target.title,
+        target.artist?.name || target.artists?.[0]?.name || target.artist || ''
+    );
+
+    const targetTitleClean = cleanString(targetMeta.cleanTitle || target.title);
     const candidateTitleClean = cleanString(candidate.title);
 
     if (targetTitleClean && candidateTitleClean) {
         if (targetTitleClean === candidateTitleClean) {
             score += 100;
         } else if (targetTitleClean.includes(candidateTitleClean) || candidateTitleClean.includes(targetTitleClean)) {
-            score += 65;
+            score += 70;
         }
     }
 
-    const targetArtistName = cleanString(target.artist?.name || target.artists?.[0]?.name || target.artist || '');
-    const candidateArtistNames = (candidate.artistNames || [candidate.artist?.name || '']).map(cleanString);
+    const targetArtistName = cleanString(
+        (targetMeta.cleanArtist || target.artist?.name || target.artists?.[0]?.name || target.artist || '').replace(
+            /^the\s+/i,
+            ''
+        )
+    );
+    const candidateArtistNames = (candidate.artistNames || [candidate.artist?.name || '']).map((name) =>
+        cleanString(name.replace(/^the\s+/i, ''))
+    );
 
     if (targetArtistName) {
         const hasArtistMatch = candidateArtistNames.some(
@@ -894,12 +950,21 @@ export class TracksStreamerAPI {
 
         if (!title) return null;
 
-        const searchQuery = `${artist} ${title}`.trim();
+        const { cleanTitle, cleanArtist, searchQuery } = cleanTrackSearchMeta(title, artist);
         if (!searchQuery) return null;
 
         try {
-            const searchResult = await this.searchTracks(searchQuery, { limit: 6 });
-            const candidates = searchResult.items || [];
+            let searchResult = await this.searchTracks(searchQuery, { limit: 8 });
+            let candidates = searchResult?.items || [];
+
+            // If primary query yielded no candidates, try fallback query with clean title
+            if (candidates.length === 0 && cleanTitle && cleanTitle.toLowerCase() !== searchQuery.toLowerCase()) {
+                const fallbackResult = await this.searchTracks(cleanTitle, { limit: 8 }).catch(() => null);
+                if (fallbackResult?.items?.length) {
+                    candidates = fallbackResult.items;
+                }
+            }
+
             if (candidates.length === 0) {
                 this.resolutionCache.set(resKey, null);
                 return null;

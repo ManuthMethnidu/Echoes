@@ -278,6 +278,7 @@
             <div id="fullscreen-custom-wallpaper-layer" class="custom-wallpaper-layer" aria-hidden="true" style="display: none;">
                 <div class="wallpaper-img"></div>
                 <video class="wallpaper-video" loop muted playsinline autoplay></video>
+                <iframe class="wallpaper-iframe" frameborder="0" allow="autoplay; encrypted-media; picture-in-picture" tabindex="-1"></iframe>
                 <canvas class="wallpaper-canvas"></canvas>
                 <div class="wallpaper-overlay"></div>
             </div>
@@ -1588,6 +1589,7 @@
                 <div id="custom-wallpaper-layer" class="custom-wallpaper-layer" aria-hidden="true" style="display: none;">
                     <div class="wallpaper-img"></div>
                     <video class="wallpaper-video" loop muted playsinline autoplay></video>
+                    <iframe class="wallpaper-iframe" frameborder="0" allow="autoplay; encrypted-media; picture-in-picture" tabindex="-1"></iframe>
                     <canvas class="wallpaper-canvas"></canvas>
                     <div class="wallpaper-overlay"></div>
                 </div>
@@ -3122,13 +3124,24 @@
                                     </div>
 
                                     <!-- Custom URL input -->
-                                    <div style="display: flex; gap: 8px;">
+                                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                                        <select
+                                            id="wallpaper-media-type-select"
+                                            class="btn-secondary"
+                                            style="padding: 8px 10px; font-size: 0.82rem; min-width: 120px;"
+                                            title="Choose media type or leave auto-detect for YouTube, video, or image"
+                                        >
+                                            <option value="auto">Auto-Detect</option>
+                                            <option value="iframe">YouTube / Web Embed (iframe)</option>
+                                            <option value="video">Direct Video (.mp4 / .webm)</option>
+                                            <option value="image">Image (.jpg, .png, .gif)</option>
+                                        </select>
                                         <input
                                             type="url"
                                             id="custom-wallpaper-url-input"
                                             class="template-input"
-                                            placeholder="Paste image or video URL (.jpg, .png, .mp4, .webm, .gif)"
-                                            style="flex: 1; font-size: 0.85rem; padding: 8px 12px;"
+                                            placeholder="Paste image, video (.mp4), or YouTube URL"
+                                            style="flex: 1; min-width: 200px; font-size: 0.85rem; padding: 8px 12px;"
                                         />
                                         <button type="button" id="apply-wallpaper-url-btn" class="btn-primary" style="padding: 8px 16px; font-size: 0.82rem; white-space: nowrap;">
                                             Apply URL

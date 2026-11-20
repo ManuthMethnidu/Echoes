@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
     TRACKS_API_BASE_URL,
     cleanString,
+    cleanTrackSearchMeta,
     normalizeTracksTrack,
     normalizeTracksRelease,
     normalizeTracksArtist,
@@ -156,6 +157,29 @@ describe('tracks-api module', () => {
         });
     });
 
+    describe('cleanTrackSearchMeta', () => {
+        it('cleans artist prefix and video noise from YouTube titles', () => {
+            const res = cleanTrackSearchMeta('Goo Goo Dolls - Iris [Official Live Video]', 'Goo Goo Dolls');
+            expect(res.cleanTitle).toBe('Iris');
+            expect(res.cleanArtist).toBe('Goo Goo Dolls');
+            expect(res.searchQuery).toBe('Goo Goo Dolls Iris');
+        });
+
+        it('cleans YouTube Topic artist suffix and music video tags', () => {
+            const res = cleanTrackSearchMeta('The Goo Goo Dolls - "Long Way Down" [Official Video]', 'Goo Goo Dolls - Topic');
+            expect(res.cleanTitle).toBe('"Long Way Down"');
+            expect(res.cleanArtist).toBe('Goo Goo Dolls');
+            expect(res.searchQuery).toBe('Goo Goo Dolls "Long Way Down"');
+        });
+
+        it('extracts artist and title when artist was missing but embedded in title', () => {
+            const res = cleanTrackSearchMeta('Coldplay - Yellow (Official Video)', '');
+            expect(res.cleanArtist).toBe('Coldplay');
+            expect(res.cleanTitle).toBe('Yellow');
+            expect(res.searchQuery).toBe('Coldplay Yellow');
+        });
+    });
+
     describe('scoreTrackCandidate', () => {
         it('gives highest score for exact ISRC match', () => {
             const target = { isrc: 'USQX91300108', title: 'Song X', artist: { name: 'Artist Y' } };
@@ -169,6 +193,21 @@ describe('tracks-api module', () => {
                 title: 'Get Lucky (feat. Pharrell Williams)',
                 artistNames: ['Daft Punk'],
                 duration: 248000,
+            };
+            const score = scoreTrackCandidate(candidate, target);
+            expect(score).toBeGreaterThanOrEqual(150);
+        });
+
+        it('correctly matches YouTube video title to Monochrome catalog release', () => {
+            const target = {
+                title: 'Goo Goo Dolls - Iris [Official Live Video]',
+                artist: { name: 'Goo Goo Dolls' },
+                duration: 289,
+            };
+            const candidate = {
+                title: 'Iris',
+                artistNames: ['The Goo Goo Dolls'],
+                duration: 290000,
             };
             const score = scoreTrackCandidate(candidate, target);
             expect(score).toBeGreaterThanOrEqual(150);

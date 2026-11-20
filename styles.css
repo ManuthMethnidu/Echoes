@@ -6808,6 +6808,21 @@ input.skeleton {
     display: none;
 }
 
+.custom-wallpaper-layer .wallpaper-iframe {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 100vw;
+    height: 100vh;
+    min-width: 177.78vh;
+    min-height: 56.25vw;
+    transform: translate(-50%, -50%) scale(1.15);
+    transform-origin: center center;
+    pointer-events: none;
+    border: none;
+    display: none;
+}
+
 .custom-wallpaper-layer .wallpaper-canvas {
     position: absolute;
     inset: 0;

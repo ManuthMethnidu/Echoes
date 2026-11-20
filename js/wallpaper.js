@@ -12,7 +12,7 @@ const CONFIG_KEY = 'echoes_wallpaper_config';
 
 const DEFAULT_CONFIG = {
     type: 'none', // 'none' | 'preset' | 'url' | 'local'
-    mediaType: 'image', // 'image' | 'video'
+    mediaType: 'image', // 'image' | 'video' | 'iframe'
     url: '',
     preset: 'none', // 'aurora' | 'starfield' | 'rain' | 'neon-waves'
     opacity: 0.5,
@@ -23,6 +23,44 @@ const DEFAULT_CONFIG = {
 let activeBlobUrl = null;
 let animationFrameId = null;
 let currentPresetRenderer = null;
+
+/**
+ * Extracts a YouTube Video ID from any standard YouTube URL (watch, embed, youtu.be, shorts, live).
+ * @param {string} url
+ * @returns {string|null}
+ */
+export function parseYouTubeVideoId(url) {
+    if (!url || typeof url !== 'string') return null;
+    const trimmed = url.trim();
+    const match = trimmed.match(
+        /(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|shorts\/|live\/|watch\?.+&v=))([\w-]{11})/i
+    );
+    return match ? match[1] : null;
+}
+
+/**
+ * Builds a clean, muted, looping, ad/control-free YouTube embed URL for live wallpaper backgrounds.
+ * @param {string} videoId
+ * @returns {string}
+ */
+export function getYouTubeEmbedUrl(videoId) {
+    return `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&mute=1&controls=0&loop=1&playlist=${videoId}&playsinline=1&iv_load_policy=3&disablekb=1&fs=0&modestbranding=1&rel=0&enablejsapi=1`;
+}
+
+/**
+ * Detects whether a URL is an image, direct video, or embeddable iframe / YouTube URL.
+ * @param {string} url
+ * @returns {'iframe'|'video'|'image'}
+ */
+export function detectMediaType(url) {
+    if (!url || typeof url !== 'string') return 'image';
+    const trimmed = url.trim();
+    if (parseYouTubeVideoId(trimmed)) return 'iframe';
+    if (/\.(mp4|webm|ogv|mov)(\?.*)?$/i.test(trimmed)) return 'video';
+    if (/\.(jpg|jpeg|png|webp|gif|svg|avif)(\?.*)?$/i.test(trimmed)) return 'image';
+    if (trimmed.includes('/embed/') || trimmed.includes('/embed') || trimmed.includes('player.')) return 'iframe';
+    return 'image';
+}
 
 // IndexedDB Helper for zero-resource local file persistence
 function openWallpaperDB() {
@@ -287,10 +325,12 @@ export async function applyCustomWallpaper() {
 
     const imgEl = layer.querySelector('.wallpaper-img');
     const vidEl = layer.querySelector('.wallpaper-video');
+    const iframeEl = layer.querySelector('.wallpaper-iframe');
     const canvasEl = layer.querySelector('.wallpaper-canvas');
 
     const fsImgEl = fsLayer?.querySelector('.wallpaper-img');
     const fsVidEl = fsLayer?.querySelector('.wallpaper-video');
+    const fsIframeEl = fsLayer?.querySelector('.wallpaper-iframe');
     const fsCanvasEl = fsLayer?.querySelector('.wallpaper-canvas');
 
     // Clean up previous animation / video
@@ -317,10 +357,14 @@ export async function applyCustomWallpaper() {
     if (fsLayer) fsLayer.style.display = showInFs ? 'block' : 'none';
 
     if (config.type === 'none') {
-        if (vidEl) vidEl.src = '';
-        if (fsVidEl) fsVidEl.src = '';
-        if (imgEl) imgEl.style.backgroundImage = 'none';
-        if (fsImgEl) fsImgEl.style.backgroundImage = 'none';
+        if (vidEl) { vidEl.src = ''; vidEl.style.display = 'none'; }
+        if (fsVidEl) { fsVidEl.src = ''; fsVidEl.style.display = 'none'; }
+        if (imgEl) { imgEl.style.backgroundImage = 'none'; imgEl.style.display = 'none'; }
+        if (fsImgEl) { fsImgEl.style.backgroundImage = 'none'; fsImgEl.style.display = 'none'; }
+        if (iframeEl) { iframeEl.src = ''; iframeEl.style.display = 'none'; }
+        if (fsIframeEl) { fsIframeEl.src = ''; fsIframeEl.style.display = 'none'; }
+        if (canvasEl) canvasEl.style.display = 'none';
+        if (fsCanvasEl) fsCanvasEl.style.display = 'none';
         return;
     }
 
@@ -340,12 +384,14 @@ export async function applyCustomWallpaper() {
 
     // Preset Live Canvas
     if (config.type === 'preset' && config.preset !== 'none') {
-        if (vidEl) vidEl.style.display = 'none';
-        if (imgEl) imgEl.style.display = 'none';
+        if (vidEl) { vidEl.style.display = 'none'; vidEl.src = ''; }
+        if (imgEl) { imgEl.style.display = 'none'; imgEl.style.backgroundImage = 'none'; }
+        if (iframeEl) { iframeEl.style.display = 'none'; iframeEl.src = ''; }
         if (canvasEl) canvasEl.style.display = 'block';
 
-        if (fsVidEl) fsVidEl.style.display = 'none';
-        if (fsImgEl) fsImgEl.style.display = 'none';
+        if (fsVidEl) { fsVidEl.style.display = 'none'; fsVidEl.src = ''; }
+        if (fsImgEl) { fsImgEl.style.display = 'none'; fsImgEl.style.backgroundImage = 'none'; }
+        if (fsIframeEl) { fsIframeEl.style.display = 'none'; fsIframeEl.src = ''; }
         if (fsCanvasEl) fsCanvasEl.style.display = 'block';
 
         currentPresetRenderer = createPresetRenderer(config.preset, canvasEl);
@@ -361,10 +407,44 @@ export async function applyCustomWallpaper() {
         return;
     }
 
+    // Live Web / YouTube Embed Iframe Wallpaper
+    if (config.mediaType === 'iframe' && mediaUrl) {
+        if (canvasEl) canvasEl.style.display = 'none';
+        if (imgEl) { imgEl.style.display = 'none'; imgEl.style.backgroundImage = 'none'; }
+        if (vidEl) { vidEl.style.display = 'none'; vidEl.src = ''; }
+
+        if (fsCanvasEl) fsCanvasEl.style.display = 'none';
+        if (fsImgEl) { fsImgEl.style.display = 'none'; fsImgEl.style.backgroundImage = 'none'; }
+        if (fsVidEl) { fsVidEl.style.display = 'none'; fsVidEl.src = ''; }
+
+        const ytId = parseYouTubeVideoId(mediaUrl);
+        const embedUrl = ytId ? getYouTubeEmbedUrl(ytId) : mediaUrl;
+
+        if (iframeEl) {
+            iframeEl.style.display = 'block';
+            if (iframeEl.src !== embedUrl) {
+                iframeEl.src = embedUrl;
+            }
+        }
+        if (fsIframeEl && fsLayer) {
+            fsIframeEl.style.display = 'block';
+            if (fsIframeEl.src !== embedUrl) {
+                fsIframeEl.src = embedUrl;
+            }
+        }
+        return;
+    }
+
     // Video Live Wallpaper
     if (config.mediaType === 'video' && mediaUrl) {
         if (canvasEl) canvasEl.style.display = 'none';
-        if (imgEl) imgEl.style.display = 'none';
+        if (imgEl) { imgEl.style.display = 'none'; imgEl.style.backgroundImage = 'none'; }
+        if (iframeEl) { iframeEl.style.display = 'none'; iframeEl.src = ''; }
+
+        if (fsCanvasEl) fsCanvasEl.style.display = 'none';
+        if (fsImgEl) { fsImgEl.style.display = 'none'; fsImgEl.style.backgroundImage = 'none'; }
+        if (fsIframeEl) { fsIframeEl.style.display = 'none'; fsIframeEl.src = ''; }
+
         if (vidEl) {
             vidEl.style.display = 'block';
             if (vidEl.src !== mediaUrl) {
@@ -387,10 +467,13 @@ export async function applyCustomWallpaper() {
     // Image Background Wallpaper
     if (mediaUrl) {
         if (canvasEl) canvasEl.style.display = 'none';
-        if (vidEl) {
-            vidEl.style.display = 'none';
-            vidEl.src = '';
-        }
+        if (vidEl) { vidEl.style.display = 'none'; vidEl.src = ''; }
+        if (iframeEl) { iframeEl.style.display = 'none'; iframeEl.src = ''; }
+
+        if (fsCanvasEl) fsCanvasEl.style.display = 'none';
+        if (fsVidEl) { fsVidEl.style.display = 'none'; fsVidEl.src = ''; }
+        if (fsIframeEl) { fsIframeEl.style.display = 'none'; fsIframeEl.src = ''; }
+
         if (imgEl) {
             imgEl.style.display = 'block';
             imgEl.style.backgroundImage = `url('${mediaUrl}')`;
@@ -402,11 +485,14 @@ export async function applyCustomWallpaper() {
     }
 }
 
-export async function setWallpaperFromUrl(url, mediaType = 'image') {
-    const isVideo = mediaType === 'video' || /\.(mp4|webm|ogv|mov)(\?.*)?$/i.test(url);
+export async function setWallpaperFromUrl(url, mediaType = 'auto') {
+    let resolvedMediaType = mediaType;
+    if (mediaType === 'auto') {
+        resolvedMediaType = detectMediaType(url);
+    }
     setWallpaperConfig({
         type: 'url',
-        mediaType: isVideo ? 'video' : 'image',
+        mediaType: resolvedMediaType,
         url,
         preset: 'none',
     });

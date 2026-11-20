@@ -6048,6 +6048,7 @@ export async function initializeSettings(scrobbler, player, api, ui) {
 
     // Custom Background & Live Wallpaper Controls
     const wallpaperUrlInput = document.getElementById('custom-wallpaper-url-input');
+    const wallpaperMediaTypeSelect = document.getElementById('wallpaper-media-type-select');
     const applyWallpaperUrlBtn = document.getElementById('apply-wallpaper-url-btn');
     const wallpaperFileInput = document.getElementById('custom-wallpaper-file-input');
     const wallpaperOpacitySlider = document.getElementById('wallpaper-opacity-slider');
@@ -6067,6 +6068,9 @@ export async function initializeSettings(scrobbler, player, api, ui) {
         }
         if (wallpaperScopeSelect) wallpaperScopeSelect.value = cur.scope || 'both';
         if (wallpaperUrlInput && cur.type === 'url') wallpaperUrlInput.value = cur.url || '';
+        if (wallpaperMediaTypeSelect && cur.type === 'url' && cur.mediaType) {
+            wallpaperMediaTypeSelect.value = cur.mediaType;
+        }
 
         wallpaperOpacitySlider.addEventListener('input', (e) => {
             const val = parseInt(e.target.value) / 100;
@@ -6089,8 +6093,9 @@ export async function initializeSettings(scrobbler, player, api, ui) {
 
         applyWallpaperUrlBtn?.addEventListener('click', async () => {
             const url = wallpaperUrlInput?.value?.trim();
+            const mediaType = wallpaperMediaTypeSelect?.value || 'auto';
             if (url) {
-                await setWallpaperFromUrl(url);
+                await setWallpaperFromUrl(url, mediaType);
                 import('./downloads.js').then(({ showNotification }) => {
                     showNotification('Custom wallpaper applied!');
                 }).catch(() => {});

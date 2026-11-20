@@ -52,6 +52,15 @@ import {
     tvModeSettings,
     customCssSettings,
 } from './storage.js';
+import {
+    getWallpaperConfig,
+    setWallpaperConfig,
+    setWallpaperFromUrl,
+    setWallpaperFromFile,
+    setWallpaperPreset,
+    clearCustomWallpaper,
+    applyCustomWallpaper,
+} from './wallpaper.js';
 import { audioContextManager, getPresetsForBandCount } from './audio-context.js';
 import { calculateBiquadResponse, interpolate, getNormalizationOffset, runAutoEqAlgorithm } from './autoeq-engine.js';
 import { parseRawData, TARGETS, SPEAKER_TARGETS } from './autoeq-data.js';
@@ -6035,6 +6044,82 @@ export async function initializeSettings(scrobbler, player, api, ui) {
                 window.dispatchEvent(new CustomEvent('reset-dynamic-color'));
             }
         });
+    }
+
+    // Custom Background & Live Wallpaper Controls
+    const wallpaperUrlInput = document.getElementById('custom-wallpaper-url-input');
+    const applyWallpaperUrlBtn = document.getElementById('apply-wallpaper-url-btn');
+    const wallpaperFileInput = document.getElementById('custom-wallpaper-file-input');
+    const wallpaperOpacitySlider = document.getElementById('wallpaper-opacity-slider');
+    const wallpaperOpacityVal = document.getElementById('wallpaper-opacity-val');
+    const wallpaperBlurSlider = document.getElementById('wallpaper-blur-slider');
+    const wallpaperBlurVal = document.getElementById('wallpaper-blur-val');
+    const wallpaperScopeSelect = document.getElementById('wallpaper-scope-select');
+    const clearWallpaperBtn = document.getElementById('clear-custom-wallpaper-btn');
+
+    if (wallpaperOpacitySlider) {
+        const cur = getWallpaperConfig();
+        wallpaperOpacitySlider.value = Math.round(cur.opacity * 100);
+        if (wallpaperOpacityVal) wallpaperOpacityVal.textContent = `${wallpaperOpacitySlider.value}%`;
+        if (wallpaperBlurSlider) {
+            wallpaperBlurSlider.value = cur.blur;
+            if (wallpaperBlurVal) wallpaperBlurVal.textContent = `${cur.blur}px`;
+        }
+        if (wallpaperScopeSelect) wallpaperScopeSelect.value = cur.scope || 'both';
+        if (wallpaperUrlInput && cur.type === 'url') wallpaperUrlInput.value = cur.url || '';
+
+        wallpaperOpacitySlider.addEventListener('input', (e) => {
+            const val = parseInt(e.target.value) / 100;
+            if (wallpaperOpacityVal) wallpaperOpacityVal.textContent = `${e.target.value}%`;
+            setWallpaperConfig({ opacity: val });
+            applyCustomWallpaper();
+        });
+
+        wallpaperBlurSlider?.addEventListener('input', (e) => {
+            const val = parseInt(e.target.value);
+            if (wallpaperBlurVal) wallpaperBlurVal.textContent = `${val}px`;
+            setWallpaperConfig({ blur: val });
+            applyCustomWallpaper();
+        });
+
+        wallpaperScopeSelect?.addEventListener('change', (e) => {
+            setWallpaperConfig({ scope: e.target.value });
+            applyCustomWallpaper();
+        });
+
+        applyWallpaperUrlBtn?.addEventListener('click', async () => {
+            const url = wallpaperUrlInput?.value?.trim();
+            if (url) {
+                await setWallpaperFromUrl(url);
+                import('./downloads.js').then(({ showNotification }) => {
+                    showNotification('Custom wallpaper applied!');
+                }).catch(() => {});
+            }
+        });
+
+        wallpaperFileInput?.addEventListener('change', async (e) => {
+            const file = e.target.files?.[0];
+            if (file) {
+                await setWallpaperFromFile(file);
+                import('./downloads.js').then(({ showNotification }) => {
+                    showNotification(`Local wallpaper "${file.name}" saved!`);
+                }).catch(() => {});
+            }
+        });
+
+        clearWallpaperBtn?.addEventListener('click', async () => {
+            await clearCustomWallpaper();
+            if (wallpaperUrlInput) wallpaperUrlInput.value = '';
+            import('./downloads.js').then(({ showNotification }) => {
+                showNotification('Wallpaper cleared.');
+            }).catch(() => {});
+        });
+
+        document.getElementById('wallpaper-preset-none')?.addEventListener('click', () => clearCustomWallpaper());
+        document.getElementById('wallpaper-preset-aurora')?.addEventListener('click', () => setWallpaperPreset('aurora'));
+        document.getElementById('wallpaper-preset-starfield')?.addEventListener('click', () => setWallpaperPreset('starfield'));
+        document.getElementById('wallpaper-preset-rain')?.addEventListener('click', () => setWallpaperPreset('rain'));
+        document.getElementById('wallpaper-preset-neon')?.addEventListener('click', () => setWallpaperPreset('neon-waves'));
     }
 
     // Fullscreen Cover No Round Toggle

@@ -1700,7 +1700,7 @@ function initializeSmoothSliders(player) {
     // Stream Diagnostics & Audio Sources Modal
     document.addEventListener('click', (e) => {
         const qualityTarget = e.target.closest(
-            '.quality-badge, .shaka-quality-badge, .stream-fallback-indicator, [data-action="open-stream-diagnostics"], .stream-info-btn, #stream-info-btn-desktop, #stream-info-btn-mobile'
+            '.quality-badge, .shaka-quality-badge, .stream-fallback-indicator, [data-action="open-stream-diagnostics"], .stream-info-btn, #stream-info-btn-desktop, #stream-info-btn-mobile, #fs-stream-info-btn'
         );
         if (qualityTarget) {
             e.stopPropagation();

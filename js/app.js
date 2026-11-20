@@ -36,6 +36,7 @@ import './commandPalette.js';
 import { initSmoothScroll, resizeScroll } from './smooth-scroll.js';
 import { initTracker } from './tracker.js';
 import { initAnalytics } from './analytics.js';
+import { initWallpaper } from './wallpaper.js';
 import {
     parseCSV,
     parseJSPF,
@@ -344,6 +345,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Initialize analytics
     initAnalytics();
+
+    // Initialize custom wallpaper & live backgrounds
+    initWallpaper();
 
     // Populate commit info
     {

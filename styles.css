@@ -6736,6 +6736,107 @@ input.skeleton {
     transform: scale(1.08);
 }
 
+.fs-stream-info-btn {
+    color: var(--muted-foreground);
+    cursor: pointer;
+    padding: 6px;
+    border-radius: var(--radius);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: color var(--transition), transform var(--transition);
+}
+
+.fs-stream-info-btn:hover {
+    color: var(--foreground);
+    transform: scale(1.08);
+}
+
+.player-action-sleep-timer,
+.player-action-stream-info {
+    display: none;
+}
+
+@media (max-width: 1024px) {
+    .player-action-sleep-timer,
+    .player-action-stream-info {
+        display: flex !important;
+    }
+}
+
+/* Custom Background & Live Wallpaper Layers */
+.custom-wallpaper-layer {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 0;
+    pointer-events: none;
+    overflow: hidden;
+    opacity: var(--wallpaper-opacity, 0.5);
+    filter: blur(var(--wallpaper-blur, 0px));
+    transition: opacity 0.4s ease, filter 0.4s ease;
+}
+
+#custom-wallpaper-layer {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+}
+
+#fullscreen-custom-wallpaper-layer {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+}
+
+.custom-wallpaper-layer .wallpaper-img {
+    position: absolute;
+    inset: 0;
+    background-size: cover;
+    background-position: center center;
+    background-repeat: no-repeat;
+    display: none;
+}
+
+.custom-wallpaper-layer .wallpaper-video {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: none;
+}
+
+.custom-wallpaper-layer .wallpaper-canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: none;
+}
+
+.custom-wallpaper-layer .wallpaper-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.25);
+    pointer-events: none;
+}
+
+body.has-custom-wallpaper .main-content {
+    position: relative;
+    z-index: 1;
+}
+
+body.has-custom-wallpaper-fullscreen #fullscreen-cover-overlay {
+    background-color: rgba(11, 13, 17, 0.4) !important;
+}
+
+body.has-custom-wallpaper-fullscreen #fullscreen-cover-overlay::before,
+body.has-custom-wallpaper-fullscreen #fullscreen-cover-overlay::after {
+    opacity: 0.2 !important;
+}
+
 /* Show a grey box for images with no source, hiding the broken icon */
 img:not([src]),
 img[src=''] {
@@ -8414,7 +8515,6 @@ img[src=''] {
         margin: 0 auto;
     }
 
-    #now-playing-bar #sleep-timer-btn:not(.active),
     #now-playing-bar #connected-devices-btn:not(.has-remote-active) {
         display: none !important;
     }
@@ -11692,6 +11792,8 @@ body:has(#side-panel.active) #close-fullscreen-cover-btn {
     flex-direction: column;
     gap: 0.95rem;
     justify-self: center;
+    align-self: center;
+    justify-content: center;
     transform: none;
     transition:
         width 0.34s cubic-bezier(0.22, 1, 0.36, 1),
@@ -11705,6 +11807,8 @@ body:has(#side-panel.active) #close-fullscreen-cover-btn {
     aspect-ratio: 1 / 1;
     border-radius: 20px;
     overflow: hidden;
+    margin: 0 auto;
+    align-self: center;
     box-shadow: 0 24px 70px rgba(0, 0, 0, 0.45);
     transition: transform 0.08s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.08s ease;
     will-change: transform, box-shadow;

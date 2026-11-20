@@ -275,6 +275,12 @@
         </div>
 
         <div id="fullscreen-cover-overlay" style="display: none">
+            <div id="fullscreen-custom-wallpaper-layer" class="custom-wallpaper-layer" aria-hidden="true" style="display: none;">
+                <div class="wallpaper-img"></div>
+                <video class="wallpaper-video" loop muted playsinline autoplay></video>
+                <canvas class="wallpaper-canvas"></canvas>
+                <div class="wallpaper-overlay"></div>
+            </div>
             <div id="visualizer-container">
                 <canvas id="visualizer-canvas"></canvas>
             </div>
@@ -305,6 +311,14 @@
                     <use svg="!lucide/eye-off.svg" size="24" />
                 </button>
                 <div class="fullscreen-top-actions">
+                    <button
+                        id="fs-stream-info-btn"
+                        class="stream-info-btn fs-stream-info-btn"
+                        title="Stream Sources & Diagnostics"
+                        aria-label="Stream Sources & Diagnostics"
+                    >
+                        <use svg="!lucide/activity.svg" size="20" />
+                    </button>
                     <button id="toggle-fullscreen-lyrics-btn" class="fullscreen-lyrics-toggle" title="Hide Lyrics">
                         <use svg="!lucide/mic-vocal.svg" size="20" />
                     </button>
@@ -1571,6 +1585,12 @@
             <main class="main-content">
                 <h1 class="sr-only">Echoes — Clean, Ad-Free Music Player &amp; Hi-Fi Streamer</h1>
                 <div id="page-background"></div>
+                <div id="custom-wallpaper-layer" class="custom-wallpaper-layer" aria-hidden="true" style="display: none;">
+                    <div class="wallpaper-img"></div>
+                    <video class="wallpaper-video" loop muted playsinline autoplay></video>
+                    <canvas class="wallpaper-canvas"></canvas>
+                    <div class="wallpaper-overlay"></div>
+                </div>
                 <header class="main-header">
                     <div class="navigation-controls desktop-only">
                         <button id="nav-back" class="nav-btn" title="Go Back">
@@ -3064,6 +3084,111 @@
                                     </div>
                                     <label class="toggle-switch">
                                         <input type="checkbox" id="dynamic-color-toggle" checked />
+                                        <span class="slider"></span>
+                                    </label>
+                                </div>
+
+                                <!-- Custom Background & Live Wallpaper -->
+                                <div class="setting-item" style="flex-direction: column; align-items: stretch; gap: 12px; padding: 1.25rem; background: var(--secondary); border: 1px solid var(--border); border-radius: var(--radius-md, 12px); margin: 0.5rem 0;">
+                                    <div class="info" style="margin-bottom: 2px;">
+                                        <span class="label" style="font-size: 1rem; font-weight: 700; display: flex; align-items: center; gap: 8px;">
+                                            <use svg="!lucide/image.svg" size="18" />
+                                            Custom Wallpaper &amp; Live Background
+                                        </span>
+                                        <span class="description" style="color: var(--muted-foreground); font-size: 0.82rem;">
+                                            Set any image or live video wallpaper via direct URL, zero-hosting local device upload, or animated ambient presets.
+                                        </span>
+                                    </div>
+
+                                    <!-- Presets Row -->
+                                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                                        <button type="button" id="wallpaper-preset-none" class="btn-secondary wallpaper-preset-btn" style="padding: 6px 12px; font-size: 0.8rem;">None</button>
+                                        <button type="button" id="wallpaper-preset-aurora" class="btn-secondary wallpaper-preset-btn" style="padding: 6px 12px; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 6px;">
+                                            <use svg="!lucide/sparkles.svg" size="14" />
+                                            <span>Aurora Flow</span>
+                                        </button>
+                                        <button type="button" id="wallpaper-preset-starfield" class="btn-secondary wallpaper-preset-btn" style="padding: 6px 12px; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 6px;">
+                                            <use svg="!lucide/star.svg" size="14" />
+                                            <span>Starfield</span>
+                                        </button>
+                                        <button type="button" id="wallpaper-preset-rain" class="btn-secondary wallpaper-preset-btn" style="padding: 6px 12px; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 6px;">
+                                            <use svg="!lucide/cloud-rain.svg" size="14" />
+                                            <span>Lofi Rain</span>
+                                        </button>
+                                        <button type="button" id="wallpaper-preset-neon" class="btn-secondary wallpaper-preset-btn" style="padding: 6px 12px; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 6px;">
+                                            <use svg="!lucide/zap.svg" size="14" />
+                                            <span>Neon Waves</span>
+                                        </button>
+                                    </div>
+
+                                    <!-- Custom URL input -->
+                                    <div style="display: flex; gap: 8px;">
+                                        <input
+                                            type="url"
+                                            id="custom-wallpaper-url-input"
+                                            class="template-input"
+                                            placeholder="Paste image or video URL (.jpg, .png, .mp4, .webm, .gif)"
+                                            style="flex: 1; font-size: 0.85rem; padding: 8px 12px;"
+                                        />
+                                        <button type="button" id="apply-wallpaper-url-btn" class="btn-primary" style="padding: 8px 16px; font-size: 0.82rem; white-space: nowrap;">
+                                            Apply URL
+                                        </button>
+                                    </div>
+
+                                    <!-- File Upload (Zero-Hosting Local IndexedDB) -->
+                                    <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; background: rgba(0, 0, 0, 0.2); border: 1px dashed var(--border); border-radius: 8px;">
+                                        <div style="font-size: 0.82rem; color: var(--muted-foreground);">
+                                            <strong style="color: var(--foreground); display: block;">Local File (Zero Hosting Cost)</strong>
+                                            Pick an image or video from your device (saved locally on your browser).
+                                        </div>
+                                        <label class="btn-secondary" style="cursor: pointer; padding: 6px 14px; font-size: 0.82rem; white-space: nowrap; margin: 0; display: inline-flex; align-items: center; gap: 6px;">
+                                            <use svg="!lucide/upload.svg" size="14" />
+                                            <span>Choose File</span>
+                                            <input type="file" id="custom-wallpaper-file-input" accept="image/*,video/mp4,video/webm" style="display: none;" />
+                                        </label>
+                                    </div>
+
+                                    <!-- Sliders: Opacity, Blur -->
+                                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-top: 4px;">
+                                        <div>
+                                            <div style="display: flex; justify-content: space-between; font-size: 0.78rem; color: var(--muted-foreground); margin-bottom: 4px;">
+                                                <span>Dim / Opacity</span>
+                                                <span id="wallpaper-opacity-val">50%</span>
+                                            </div>
+                                            <input type="range" id="wallpaper-opacity-slider" min="10" max="100" value="50" style="width: 100%;" />
+                                        </div>
+                                        <div>
+                                            <div style="display: flex; justify-content: space-between; font-size: 0.78rem; color: var(--muted-foreground); margin-bottom: 4px;">
+                                                <span>Blur</span>
+                                                <span id="wallpaper-blur-val">0px</span>
+                                            </div>
+                                            <input type="range" id="wallpaper-blur-slider" min="0" max="30" value="0" style="width: 100%;" />
+                                        </div>
+                                    </div>
+
+                                    <!-- Scope & Clear -->
+                                    <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 4px; flex-wrap: wrap;">
+                                        <div style="display: flex; align-items: center; gap: 8px; font-size: 0.82rem;">
+                                            <span style="color: var(--muted-foreground);">Display in:</span>
+                                            <select id="wallpaper-scope-select" class="btn-secondary" style="padding: 4px 8px; font-size: 0.82rem;">
+                                                <option value="both">Main App &amp; Fullscreen</option>
+                                                <option value="app">Main App Only</option>
+                                                <option value="fullscreen">Fullscreen Player Only</option>
+                                            </select>
+                                        </div>
+                                        <button type="button" id="clear-custom-wallpaper-btn" class="btn-secondary danger" style="padding: 4px 12px; font-size: 0.8rem;">
+                                            Clear Wallpaper
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div class="setting-item">
+                                    <div class="info">
+                                        <span class="label">Center Artwork with Lyrics</span>
+                                        <span class="description">Center the album artwork horizontally and vertically in its half of the screen when lyrics are active</span>
+                                    </div>
+                                    <label class="toggle-switch">
+                                        <input type="checkbox" id="fullscreen-center-artwork-toggle" checked />
                                         <span class="slider"></span>
                                     </label>
                                 </div>
@@ -6840,12 +6965,12 @@
                         >
                             <use svg="!lucide/list-plus.svg" size="20" />
                         </button>
-                        <button id="sleep-timer-btn" title="Sleep Timer" class="mobile-only">
+                        <button id="sleep-timer-btn" title="Sleep Timer" class="player-action-sleep-timer">
                             <use svg="!lucide/clock.svg" size="20" />
                         </button>
                         <button
                             id="stream-info-btn-mobile"
-                            class="stream-info-btn mobile-only"
+                            class="stream-info-btn player-action-stream-info"
                             title="Stream Sources & Diagnostics"
                             aria-label="Stream Sources & Diagnostics"
                         >

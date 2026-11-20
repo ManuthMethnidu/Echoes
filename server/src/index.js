@@ -473,12 +473,22 @@ async function handleProxyMetaRequest(req, res) {
 
   try {
     const upstreamUrl = `${UPSTREAM_MONOCHROME_URL}${req.originalUrl}`;
-    const upstreamRes = await fetch(upstreamUrl, {
+    let upstreamRes = await fetch(upstreamUrl, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (compatible; EchoesHiFiProxy/1.0)',
         'Accept': 'application/json',
       },
     });
+
+    if (upstreamRes.status === 429) {
+      await new Promise((r) => setTimeout(r, 1000));
+      upstreamRes = await fetch(upstreamUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (compatible; EchoesHiFiProxy/1.0)',
+          'Accept': 'application/json',
+        },
+      });
+    }
 
     if (!upstreamRes.ok) {
       return res.status(upstreamRes.status).json({
@@ -604,10 +614,21 @@ app.all(['/track/:id', '/stream/track/:id', '/tracks/:id'], async (req, res) => 
       upstreamHeaders['Range'] = clientRange;
     }
 
-    const upstream = await fetch(upstreamUrl, {
+    let upstream = await fetch(upstreamUrl, {
       headers: upstreamHeaders,
       signal: controller.signal,
     });
+
+    if ((upstream.status === 429 || upstream.status === 503) && !controller.signal.aborted) {
+      console.warn(`[FLAC Stream 429] Upstream rate limit on ${trackId}. Waiting 1.5s before retry...`);
+      await new Promise((r) => setTimeout(r, 1500));
+      if (!controller.signal.aborted) {
+        upstream = await fetch(upstreamUrl, {
+          headers: upstreamHeaders,
+          signal: controller.signal,
+        });
+      }
+    }
 
     if (!upstream.ok && upstream.status !== 206) {
       return res.status(upstream.status).json({
@@ -650,9 +671,9 @@ app.all(['/track/:id', '/stream/track/:id', '/tracks/:id'], async (req, res) => 
 
     const nodeStream = Readable.fromWeb(upstream.body);
 
-    // Cache to disk if the stream is starting from the beginning
+    // Cache to disk if the stream is requesting the complete file from the beginning
     const isFullBeginningStream =
-      (!clientRange || clientRange.startsWith('bytes=0-')) &&
+      (!clientRange || clientRange === 'bytes=0-') &&
       (upstream.status === 200 || upstream.status === 206);
 
     if (isFullBeginningStream) {
@@ -676,7 +697,18 @@ app.all(['/track/:id', '/stream/track/:id', '/tracks/:id'], async (req, res) => 
         cacheCommitted = true;
         writeStream.end(() => {
           try {
-            if (fs.existsSync(tempPath) && fs.statSync(tempPath).size > 1000) {
+            const cr = upstream.headers.get('content-range');
+            let expectedTotal = 0;
+            if (cr) {
+              const m = cr.match(/\/(\d+)$/);
+              if (m) expectedTotal = parseInt(m[1], 10);
+            } else {
+              const cl = upstream.headers.get('content-length');
+              if (cl) expectedTotal = parseInt(cl, 10);
+            }
+
+            const currentSize = fs.existsSync(tempPath) ? fs.statSync(tempPath).size : 0;
+            if (expectedTotal > 0 && currentSize >= expectedTotal) {
               fs.renameSync(tempPath, localFile);
               const mb = (fs.statSync(localFile).size / (1024 * 1024)).toFixed(2);
               console.log(`[FLAC Cache Saved] ${trackId} (${mb} MB)`);

@@ -414,6 +414,34 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         });
     }
 
+    // 2. VPS Direct Stream Fast-Path: Query VPS yt-dlp endpoint (clean VisionOS extraction, no bot checks)
+    if (VPS_STREAM_PROXY) {
+        let vpsBase = 'https://stream.mteck.tech';
+        try {
+            const u = new URL(VPS_STREAM_PROXY);
+            vpsBase = `${u.protocol}//${u.host}`;
+        } catch {}
+        const vpsDirectUrl = `${vpsBase}/yt/${videoId}?format=${preferM4a ? 'm4a' : 'webm'}`;
+        const vpsProbe = await probeStreamStatus(vpsDirectUrl, 4000);
+        if (vpsProbe.playable) {
+            const rawDuration = data?.lengthSeconds || 0;
+            const duration = typeof rawDuration === 'number' ? rawDuration : parseInt(rawDuration) || 0;
+            return res.status(200).json({
+                id: videoId,
+                streamUrl: vpsDirectUrl,
+                url: vpsDirectUrl,
+                directUrl: vpsDirectUrl,
+                mimeType: preferM4a ? 'audio/mp4; codecs="mp4a.40.2"' : 'audio/webm; codecs="opus"',
+                codec: preferM4a ? 'AAC' : 'OPUS',
+                bitrate: preferM4a ? 130000 : 160000,
+                duration,
+                title: titleParam || data?.title || 'Unknown Title',
+                author: artistParam || data?.author || 'Unknown Artist',
+                instance: 'vps-streamer',
+            });
+        }
+    }
+
     // 2. Direct Invidious Format Check: If direct companion lookup failed, check unexpired formats
     if (data) {
         const playable = await findPlayableAudio(data, preferM4a, videoId);

@@ -188,4 +188,23 @@ describe('api/_handlers/yt/stream.ts', () => {
 
         expect(res.statusCode).toBe(404);
     });
+
+    test('routes to VPS direct stream endpoint when VPS /yt/:id probe is playable', async () => {
+        globalThis.fetch = vi.fn(async (url) => {
+            if (String(url).startsWith('https://stream.mteck.tech/yt/yvMkIxgeCpA')) {
+                return new Response(new Uint8Array([1, 2, 3]), { status: 206 });
+            }
+            return new Response('Forbidden', { status: 403 });
+        });
+
+        const res = createMockResponse();
+        await streamHandler(
+            { query: { id: 'yt:yvMkIxgeCpA' }, headers: { 'user-agent': 'Mozilla/5.0 Chrome/131.0.0.0' } },
+            res
+        );
+
+        expect(res.statusCode).toBe(200);
+        expect(res.body.streamUrl).toBe('https://stream.mteck.tech/yt/yvMkIxgeCpA?format=webm');
+        expect(res.body.instance).toBe('vps-streamer');
+    });
 });

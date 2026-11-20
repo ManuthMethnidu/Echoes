@@ -5,6 +5,10 @@ import { WebSocketServer, WebSocket } from 'ws';
 import { URL } from 'url';
 import { Readable } from 'stream';
 import dns from 'dns';
+import { execFile } from 'child_process';
+import { promisify } from 'util';
+
+const execFileAsync = promisify(execFile);
 
 try {
   dns.setDefaultResultOrder('ipv4first');
@@ -69,6 +73,227 @@ app.get('/health', (req, res) => {
     uptime: process.uptime(),
     timestamp: Date.now(),
   });
+});
+
+// Cache for YouTube stream URLs: videoId_format -> { url, mimeType, codec, expiresAt }
+const ytStreamCache = new Map();
+const YT_CACHE_TTL_MS = 5 * 60 * 60 * 1000; // 5 hours
+
+async function resolveYtAudioUrl(videoId, preferFormat = '140') {
+  const cleanId = String(videoId || '').replace(/^yt:/, '').trim();
+  if (!/^[a-zA-Z0-9_-]{5,30}$/.test(cleanId)) {
+    throw new Error('Invalid YouTube video ID format');
+  }
+
+  const cacheKey = `${cleanId}_${preferFormat}`;
+  const cached = ytStreamCache.get(cacheKey);
+  if (cached && cached.expiresAt > Date.now() + 60000) {
+    return cached;
+  }
+
+  const formatSelector = preferFormat === '251' ? '251/140/bestaudio' : '140/251/bestaudio';
+  const args = [
+    '--no-warnings',
+    '--no-playlist',
+    '--no-update',
+    '-g',
+    '-f',
+    formatSelector,
+    `https://www.youtube.com/watch?v=${cleanId}`,
+  ];
+
+  try {
+    const { stdout } = await execFileAsync('yt-dlp', args, { timeout: 15000 });
+    const directUrl = stdout.trim().split('\n').filter(Boolean).pop();
+    if (!directUrl || !directUrl.startsWith('http')) {
+      throw new Error('yt-dlp returned no stream URL');
+    }
+
+    let ttlMs = YT_CACHE_TTL_MS;
+    try {
+      const u = new URL(directUrl);
+      const exp = parseInt(u.searchParams.get('expire'), 10);
+      if (!isNaN(exp)) {
+        const remainingMs = exp * 1000 - Date.now() - 60 * 1000;
+        if (remainingMs > 0 && remainingMs < YT_CACHE_TTL_MS) {
+          ttlMs = remainingMs;
+        }
+      }
+    } catch {}
+
+    const isM4a = directUrl.includes('mime=audio%2Fmp4') || directUrl.includes('itag=140') || preferFormat === '140';
+    const result = {
+      url: directUrl,
+      mimeType: isM4a ? 'audio/mp4' : 'audio/webm',
+      codec: isM4a ? 'AAC' : 'OPUS',
+      expiresAt: Date.now() + ttlMs,
+    };
+
+    ytStreamCache.set(cacheKey, result);
+
+    if (ytStreamCache.size > 2000) {
+      const oldestKey = ytStreamCache.keys().next().value;
+      ytStreamCache.delete(oldestKey);
+    }
+
+    return result;
+  } catch (err) {
+    console.error(`[resolveYtAudioUrl] Failed for ${cleanId}:`, err.message);
+    throw err;
+  }
+}
+
+// YouTube stream info endpoint: returns stream metadata for Echoes client
+app.get(['/yt/:id/info', '/stream/yt/:id/info'], async (req, res) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Range, Content-Type, Accept');
+
+  const rawId = req.params.id || req.query.id;
+  if (!rawId) {
+    return res.status(400).json({ error: 'Missing YouTube video ID' });
+  }
+
+  const videoId = String(rawId).replace(/^yt:/, '').trim();
+  const format = req.query.format === 'webm' || req.query.format === 'opus' ? '251' : '140';
+
+  try {
+    const resolved = await resolveYtAudioUrl(videoId, format);
+    const host = req.get('host') || 'stream.mteck.tech';
+    const proto = req.protocol === 'https' || req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http';
+    const streamEndpoint = `${proto}://${host}/yt/${videoId}?format=${format === '251' ? 'webm' : 'm4a'}`;
+
+    return res.json({
+      id: videoId,
+      streamUrl: streamEndpoint,
+      url: streamEndpoint,
+      directUrl: streamEndpoint,
+      mimeType: resolved.mimeType,
+      codec: resolved.codec,
+      bitrate: resolved.codec === 'AAC' ? 130000 : 160000,
+      quality: 'HIGH',
+      provider: 'youtube',
+    });
+  } catch (err) {
+    return res.status(502).json({
+      error: 'Failed to resolve YouTube audio stream info',
+      details: err.message,
+    });
+  }
+});
+
+// Direct YouTube audio streaming endpoint: /yt/:id or /stream/yt/:id
+app.all(['/yt/:id', '/stream/yt/:id'], async (req, res) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Range, Content-Type, Accept');
+  res.setHeader('Access-Control-Expose-Headers', 'Content-Range, Content-Length, Accept-Ranges');
+
+  if (req.method === 'OPTIONS') {
+    return res.status(204).end();
+  }
+  if (req.method !== 'GET' && req.method !== 'HEAD') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  const rawId = req.params.id || req.query.id;
+  if (!rawId) {
+    return res.status(400).json({ error: 'Missing YouTube video ID' });
+  }
+
+  const videoId = String(rawId).replace(/^yt:/, '').trim();
+  const format = req.query.format === 'webm' || req.query.format === 'opus' ? '251' : '140';
+  const cacheKey = `${videoId}_${format}`;
+
+  let resolved;
+  try {
+    resolved = await resolveYtAudioUrl(videoId, format);
+  } catch (resolveErr) {
+    return res.status(502).json({
+      error: 'Failed to resolve YouTube audio stream',
+      details: resolveErr.message,
+    });
+  }
+
+  const clientRange = req.headers.range;
+  const controller = new AbortController();
+  req.on('close', () => controller.abort());
+
+  const fetchStream = async (targetUrl) => {
+    const upstreamHeaders = {
+      'User-Agent':
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+    };
+    if (clientRange) {
+      upstreamHeaders['range'] = clientRange;
+    }
+    return await fetch(targetUrl, {
+      headers: upstreamHeaders,
+      signal: controller.signal,
+    });
+  };
+
+  try {
+    let upstream = await fetchStream(resolved.url);
+
+    // If upstream returned 403 or 410, evict cache and retry once with fresh URL
+    if ((upstream.status === 403 || upstream.status === 410) && !controller.signal.aborted) {
+      ytStreamCache.delete(cacheKey);
+      try {
+        resolved = await resolveYtAudioUrl(videoId, format);
+        upstream = await fetchStream(resolved.url);
+      } catch {}
+    }
+
+    if (!upstream.ok && upstream.status !== 206) {
+      return res.status(upstream.status).json({
+        error: `Upstream error ${upstream.status} ${upstream.statusText}`,
+      });
+    }
+
+    const forwardHeaders = [
+      'content-type',
+      'content-length',
+      'content-range',
+      'accept-ranges',
+      'cache-control',
+      'etag',
+      'last-modified',
+    ];
+
+    for (const h of forwardHeaders) {
+      const val = upstream.headers.get(h);
+      if (val) res.setHeader(h, val);
+    }
+
+    if (!res.getHeader('accept-ranges')) {
+      res.setHeader('accept-ranges', 'bytes');
+    }
+
+    res.status(upstream.status);
+
+    if (req.method === 'HEAD') {
+      return res.end();
+    }
+
+    if (upstream.body) {
+      const nodeStream = Readable.fromWeb(upstream.body);
+      nodeStream.on('error', (err) => {
+        if (err.name !== 'AbortError' && !controller.signal.aborted) {
+          console.error('[YT Stream Error]:', err.message);
+        }
+      });
+      nodeStream.pipe(res);
+    } else {
+      res.end();
+    }
+  } catch (err) {
+    if (err.name === 'AbortError' || controller.signal.aborted) return;
+    console.error('[YT Stream Proxy Error]:', err.message);
+    if (!res.headersSent) {
+      res.status(502).json({ error: 'Failed to stream audio payload' });
+    }
+  }
 });
 
 // High-throughput audio stream proxy

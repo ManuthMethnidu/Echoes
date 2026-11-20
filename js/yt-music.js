@@ -84,10 +84,49 @@ export class YouTubeMusicEngine {
             params.set('format', 'm4a');
         }
 
-        const res = await fetch(`/api/yt/stream?${params.toString()}`);
+        let res;
+        try {
+            res = await fetch(`/api/yt/stream?${params.toString()}`);
+        } catch (fetchErr) {
+            // Direct failover to VPS stream proxy if API endpoint is unreachable
+            const format = params.get('format') || 'm4a';
+            const vpsUrl = `https://stream.mteck.tech/yt/${cleanId}?format=${format}`;
+            const data = {
+                id: cleanId,
+                streamUrl: vpsUrl,
+                url: vpsUrl,
+                directUrl: vpsUrl,
+                mimeType: format === 'm4a' ? 'audio/mp4; codecs="mp4a.40.2"' : 'audio/webm; codecs="opus"',
+                codec: format === 'm4a' ? 'AAC' : 'OPUS',
+                bitrate: format === 'm4a' ? 130000 : 160000,
+                duration: typeof trackOrId === 'object' ? trackOrId?.duration || 0 : 0,
+                title,
+                author: artist,
+                instance: 'vps-streamer-direct',
+            };
+            this.cache.set(cleanId, { data, timestamp: Date.now() });
+            return data;
+        }
+
         if (!res.ok) {
-            const err = await res.json().catch(() => ({}));
-            throw new Error(err.error || `Failed to resolve YouTube audio (${res.status})`);
+            // Fall back to VPS stream proxy on non-200 responses
+            const format = params.get('format') || 'm4a';
+            const vpsUrl = `https://stream.mteck.tech/yt/${cleanId}?format=${format}`;
+            const data = {
+                id: cleanId,
+                streamUrl: vpsUrl,
+                url: vpsUrl,
+                directUrl: vpsUrl,
+                mimeType: format === 'm4a' ? 'audio/mp4; codecs="mp4a.40.2"' : 'audio/webm; codecs="opus"',
+                codec: format === 'm4a' ? 'AAC' : 'OPUS',
+                bitrate: format === 'm4a' ? 130000 : 160000,
+                duration: typeof trackOrId === 'object' ? trackOrId?.duration || 0 : 0,
+                title,
+                author: artist,
+                instance: 'vps-streamer-fallback',
+            };
+            this.cache.set(cleanId, { data, timestamp: Date.now() });
+            return data;
         }
 
         const data = await res.json();

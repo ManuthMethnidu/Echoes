@@ -2,6 +2,13 @@ FROM node:20-alpine
 
 WORKDIR /app
 
+# Install python3, py3-pip, yt-dlp, and ffmpeg for YouTube audio streaming
+RUN apk update && apk add --no-cache \
+    python3 \
+    py3-pip \
+    yt-dlp \
+    ffmpeg
+
 COPY package*.json ./
 RUN npm ci --omit=dev
 

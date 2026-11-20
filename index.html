@@ -1125,6 +1125,80 @@
             </div>
         </div>
 
+        <div id="stream-info-modal" class="modal stream-info-modal">
+            <div class="modal-overlay"></div>
+            <div class="modal-content medium" style="max-width: 480px; width: 92%; padding: 24px; border-radius: 16px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <div style="color: var(--primary, #1ed760);">
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
+                            </svg>
+                        </div>
+                        <h3 style="margin: 0; font-size: 1.2rem; font-weight: 700;">Stream Diagnostics & Sources</h3>
+                    </div>
+                    <button type="button" id="close-stream-info-btn" class="modal-close" style="background: none; border: none; color: #888; cursor: pointer; font-size: 20px;">✕</button>
+                </div>
+
+                <div id="stream-info-track-header" style="margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--border);">
+                    <div id="stream-info-title" style="font-size: 1rem; font-weight: 600;"></div>
+                    <div id="stream-info-artist" style="font-size: 0.85rem; color: var(--muted-foreground);"></div>
+                </div>
+
+                <!-- Stream Diagnostics Status / Alert -->
+                <div id="stream-info-alert" style="display: none; padding: 12px; border-radius: 8px; margin-bottom: 16px; font-size: 0.85rem; line-height: 1.4;"></div>
+
+                <!-- Active Stream Specs -->
+                <div style="background: rgba(255, 255, 255, 0.04); border: 1px solid var(--border); border-radius: 12px; padding: 14px; margin-bottom: 16px;">
+                    <div style="font-size: 0.75rem; font-weight: 700; color: var(--muted-foreground); margin-bottom: 10px; letter-spacing: 0.5px;">ACTIVE STREAM</div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 0.85rem;">
+                        <div>
+                            <span style="color: var(--muted-foreground); display: block; font-size: 0.75rem;">Provider</span>
+                            <span id="stream-info-provider" style="font-weight: 600;">—</span>
+                        </div>
+                        <div>
+                            <span style="color: var(--muted-foreground); display: block; font-size: 0.75rem;">Quality / Codec</span>
+                            <span id="stream-info-codec" style="font-weight: 600;">—</span>
+                        </div>
+                        <div>
+                            <span style="color: var(--muted-foreground); display: block; font-size: 0.75rem;">Bitrate / Specs</span>
+                            <span id="stream-info-bitrate" style="font-weight: 600;">—</span>
+                        </div>
+                        <div>
+                            <span style="color: var(--muted-foreground); display: block; font-size: 0.75rem;">Stream Delivery</span>
+                            <span id="stream-info-delivery" style="font-weight: 600;">—</span>
+                        </div>
+                    </div>
+                    <div style="margin-top: 10px; padding-top: 8px; border-top: 1px solid rgba(255, 255, 255, 0.06);">
+                        <span style="color: var(--muted-foreground); display: block; font-size: 0.75rem; margin-bottom: 4px;">Stream Gateway URL</span>
+                        <div id="stream-info-url" style="font-size: 0.75rem; font-family: monospace; word-break: break-all; color: var(--muted-foreground); max-height: 48px; overflow-y: auto;">—</div>
+                    </div>
+                </div>
+
+                <!-- Stream Switcher Actions -->
+                <div style="font-size: 0.75rem; font-weight: 700; color: var(--muted-foreground); margin-bottom: 10px; letter-spacing: 0.5px;">AUDIO STREAM SOURCES</div>
+                <div style="display: flex; flex-direction: column; gap: 8px;">
+                    <button type="button" id="switch-to-monochrome-btn" class="btn-secondary" style="display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; text-align: left; width: 100%;">
+                        <div>
+                            <div style="font-weight: 600; font-size: 0.88rem;">🎧 Listen via Monochrome (Lossless FLAC)</div>
+                            <div style="font-size: 0.75rem; color: var(--muted-foreground);">1411 kbps CD-quality 16-bit / 44.1 kHz</div>
+                        </div>
+                        <span id="monochrome-status-badge" style="font-size: 0.75rem; padding: 2px 8px; border-radius: 4px;"></span>
+                    </button>
+                    <button type="button" id="switch-to-youtube-btn" class="btn-secondary" style="display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; text-align: left; width: 100%;">
+                        <div>
+                            <div style="font-weight: 600; font-size: 0.88rem;">▶️ Listen via YouTube Audio</div>
+                            <div style="font-size: 0.75rem; color: var(--muted-foreground);">160 kbps Opus / 130 kbps AAC (VPS Gateway)</div>
+                        </div>
+                        <span id="youtube-status-badge" style="font-size: 0.75rem; padding: 2px 8px; border-radius: 4px;"></span>
+                    </button>
+                    <button type="button" id="retry-stream-btn" class="btn-secondary" style="padding: 8px 14px; font-size: 0.82rem; text-align: center;">
+                        🔄 Refresh & Re-resolve Stream
+                    </button>
+                </div>
+            </div>
+        </div>
+
         <div id="discography-download-modal" class="modal">
             <div class="modal-overlay"></div>
             <div class="modal-content" style="max-width: 500px">

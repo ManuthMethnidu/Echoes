@@ -921,7 +921,57 @@ export class MusicAPI {
             track = await this.getTrackMetadata(id).catch(() => null);
         }
 
+        const forceProvider = options?.forceProvider;
+
+        // Force Monochrome (Lossless FLAC) if explicitly requested by user
+        if (forceProvider === 'monochrome') {
+            if (this.tracksStreamerAPI.isRateLimited?.()) {
+                throw new Error('Monochrome API is temporarily rate-limited. Please try again shortly or use YouTube.');
+            }
+            const monoStream = await this.tracksStreamerAPI.resolveTrackStream(id, quality, {
+                ...options,
+                track,
+            });
+            if (monoStream?.url) {
+                return {
+                    ...monoStream,
+                    provider: 'monochrome',
+                };
+            }
+            throw new Error(`Monochrome has no lossless CD release for "${track?.title || id}".`);
+        }
+
+        // Force YouTube Audio if explicitly requested by user
+        if (forceProvider === 'youtube') {
+            let ytTrack = track;
+            if (!this.isYouTubeId(id) && !track?.videoId) {
+                const query = `${track?.title || id} ${track?.artist?.name || track?.artist || ''}`.trim();
+                const ytResults = await ytEngine.search(query).catch(() => []);
+                if (ytResults && ytResults.length > 0) {
+                    ytTrack = ytResults[0];
+                }
+            }
+            const stream = await ytEngine.resolveStream(ytTrack || id);
+            if (stream?.streamUrl) {
+                return {
+                    url: stream.streamUrl,
+                    streamUrl: stream.streamUrl,
+                    mimeType: stream.mimeType || 'audio/webm',
+                    mediaMimeType: stream.mimeType || 'audio/webm',
+                    playbackType: 'direct',
+                    codec: stream.codec || (stream.mimeType?.includes('opus') ? 'OPUS' : 'AAC'),
+                    quality: 'HIGH',
+                    lossless: false,
+                    bitrateKbps: Math.round(Number(stream.bitrate || 160000) / 1000),
+                    duration: stream.duration || track?.duration,
+                    provider: 'youtube',
+                };
+            }
+            throw new Error(`YouTube audio stream resolution failed for "${track?.title || id}".`);
+        }
+
         // YouTube / ArchiveTune engine resolution
+        let ytError = null;
         if (this.isYouTubeId(id) || track?.provider === 'youtube' || track?.videoId) {
             try {
                 const stream = await ytEngine.resolveStream(track || id);
@@ -941,10 +991,27 @@ export class MusicAPI {
                     };
                 }
             } catch (err) {
+                ytError = err;
                 console.error('[getStreamUrl] YouTube resolution failed:', err);
             }
+
+            // If YouTube failed, failover to Monochrome studio release!
+            try {
+                const monoStream = await this.tracksStreamerAPI.resolveTrackStream(track || id, quality, options);
+                if (monoStream?.url) {
+                    return {
+                        ...monoStream,
+                        provider: 'monochrome',
+                        isFallback: true,
+                        fallbackFrom: 'youtube',
+                        fallbackReason: ytError?.message || 'YouTube stream unavailable',
+                    };
+                }
+            } catch {}
         }
 
+        // Primary studio provider: Monochrome (Lossless FLAC)
+        let monoError = null;
         if (!this.tracksStreamerAPI.isRateLimited?.()) {
             try {
                 const stream = await this.tracksStreamerAPI.resolveTrackStream(id, quality, {
@@ -952,15 +1019,26 @@ export class MusicAPI {
                     track,
                 });
                 if (stream?.url) {
-                    return stream;
+                    return {
+                        ...stream,
+                        provider: stream.provider || 'monochrome',
+                    };
                 }
-            } catch {}
+            } catch (err) {
+                monoError = err;
+            }
+        } else {
+            monoError = new Error('Monochrome API rate limit active (429)');
         }
 
+        // Secondary provider: Tidal API
         try {
             const tidalStream = await this.tidalAPI.getStreamUrl(id, quality, { ...options, track });
             if (tidalStream?.url) {
-                return tidalStream;
+                return {
+                    ...tidalStream,
+                    provider: tidalStream.provider || 'tidal',
+                };
             }
         } catch (tidalErr) {
             console.warn('[getStreamUrl] Tidal API fallback failed:', tidalErr);
@@ -995,6 +1073,9 @@ export class MusicAPI {
                                     bitrateKbps: Math.round(Number(stream.bitrate || 160000) / 1000),
                                     duration: stream.duration || track?.duration,
                                     provider: 'youtube',
+                                    isFallback: true,
+                                    fallbackFrom: 'monochrome',
+                                    fallbackReason: monoError?.message || 'Monochrome stream unavailable',
                                 };
                             }
                         } catch {}
@@ -1005,7 +1086,8 @@ export class MusicAPI {
             }
         }
 
-        throw new Error(`Could not resolve stream URL for track: ${track?.title || id}`);
+        const reason = monoError ? ` (${monoError.message})` : '';
+        throw new Error(`Could not resolve stream URL for track: ${track?.title || id}${reason}`);
     }
 
     usesSingleUsePlaybackUrls() {

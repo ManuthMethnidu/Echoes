@@ -1696,6 +1696,38 @@ function initializeSmoothSliders(player) {
         },
         { passive: false }
     );
+
+    // Stream Diagnostics & Audio Sources Modal
+    document.addEventListener('click', (e) => {
+        const qualityTarget = e.target.closest(
+            '.quality-badge, .shaka-quality-badge, .stream-fallback-indicator, [data-action="open-stream-diagnostics"]'
+        );
+        if (qualityTarget) {
+            e.stopPropagation();
+            e.preventDefault();
+            player.openStreamInfoModal();
+            return;
+        }
+
+        const modal = document.getElementById('stream-info-modal');
+        if (modal && modal.classList.contains('active')) {
+            if (e.target.closest('#close-stream-info-btn') || e.target.classList.contains('modal-overlay')) {
+                player.closeStreamInfoModal();
+            }
+        }
+    });
+
+    document.getElementById('switch-to-monochrome-btn')?.addEventListener('click', () => {
+        void player.switchStreamProvider('monochrome');
+    });
+
+    document.getElementById('switch-to-youtube-btn')?.addEventListener('click', () => {
+        void player.switchStreamProvider('youtube');
+    });
+
+    document.getElementById('retry-stream-btn')?.addEventListener('click', () => {
+        void player.retryCurrentStream();
+    });
 }
 
 // Standalone function to show add to playlist modal

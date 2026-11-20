@@ -81,7 +81,11 @@ export class Player {
         setInterval(this.checkPreloadConditions.bind(this), 2000);
         this.preloadAbortController = null;
         this.currentTrack = null;
+        this.currentStreamInfo = null;
         this.currentStreamProvider = null;
+        this.lastStreamFallback = null;
+        this.lastPlaybackError = null;
+        this.forcedStreamProvider = null;
         this.safariSeekCorrectionSeconds = 0;
         this.seekSequence = 0;
         this.currentRgValues = null;
@@ -136,6 +140,47 @@ export class Player {
         this.audioElements.forEach((element) => {
             element.addEventListener('canplay', () => {
                 if (this.activeElement === element) this.applyAudioEffects();
+            });
+            element.addEventListener('error', () => {
+                if (this.activeElement !== element) return;
+                const mediaError = element.error;
+                let errorDetails = 'Media playback error';
+                if (mediaError) {
+                    switch (mediaError.code) {
+                        case 1:
+                            errorDetails = 'Stream fetching aborted';
+                            break;
+                        case 2:
+                            errorDetails = 'Network error while loading stream';
+                            break;
+                        case 3:
+                            errorDetails = 'Audio decoding error (unsupported or corrupted stream)';
+                            break;
+                        case 4:
+                            errorDetails = 'Audio format or stream gateway unreachable';
+                            break;
+                        default:
+                            errorDetails = mediaError.message || 'Unknown media error';
+                    }
+                }
+                console.error('[Player] Audio element error:', errorDetails, mediaError);
+                this.lastPlaybackError = {
+                    message: errorDetails,
+                    code: mediaError?.code,
+                    timestamp: Date.now(),
+                    track: this.currentTrack,
+                    streamInfo: this.currentStreamInfo,
+                };
+                import('./downloads.js')
+                    .then(({ showNotification }) => {
+                        showNotification(`❌ Stream issue: ${errorDetails}.`, {
+                            type: 'error',
+                            duration: 8000,
+                            actionText: 'Diagnostics',
+                            onAction: () => this.openStreamInfoModal(),
+                        });
+                    })
+                    .catch(() => {});
             });
         });
         if (this.video) {
@@ -1591,12 +1636,16 @@ export class Player {
                 }
 
                 // Tidal: Try to get ReplayGain from manifest first, supplement with track info if needed
-                const cachedStreamInfo = preparedPlayback ? null : this.preloadCache.get(track.id);
+                const cachedStreamInfo =
+                    preparedPlayback || this.forcedStreamProvider ? null : this.preloadCache.get(track.id);
                 const streamInfoPromise = preparedPlayback?.streamInfo
                     ? Promise.resolve(preparedPlayback.streamInfo)
                     : cachedStreamInfo
                       ? Promise.resolve(cachedStreamInfo)
-                      : this.api.getStreamUrl(track.id, this.quality, { track });
+                      : this.api.getStreamUrl(track.id, this.quality, {
+                            track,
+                            forceProvider: this.forcedStreamProvider || undefined,
+                        });
 
                 // We only need the legacy track info if we missed getting ReplayGain from the manifest endpoint
                 let resolvedStreamInfo = await streamInfoPromise;
@@ -1605,6 +1654,33 @@ export class Player {
                 streamUrl = resolvedStreamInfo.url;
                 this.currentStreamInfo = resolvedStreamInfo;
                 this.currentStreamProvider = resolvedStreamInfo.provider || null;
+
+                if (resolvedStreamInfo.isFallback) {
+                    this.lastStreamFallback = {
+                        provider: resolvedStreamInfo.provider,
+                        fallbackFrom: resolvedStreamInfo.fallbackFrom,
+                        fallbackReason: resolvedStreamInfo.fallbackReason,
+                        timestamp: Date.now(),
+                    };
+                    const fromLabel = resolvedStreamInfo.fallbackFrom === 'monochrome' ? 'Monochrome' : 'YouTube';
+                    const toLabel = resolvedStreamInfo.provider === 'monochrome' ? 'Monochrome' : 'YouTube';
+                    import('./downloads.js')
+                        .then(({ showNotification }) => {
+                            showNotification(
+                                `⚡ Stream Failover: ${fromLabel} unavailable (${resolvedStreamInfo.fallbackReason || 'stream issue'}). Playing via ${toLabel}.`,
+                                {
+                                    type: 'warning',
+                                    duration: 7000,
+                                    actionText: 'Diagnostics',
+                                    onAction: () => this.openStreamInfoModal(),
+                                }
+                            );
+                        })
+                        .catch(() => {});
+                } else {
+                    this.lastStreamFallback = null;
+                }
+                this.lastPlaybackError = null;
                 track.playbackQualityInfo = {
                     codec: resolvedStreamInfo.codec,
                     quality: resolvedStreamInfo.quality,
@@ -1813,11 +1889,26 @@ export class Player {
             }
 
             console.error(`Could not play track: ${trackTitle}`, error);
-            if (error?.code === 'UNSUPPORTED_PLAYBACK_CODEC' || error?.code === 'STRICT_QUALITY_UNAVAILABLE') {
-                import('./downloads.js')
-                    .then(({ showNotification }) => showNotification(error.message))
-                    .catch(() => {});
-            }
+            this.lastPlaybackError = {
+                message: error?.message || 'Playback failed',
+                code: error?.code,
+                timestamp: Date.now(),
+                track: this.currentTrack,
+            };
+            import('./downloads.js')
+                .then(({ showNotification }) => {
+                    const msg =
+                        error?.code === 'UNSUPPORTED_PLAYBACK_CODEC' || error?.code === 'STRICT_QUALITY_UNAVAILABLE'
+                            ? error.message
+                            : `❌ Stream issue: ${error?.message || 'Playback failed'}.`;
+                    showNotification(msg, {
+                        type: 'error',
+                        duration: 8000,
+                        actionText: 'Diagnostics',
+                        onAction: () => this.openStreamInfoModal(),
+                    });
+                })
+                .catch(() => {});
         } finally {
             if (this.playbackSequence === currentSequence) {
                 this.setLoadingState(false);
@@ -3009,7 +3100,14 @@ export class Player {
         const warning = track.deezerHiResFallback
             ? `<span class="deezer-hires-warning" role="img" tabindex="0" aria-label="Hi-Res unavailable for this track. Playing in CD-quality lossless instead. That's 16-bit / 44.1 kHz FLAC.">${SVG_TRIANGLE_ALERT(16)}</span>`
             : '';
-        titleEl.innerHTML = `${escapeHtml(getTrackTitle(track))} ${createQualityBadgeHTML(track)}${warning}`;
+        const fallbackBadge = this.lastStreamFallback
+            ? `<span class="stream-fallback-indicator" title="Failover active: ${this.lastStreamFallback.fallbackFrom === 'monochrome' ? 'Monochrome' : 'YouTube'} unavailable (${escapeHtml(this.lastStreamFallback.fallbackReason || 'stream issue')}). Playing via ${this.lastStreamFallback.provider === 'monochrome' ? 'Monochrome' : 'YouTube'}. Click for stream diagnostics." style="margin-left: 6px; color: #f59e0b; cursor: pointer; display: inline-flex; vertical-align: middle;">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+                </svg>
+            </span>`
+            : '';
+        titleEl.innerHTML = `${escapeHtml(getTrackTitle(track))} ${createQualityBadgeHTML(track)}${warning}${fallbackBadge}`;
     }
 
     updatePodcastControls(track = this.currentTrack) {
@@ -3466,5 +3564,163 @@ export class Player {
 
         updateBtn(timerBtn);
         updateBtn(timerBtnDesktop);
+    }
+
+    openStreamInfoModal() {
+        const modal = document.getElementById('stream-info-modal');
+        if (!modal) return;
+
+        const track = this.currentTrack;
+        const streamInfo = this.currentStreamInfo;
+
+        const titleEl = document.getElementById('stream-info-title');
+        const artistEl = document.getElementById('stream-info-artist');
+        if (titleEl) titleEl.textContent = track?.title || 'No active track';
+        if (artistEl) {
+            const artists =
+                typeof getTrackArtists === 'function' && track
+                    ? getTrackArtists(track)
+                    : track?.artist?.name || track?.artist || '';
+            artistEl.textContent = artists;
+        }
+
+        const alertEl = document.getElementById('stream-info-alert');
+        if (alertEl) {
+            if (this.lastPlaybackError) {
+                alertEl.style.display = 'block';
+                alertEl.style.background = 'rgba(239, 68, 68, 0.15)';
+                alertEl.style.border = '1px solid rgba(239, 68, 68, 0.4)';
+                alertEl.style.color = '#ef4444';
+                alertEl.innerHTML = `<strong>Stream Issue:</strong> ${escapeHtml(this.lastPlaybackError.message || 'Playback failed')}<br><span style="font-size: 0.75rem; opacity: 0.85;">You can switch to an alternate source below or retry.</span>`;
+            } else if (this.lastStreamFallback) {
+                alertEl.style.display = 'block';
+                alertEl.style.background = 'rgba(245, 158, 11, 0.15)';
+                alertEl.style.border = '1px solid rgba(245, 158, 11, 0.4)';
+                alertEl.style.color = '#f59e0b';
+                const fromLabel =
+                    this.lastStreamFallback.fallbackFrom === 'monochrome' ? 'Monochrome Lossless' : 'YouTube Audio';
+                const toLabel =
+                    this.lastStreamFallback.provider === 'monochrome' ? 'Monochrome Lossless' : 'YouTube Audio';
+                alertEl.innerHTML = `<strong>⚡ Automatic Stream Failover:</strong> ${fromLabel} was unavailable (${escapeHtml(this.lastStreamFallback.fallbackReason || 'stream issue')}). Audio is playing seamlessly via ${toLabel}.`;
+            } else if (this.forcedStreamProvider) {
+                alertEl.style.display = 'block';
+                alertEl.style.background = 'rgba(59, 130, 246, 0.15)';
+                alertEl.style.border = '1px solid rgba(59, 130, 246, 0.4)';
+                alertEl.style.color = '#60a5fa';
+                alertEl.innerHTML = `<strong>Manual Override Active:</strong> Stream is forced to <strong>${this.forcedStreamProvider === 'monochrome' ? 'Monochrome Lossless' : 'YouTube Audio'}</strong>.`;
+            } else {
+                alertEl.style.display = 'none';
+                alertEl.innerHTML = '';
+            }
+        }
+
+        const providerEl = document.getElementById('stream-info-provider');
+        const codecEl = document.getElementById('stream-info-codec');
+        const bitrateEl = document.getElementById('stream-info-bitrate');
+        const deliveryEl = document.getElementById('stream-info-delivery');
+        const urlEl = document.getElementById('stream-info-url');
+
+        const activeProvider =
+            streamInfo?.provider ||
+            (track?.provider === 'youtube' || track?.videoId || (typeof track?.id === 'string' && track.id.startsWith('yt:'))
+                ? 'youtube'
+                : 'monochrome');
+
+        if (providerEl) {
+            let providerName = 'Auto (Monochrome / YouTube)';
+            if (activeProvider === 'monochrome') providerName = 'Monochrome (FLAC)';
+            else if (activeProvider === 'youtube') providerName = 'YouTube Music (VPS Gateway)';
+            else if (activeProvider === 'tidal') providerName = 'Tidal CDN';
+            else if (activeProvider === 'deezer') providerName = 'Deezer CDN';
+            providerEl.textContent = providerName;
+        }
+
+        if (codecEl) {
+            const codec = streamInfo?.codec || (streamInfo?.lossless ? 'FLAC' : 'AAC / OPUS');
+            codecEl.textContent = `${codec} (${streamInfo?.lossless ? 'Lossless' : 'Lossy'})`;
+        }
+
+        if (bitrateEl) {
+            const specs = [];
+            if (streamInfo?.bitrateKbps) specs.push(`${streamInfo.bitrateKbps} kbps`);
+            if (streamInfo?.bitDepth) specs.push(`${streamInfo.bitDepth}-bit`);
+            if (streamInfo?.sampleRateHz) specs.push(`${Math.round(streamInfo.sampleRateHz / 100) / 10} kHz`);
+            bitrateEl.textContent = specs.length > 0 ? specs.join(' · ') : '160 kbps';
+        }
+
+        if (deliveryEl) {
+            const delivery =
+                streamInfo?.delivery ||
+                streamInfo?.playbackType ||
+                (this.shakaInitialized ? 'Shaka Adaptive Player' : 'Direct HTML5 Audio');
+            deliveryEl.textContent = delivery;
+        }
+
+        if (urlEl) {
+            urlEl.textContent =
+                streamInfo?.url || (this.activeElement?.currentSrc || this.activeElement?.src || '—');
+        }
+
+        const monoBtn = document.getElementById('switch-to-monochrome-btn');
+        const ytBtn = document.getElementById('switch-to-youtube-btn');
+        if (monoBtn) {
+            monoBtn.style.border =
+                activeProvider === 'monochrome' ? '1px solid var(--primary, #1ed760)' : '1px solid var(--border)';
+            monoBtn.style.background = activeProvider === 'monochrome' ? 'rgba(30, 215, 96, 0.08)' : '';
+        }
+        if (ytBtn) {
+            ytBtn.style.border = activeProvider === 'youtube' ? '1px solid #ef4444' : '1px solid var(--border)';
+            ytBtn.style.background = activeProvider === 'youtube' ? 'rgba(239, 68, 68, 0.08)' : '';
+        }
+
+        modal.classList.add('active');
+    }
+
+    closeStreamInfoModal() {
+        const modal = document.getElementById('stream-info-modal');
+        if (modal) modal.classList.remove('active');
+    }
+
+    async switchStreamProvider(targetProvider) {
+        if (!this.currentTrack) return;
+        this.forcedStreamProvider = targetProvider;
+        const currentTime = this.activeElement?.currentTime || 0;
+        this.preloadCache.delete(this.currentTrack.id);
+
+        const label = targetProvider === 'monochrome' ? 'Monochrome Lossless FLAC' : 'YouTube Audio';
+        import('./downloads.js')
+            .then(({ showNotification }) =>
+                showNotification(`Switching audio stream to ${label}...`, { duration: 3000 })
+            )
+            .catch(() => {});
+
+        try {
+            await this.playTrackFromQueue(currentTime, 0, false);
+            this.openStreamInfoModal();
+        } catch (err) {
+            console.error('[switchStreamProvider] Failed to switch stream:', err);
+            this.openStreamInfoModal();
+        }
+    }
+
+    async retryCurrentStream() {
+        if (!this.currentTrack) return;
+        this.forcedStreamProvider = null;
+        this.lastPlaybackError = null;
+        this.lastStreamFallback = null;
+        const currentTime = this.activeElement?.currentTime || 0;
+        this.preloadCache.delete(this.currentTrack.id);
+
+        import('./downloads.js')
+            .then(({ showNotification }) => showNotification('Retrying stream resolution...', { duration: 2500 }))
+            .catch(() => {});
+
+        try {
+            await this.playTrackFromQueue(currentTime, 0, false);
+            this.openStreamInfoModal();
+        } catch (err) {
+            console.error('[retryCurrentStream] Failed to retry stream:', err);
+            this.openStreamInfoModal();
+        }
     }
 }

@@ -174,6 +174,24 @@ export function showNotification(message, options = {}) {
     const innerDiv = document.createElement('div');
     innerDiv.className = 'notification-message';
     innerDiv.textContent = message;
+
+    if (options.actionText && typeof options.onAction === 'function') {
+        const actionBtn = document.createElement('button');
+        actionBtn.className = 'notification-action-btn';
+        actionBtn.style.cssText =
+            'margin-left: 8px; padding: 2px 8px; border-radius: 4px; background: var(--primary, #1ed760); color: #000; font-weight: 700; font-size: 0.75rem; border: none; cursor: pointer; display: inline-block; vertical-align: middle;';
+        actionBtn.textContent = options.actionText;
+        actionBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            try {
+                options.onAction();
+            } catch (err) {
+                console.error('Notification action callback failed:', err);
+            }
+        });
+        innerDiv.appendChild(actionBtn);
+    }
+
     notifEl.appendChild(innerDiv);
 
     const isError =
